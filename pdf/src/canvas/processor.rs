@@ -22,7 +22,8 @@ pub struct Processor<'a, T: Seek + Read> {
     resource_stack: Vec<PDFObject>,
     font_cache: HashMap<String, PDFFont>,
     device: Box<dyn Device>,
-    bbox: Rectangle,
+    mediabox: Rectangle,
+    cropbox: Rectangle,
     current_path: Path,
 }
 
@@ -34,17 +35,24 @@ impl<'a, T: Seek + Read> Processor<'a, T> {
             resource_stack: Vec::new(),
             font_cache: HashMap::new(),
             device,
-            bbox: Rectangle::default(),
+            mediabox: Rectangle::default(),
+            cropbox: Rectangle::default(),
             current_path: Path::default(),
         }
     }
 
+    pub fn close(&mut self) -> PDFResult<()> {
+        self.device.close()?;
+        Ok(())
+    }
+
     pub fn process_page_content(&mut self, page: PageRef) -> PDFResult<()> {
-        self.bbox = page.borrow().crop_box().unwrap();
+        self.cropbox = page.borrow().crop_box().unwrap();
+        self.mediabox = page.borrow().media_box().unwrap();
 
         let state = GraphicsState::default();
 
-        self.device.begain_page(&self.bbox);
+        self.device.begain_page(&self.mediabox, &self.cropbox);
         let resource = page.borrow().resources();
         let resource_obj = match resource {
             PDFObject::Indirect(_) => self.doc.read_indirect(&resource)?,
@@ -210,7 +218,7 @@ impl<'a, T: Seek + Read> Processor<'a, T> {
         //self.current_path.close_last_subpath();
         let mut path = std::mem::take(&mut self.current_path);
         path.close_last_subpath();
-        let pathinfo = PathInfo::new(path, state, self.bbox.clone());
+        let pathinfo = PathInfo::new(path, state, self.cropbox.clone());
         self.device.paint_path(pathinfo)?;
         Ok(())
     }
@@ -331,7 +339,7 @@ impl<'a, T: Seek + Read> Processor<'a, T> {
     }
 
     fn display_string(&mut self, content: &PDFObject) -> PDFResult<()> {
-        let bbox = self.bbox.clone();
+        let bbox = self.cropbox.clone();
         let state = self.last_mut_state();
 
         match content {

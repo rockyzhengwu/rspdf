@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{Read, Seek, Write};
+use std::io::{Read, Seek};
 
 use freetype::{Face, Library};
 
@@ -53,9 +52,6 @@ pub fn create_font<T: Seek + Read>(
         if obj.get_value("Encoding").is_none() && subtype == "TrueType" {
             cid = Some(CIDFont::new(font_stream.bytes()?));
         }
-
-        let mut file = File::create(format!("{}.otf", fontname)).unwrap();
-        file.write_all(font_stream.bytes()?.as_slice()).unwrap();
     }
 
     // TODO encoding

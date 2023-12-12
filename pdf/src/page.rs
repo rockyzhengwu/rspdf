@@ -18,7 +18,7 @@ pub struct Page {
     parent: Option<Weak<RefCell<Page>>>,
     children: Vec<PageRef>,
     dict: PDFObject,
-    count: u64,
+    count: u32,
     t: PageType,
 }
 
@@ -37,7 +37,7 @@ impl Page {
             dict,
             parent,
             children: Vec::new(),
-            count: count as u64,
+            count: count as u32,
             t,
         }
     }
@@ -127,7 +127,7 @@ impl PageTree {
         }
     }
 
-    pub fn get_page(&self, number: u64) -> Option<PageRef> {
+    pub fn get_page(&self, number: u32) -> Option<PageRef> {
         find_page(self.root.clone(), number)
     }
 
@@ -166,7 +166,7 @@ pub fn build_page_tree<T: Seek + Read>(
     }
 }
 
-pub fn find_page(node: PageRef, number: u64) -> Option<PageRef> {
+pub fn find_page(node: PageRef, number: u32) -> Option<PageRef> {
     match node.borrow().page_type() {
         PageType::Intermediate => {
             let mut n = 0;

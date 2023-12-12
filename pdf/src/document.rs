@@ -49,7 +49,7 @@ impl<T: Seek + Read> Document<T> {
         }
     }
 
-    pub fn page(&self, number: u64) -> PDFResult<PageRef> {
+    pub fn page(&self, number: u32) -> PDFResult<PageRef> {
         self.page_tree
             .as_ref()
             .unwrap()

@@ -43,9 +43,9 @@ impl ImageDevice {
 }
 
 impl Device for ImageDevice {
-    fn begain_page(&mut self, bbox: &Rectangle) {
-        let width = self.x_res / 72.0 * bbox.width();
-        let height = self.y_res / 72.0 * bbox.height();
+    fn begain_page(&mut self, media: &Rectangle, _crop: &Rectangle) {
+        let width = self.x_res / 72.0 * media.width();
+        let height = self.y_res / 72.0 * media.height();
 
         self.image = RgbImage::from_fn(width as u32, height as u32, |_, _| {
             image::Rgb([255, 255, 255])
@@ -83,6 +83,10 @@ impl Device for ImageDevice {
 
     fn paint_path(&mut self, _pathinfo: PathInfo) -> PDFResult<()> {
         //println!("paint path:{:?}", pathinfo);
+        Ok(())
+    }
+
+    fn close(&mut self) -> PDFResult<()> {
         Ok(())
     }
 }
