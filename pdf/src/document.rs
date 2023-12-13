@@ -10,8 +10,7 @@ use crate::xref::XRef;
 #[allow(dead_code)]
 pub struct Document<T: Seek + Read> {
     version: f32,
-    reader: RefCell<Reader<T>>,
-    xref: XRef,
+    xref: XRef<T>,
     page_tree: Option<PageTree>,
 }
 
@@ -20,17 +19,16 @@ impl<T: Seek + Read> Document<T> {
         let mut reader = RefCell::new(Reader::new(input));
         let (trailer, entries) = reader.get_mut().read_xref()?;
 
-        let xref = XRef::try_new(trailer, entries)?;
+        let xref = XRef::try_new(reader, trailer, entries)?;
         // xref, reader
         // build page_tree
 
+        let page_tree = PageTree::try_new(&xref)?;
         let mut doc = Document {
             version: 1.17,
-            reader,
             xref,
             page_tree: None,
         };
-        let page_tree = PageTree::try_new(&doc)?;
         doc.page_tree = page_tree;
 
         Ok(doc)
@@ -38,15 +36,6 @@ impl<T: Seek + Read> Document<T> {
 
     pub fn info(&self) -> PDFResult<()> {
         unimplemented!()
-    }
-
-    pub fn catalog(&self) -> PDFObject {
-        let root = self.xref.root().unwrap();
-        match root {
-            PDFObject::Indirect(_) => self.read_indirect(root).unwrap(),
-            PDFObject::Dictionary(_) => root.to_owned(),
-            _ => panic!("Root not Indirect or Dictionary"),
-        }
     }
 
     pub fn page(&self, number: u32) -> PDFResult<PageRef> {
@@ -69,7 +58,6 @@ impl<T: Seek + Read> Document<T> {
     }
 
     pub fn read_indirect(&self, indirect: &PDFObject) -> PDFResult<PDFObject> {
-        let entry = self.xref.indirect_entry(indirect)?;
-        self.reader.borrow_mut().fetch_object(entry)
+        self.xref.fetch_object(indirect)
     }
 }

@@ -2,10 +2,10 @@ use std::cell::RefCell;
 use std::io::{Read, Seek};
 use std::rc::{Rc, Weak};
 
-use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::geom::rectangle::Rectangle;
 use crate::object::PDFObject;
+use crate::xref::XRef;
 
 #[derive(Debug, Clone)]
 pub enum PageType {
@@ -116,14 +116,13 @@ pub struct PageTree {
 }
 
 impl PageTree {
-    pub fn try_new<T: Seek + Read>(doc: &Document<T>) -> PDFResult<Option<Self>> {
-        let catalog = doc.catalog();
-        println!("{:?}", catalog);
+    pub fn try_new<T: Seek + Read>(xref: &XRef<T>) -> PDFResult<Option<Self>> {
+        let catalog = xref.catalog();
         match catalog.get_value("Pages") {
             Some(obj) => {
-                let root_page = doc.read_indirect(obj)?;
+                let root_page = xref.fetch_object(obj)?;
                 let count = root_page.get_value_as_i64("Count").unwrap().unwrap();
-                let root = build_page_tree(root_page.to_owned(), doc, None)?;
+                let root = build_page_tree(root_page.to_owned(), xref, None)?;
                 Ok(Some(PageTree { root, count }))
             }
             None => Ok(None),
@@ -141,7 +140,7 @@ impl PageTree {
 
 pub fn build_page_tree<T: Seek + Read>(
     root: PDFObject,
-    doc: &Document<T>,
+    xref: &XRef<T>,
     parent: Option<Weak<RefCell<Page>>>,
 ) -> PDFResult<PageRef> {
     let root_page = Rc::new(RefCell::new(Page::new(root.clone(), parent)));
@@ -156,8 +155,8 @@ pub fn build_page_tree<T: Seek + Read>(
             // Kids must in pages
             let kids = root.get_value("Kids").unwrap().as_array()?;
             for kid in kids.iter() {
-                let kid_obj = doc.read_indirect(kid)?;
-                let child = build_page_tree(kid_obj, doc, Some(root_weak.clone()))?;
+                let kid_obj = xref.fetch_object(kid)?;
+                let child = build_page_tree(kid_obj, xref, Some(root_weak.clone()))?;
                 root_page.borrow_mut().add_child(child);
             }
             Ok(root_page)

@@ -1,7 +1,10 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::io::{Read, Seek};
 
 use crate::errors::{PDFError, PDFResult};
 use crate::object::{PDFDictionary, PDFName, PDFObject};
+use crate::reader::Reader;
 
 #[derive(Debug)]
 pub enum XRefEntryType {
@@ -48,15 +51,20 @@ impl XRefEntry {
     }
 }
 
-#[derive(Debug)]
-pub struct XRef {
+pub struct XRef<T: Seek + Read> {
+    reader: RefCell<Reader<T>>,
     entries: HashMap<(i64, i64), XRefEntry>,
     trailer: PDFDictionary,
 }
 
-impl XRef {
-    pub fn try_new(trailer: PDFObject, entries: HashMap<(i64, i64), XRefEntry>) -> PDFResult<Self> {
+impl<T: Seek + Read> XRef<T> {
+    pub fn try_new(
+        reader: RefCell<Reader<T>>,
+        trailer: PDFObject,
+        entries: HashMap<(i64, i64), XRefEntry>,
+    ) -> PDFResult<Self> {
         Ok(XRef {
+            reader,
             entries,
             trailer: trailer.try_into()?,
         })
@@ -98,10 +106,43 @@ impl XRef {
         }
     }
 
-    // TODO delete this
-    pub fn get(&self, name: &str) -> PDFResult<&PDFObject> {
-        self.trailer
-            .get(&PDFName::new(name))
-            .ok_or(PDFError::InvalidSyntax(format!("{} not in Xref", name)))
+    // TODO simpleile
+    pub fn fetch_object(&self, indirect: &PDFObject) -> PDFResult<PDFObject> {
+        let entry = self.indirect_entry(indirect)?;
+        let mut obj = self.reader.borrow_mut().fetch_object(entry)?;
+        match obj {
+            PDFObject::Stream(ref mut s) => {
+                let lobj = s.length().unwrap();
+                let length = match lobj {
+                    PDFObject::Indirect(_) => {
+                        let le = self.indirect_entry(lobj).unwrap();
+                        self.reader.borrow_mut().fetch_object(le)?.as_i64()?
+                    }
+                    PDFObject::Number(v) => v.as_i64(),
+                    _ => {
+                        return Err(PDFError::InvalidSyntax(format!(
+                            "Length in stream is not Number or Indirect got:{:?}",
+                            lobj
+                        )));
+                    }
+                };
+                let buffer = self
+                    .reader
+                    .borrow_mut()
+                    .read_stream_content(s, length as usize)?;
+                s.set_buffer(buffer);
+                Ok(obj)
+            }
+            _ => Ok(obj),
+        }
+    }
+
+    pub fn catalog(&self) -> PDFObject {
+        let root = self.root().unwrap();
+        match root {
+            PDFObject::Indirect(_) => self.fetch_object(root).unwrap(),
+            PDFObject::Dictionary(_) => root.to_owned(),
+            _ => panic!("Root not Indirect or Dictionary"),
+        }
     }
 }

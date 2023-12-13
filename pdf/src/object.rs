@@ -76,27 +76,29 @@ impl ToString for PDFString {
 #[derive(Debug, Clone)]
 pub struct PDFStream {
     offset: u64,
-    length: i64,
     dict: PDFDictionary,
     buffer: Vec<u8>,
 }
 
 impl PDFStream {
-    pub fn new(offset: u64, length: i64, dict: PDFDictionary, buffer: Vec<u8>) -> Self {
+    pub fn new(offset: u64, dict: PDFDictionary) -> Self {
         PDFStream {
             offset,
-            length,
             dict,
-            buffer,
+            buffer: Vec::new(),
         }
+    }
+
+    pub fn set_buffer(&mut self, buffer: Vec<u8>) {
+        self.buffer = buffer;
     }
 
     pub fn offset(&self) -> u64 {
         self.offset
     }
 
-    pub fn length(&self) -> i64 {
-        self.length
+    pub fn length(&self) -> Option<&PDFObject> {
+        self.dict.get(&PDFName::new("Length"))
     }
 
     pub fn attribute(&self, name: &str) -> Option<&PDFObject> {
