@@ -55,9 +55,9 @@ pub fn create_font<T: Seek + Read>(
     }
 
     // TODO encoding
-    if let Some(enc) = obj.get_value("Encoding") {
-        let enc = doc.read_indirect(enc)?;
-        let _diffs = enc.get_value("Differences").unwrap();
+    if let Some(_enc) = obj.get_value("Encoding") {
+        //let enc = doc.read_indirect(enc)?;
+        //let _diffs = enc.get_value("Differences").unwrap();
     }
 
     let mut cmap = CMap::default();

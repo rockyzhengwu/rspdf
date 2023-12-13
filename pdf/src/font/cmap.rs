@@ -22,6 +22,9 @@ impl CMap {
         }
         res
     }
+    pub fn is_empty(&self) -> bool {
+        self.code_to_unicode.is_empty()
+    }
 }
 
 struct CMapParser<T: Seek + Read> {
