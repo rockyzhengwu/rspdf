@@ -16,19 +16,19 @@ use crate::lexer::Tokenizer;
 use crate::object::{PDFNumber, PDFObject};
 use crate::page::PageRef;
 
-pub struct Processor<'a, T: Seek + Read> {
+pub struct Processor<'a, T: Seek + Read, D: Device> {
     doc: &'a Document<T>,
     state_stack: Vec<GraphicsState>,
     resource_stack: Vec<PDFObject>,
     font_cache: HashMap<String, PDFFont>,
-    device: Box<dyn Device>,
+    device: &'a mut D,
     mediabox: Rectangle,
     cropbox: Rectangle,
     current_path: Path,
 }
 
-impl<'a, T: Seek + Read> Processor<'a, T> {
-    pub fn new(doc: &'a Document<T>, device: Box<dyn Device>) -> Self {
+impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
+    pub fn new(doc: &'a Document<T>, device: &'a mut D) -> Self {
         Processor {
             doc,
             state_stack: Vec::new(),
@@ -41,14 +41,9 @@ impl<'a, T: Seek + Read> Processor<'a, T> {
         }
     }
 
-    pub fn close(&mut self) -> PDFResult<()> {
-        self.device.close()?;
-        Ok(())
-    }
-
     pub fn process_page_content(&mut self, page: PageRef) -> PDFResult<()> {
-        self.cropbox = page.borrow().crop_box().unwrap();
         self.mediabox = page.borrow().media_box().unwrap();
+        self.cropbox = page.borrow().crop_box().unwrap();
 
         let state = GraphicsState::default();
 

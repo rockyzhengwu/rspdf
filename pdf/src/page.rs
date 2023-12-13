@@ -70,7 +70,10 @@ impl Page {
                     position[3],
                 ))
             }
-            _ => None,
+            _ => match self.parent {
+                Some(ref p) => p.upgrade().unwrap().borrow().media_box(),
+                None => None,
+            },
         }
     }
     pub fn crop_box(&self) -> Option<Rectangle> {
@@ -84,7 +87,7 @@ impl Page {
                     position[3],
                 ))
             }
-            _ => None,
+            _ => self.media_box(),
         }
     }
 

@@ -11,5 +11,4 @@ pub trait Device {
     fn end_page(&mut self);
     fn show_text(&mut self, textinfo: TextInfo) -> PDFResult<()>;
     fn paint_path(&mut self, pathinfo: PathInfo) -> PDFResult<()>;
-    fn close(&mut self) -> PDFResult<()>;
 }

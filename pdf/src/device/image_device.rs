@@ -86,7 +86,4 @@ impl Device for ImageDevice {
         Ok(())
     }
 
-    fn close(&mut self) -> PDFResult<()> {
-        Ok(())
-    }
 }

@@ -1,7 +1,3 @@
-use std::fs::File;
-use std::io::Write;
-use std::path::PathBuf;
-
 use crate::canvas::{path_info::PathInfo, text_info::TextInfo};
 use crate::device::Device;
 use crate::errors::PDFResult;
@@ -9,19 +5,22 @@ use crate::geom::rectangle::Rectangle;
 
 #[derive(Default, Clone)]
 pub struct TextDevice {
-    output: PathBuf,
     current: String,
     results: Vec<String>,
 }
-// todo add textoption
+// TODO add textoption
 
 impl TextDevice {
-    pub fn new(output: PathBuf) -> Self {
+    pub fn new() -> Self {
         TextDevice {
-            output,
-            current: "<document>".to_string(),
-            results: Vec::new(),
+            current: String::new(),
+            results: vec!["<document>".to_string()],
         }
+    }
+    pub fn result(&self) -> String {
+        let mut s = self.results.join("\n");
+        s.push_str("</document>");
+        s
     }
 }
 
@@ -47,7 +46,6 @@ impl Device for TextDevice {
     fn end_page(&mut self) {
         self.current.push_str("</page>");
         let text = std::mem::take(&mut self.current);
-        println!("{:?}", text);
         self.results.push(text);
     }
 
@@ -60,13 +58,6 @@ impl Device for TextDevice {
     }
 
     fn paint_path(&mut self, _pathinfo: PathInfo) -> PDFResult<()> {
-        Ok(())
-    }
-
-    fn close(&mut self) -> PDFResult<()> {
-        self.current.push_str("</document>");
-        let mut file = File::create(self.output.as_path()).unwrap();
-        file.write_all(self.results.join("\n").as_bytes()).unwrap();
         Ok(())
     }
 }
