@@ -1,6 +1,8 @@
+use std::cell::RefCell;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use clap::Parser;
 
@@ -16,13 +18,14 @@ pub struct Config {
 }
 
 pub fn command(doc: Document<File>, start: u32, end: u32, cfg: Config) -> PDFResult<()> {
-    let mut device = TextDevice::new();
-    let mut processor = Processor::new(&doc, &mut device);
+    let device = Rc::new(RefCell::new(TextDevice::new()));
+    let mut processor = Processor::new(&doc, device.clone());
     for p in start..end {
         let page = doc.page(p).unwrap();
         processor.process_page_content(page).unwrap();
+        processor.reset();
     }
     let mut file = File::create(cfg.output).unwrap();
-    file.write_all(device.result().as_bytes()).unwrap();
+    file.write_all(device.borrow().result().as_bytes()).unwrap();
     Ok(())
 }

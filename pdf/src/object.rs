@@ -52,6 +52,7 @@ pub enum PDFString {
     HexString(Vec<u8>),
     Literial(Vec<u8>),
 }
+
 impl PDFString {
     pub fn bytes(&self) -> &[u8] {
         match self {
@@ -239,6 +240,10 @@ impl PDFObject {
             )),
         }
     }
+
+    pub fn is_indirect(&self) -> bool {
+        matches!(self, PDFObject::Indirect(_))
+    }
 }
 
 // TODO: use marcro replace this
@@ -319,15 +324,3 @@ impl TryFrom<PDFObject> for PDFIndirect {
         }
     }
 }
-
-//impl ToString for PDFObject {
-//    fn to_string(&self) -> String {
-//        match self {
-//            PDFObject::Null => "NULL".to_string(),
-//            PDFObject::Bool(b) => b.to_string(),
-//            PDFObject::Name(name) => name.to_string(),
-//            PDFObject::String(s) => s.to_string(),
-//            _ => format!("{:?}", self),
-//        }
-//    }
-//}

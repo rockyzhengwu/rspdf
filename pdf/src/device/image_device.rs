@@ -82,8 +82,6 @@ impl Device for ImageDevice {
     }
 
     fn paint_path(&mut self, _pathinfo: PathInfo) -> PDFResult<()> {
-        //println!("paint path:{:?}", pathinfo);
         Ok(())
     }
-
 }

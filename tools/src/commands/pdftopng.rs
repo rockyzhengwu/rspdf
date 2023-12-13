@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use std::fs::File;
+use std::rc::Rc;
 
 use clap::Parser;
 
@@ -14,8 +16,11 @@ pub struct Config {
 }
 
 pub fn command(doc: Document<File>, start: u32, end: u32, cfg: Config) -> PDFResult<()> {
-    let mut device = ImageDevice::new(cfg.resulotion, cfg.resulotion);
-    let mut processor = Processor::new(&doc, &mut device);
+    let device = Rc::new(RefCell::new(ImageDevice::new(
+        cfg.resulotion,
+        cfg.resulotion,
+    )));
+    let mut processor = Processor::new(&doc, device);
     for p in start..end {
         let page = doc.page(p).unwrap();
         processor.process_page_content(page).unwrap();

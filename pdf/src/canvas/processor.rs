@@ -1,5 +1,7 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{Cursor, Read, Seek};
+use std::rc::Rc;
 
 use crate::canvas::graphics_state::GraphicsState;
 use crate::canvas::matrix::Matrix;
@@ -21,14 +23,14 @@ pub struct Processor<'a, T: Seek + Read, D: Device> {
     state_stack: Vec<GraphicsState>,
     resource_stack: Vec<PDFObject>,
     font_cache: HashMap<String, PDFFont>,
-    device: &'a mut D,
+    device: Rc<RefCell<D>>,
     mediabox: Rectangle,
     cropbox: Rectangle,
     current_path: Path,
 }
 
 impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
-    pub fn new(doc: &'a Document<T>, device: &'a mut D) -> Self {
+    pub fn new(doc: &'a Document<T>, device: Rc<RefCell<D>>) -> Self {
         Processor {
             doc,
             state_stack: Vec::new(),
@@ -47,7 +49,9 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
 
         let state = GraphicsState::default();
 
-        self.device.begain_page(&self.mediabox, &self.cropbox);
+        self.device
+            .borrow_mut()
+            .begain_page(&self.mediabox, &self.cropbox);
         let resource = page.borrow().resources();
         let resource_obj = match resource {
             PDFObject::Indirect(_) => self.doc.read_indirect(&resource)?,
@@ -84,7 +88,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
                 self.invoke_operation(operation)?;
             }
         }
-        self.device.end_page();
+        self.device.borrow_mut().end_page();
         Ok(())
     }
 
@@ -214,7 +218,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         let mut path = std::mem::take(&mut self.current_path);
         path.close_last_subpath();
         let pathinfo = PathInfo::new(path, state, self.cropbox.clone());
-        self.device.paint_path(pathinfo)?;
+        self.device.borrow_mut().paint_path(pathinfo)?;
         Ok(())
     }
 
@@ -344,7 +348,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
                     textinfo.get_content_width(),
                     0.0,
                 ));
-                self.device.show_text(textinfo)?;
+                self.device.borrow_mut().show_text(textinfo)?;
                 Ok(())
             }
             _ => Err(PDFError::ContentInterpret(format!(
@@ -382,13 +386,21 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
     // Do
     fn do_operation(&mut self, operation: Operation) -> PDFResult<()> {
         let xobject_name = operation.operand(0)?.as_string()?;
+        // TODO fix this if condition
         let xobject = self
             .resource_stack
             .last()
             .unwrap()
             .get_value("XObject")
             .unwrap();
-        let obj = xobject.get_value(xobject_name.as_str()).unwrap();
+        let xob = {
+            if xobject.is_indirect() {
+                self.doc.read_indirect(xobject)?
+            } else {
+                xobject.to_owned()
+            }
+        };
+        let obj = xob.get_value(xobject_name.as_str()).unwrap();
         let _obj_stream = self.doc.read_indirect(obj)?;
         Ok(())
     }
@@ -590,5 +602,11 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         let font = create_font(fontname, &font_obj, self.doc)?;
         self.font_cache.insert(fontname.to_string(), font.clone());
         Ok(font)
+    }
+
+    pub fn reset(&mut self) {
+        self.state_stack.clear();
+        self.resource_stack.clear();
+        self.current_path = Path::default();
     }
 }
