@@ -417,4 +417,12 @@ mod tests {
         let xref = parser.read_xref().unwrap();
         println!("{:?}", xref);
     }
+
+    #[test]
+    fn test_parse_xref_empty() {
+        let fname = peek_filename("empty_xref.pdf");
+        let mut parser = create_file_reader(fname);
+        let xref = parser.read_xref().unwrap();
+        println!("{:?}", xref);
+    }
 }
