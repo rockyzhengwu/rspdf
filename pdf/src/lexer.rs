@@ -13,17 +13,6 @@ enum Bytes {
     Eof,
 }
 
-const ARRAY_OPEN: Bytes = Bytes::Byte(b'[');
-const ARRAY_CLOSE: Bytes = Bytes::Byte(b']');
-const LESS_THAN: Bytes = Bytes::Byte(b'<');
-const GREATER_THAN: Bytes = Bytes::Byte(b'>');
-const LEFT_PARENTLEHEISE: Bytes = Bytes::Byte(b'(');
-const RIGHT_PARENTLEHEISE: Bytes = Bytes::Byte(b')');
-const _LEFT_SQUARE_BRACKET: Bytes = Bytes::Byte(b'[');
-const _RIGHT_SQUARE_BRACKET: Bytes = Bytes::Byte(b']');
-const SOLIDUS: Bytes = Bytes::Byte(b'/');
-const _PERSENT: Bytes = Bytes::Byte(b'%');
-
 impl Bytes {
     fn is_white(&self) -> bool {
         match self {
@@ -195,6 +184,54 @@ impl<T: Read + Seek> Tokenizer<T> {
         }
     }
 
+    fn read_literal_string(&mut self) -> PDFResult<Token> {
+        let mut buf = Vec::new();
+        let mut nested: i32 = 1;
+        loop {
+            let c = self.peek_byte()?;
+            if c.is_eof() {
+                return Err(PDFError::LexFailure(
+                    "literal string dons't closed".to_string(),
+                ));
+            }
+            match c {
+                Bytes::Eof => break,
+                Bytes::Byte(b'(') => {
+                    nested += 1;
+                    buf.push(c.as_u8())
+                }
+                Bytes::Byte(b')') => {
+                    nested -= 1;
+                    if nested == 0 {
+                        break;
+                    }
+                    buf.push(c.as_u8());
+                }
+                Bytes::Byte(b'\\') => {
+                    let cn = self.peek_byte()?;
+                    match cn {
+                        Bytes::Eof => {
+                            return Err(PDFError::LexFailure(
+                                "literal string dons't closed".to_string(),
+                            ));
+                        }
+                        Bytes::Byte(b'n') => buf.push(b'\n'),
+                        Bytes::Byte(b't') => buf.push(b'\t'),
+                        Bytes::Byte(b'r') => buf.push(b'\r'),
+                        Bytes::Byte(b'b') => buf.push(8),
+                        Bytes::Byte(b'f') => buf.push(12),
+                        Bytes::Byte(b'(') => buf.push(b'('),
+                        Bytes::Byte(b')') => buf.push(b')'),
+                        Bytes::Byte(b'\\') => buf.push(b'\\'),
+                        _ => buf.push(cn.as_u8()),
+                    }
+                }
+                _ => buf.push(c.as_u8()),
+            }
+        }
+        Ok(Token::PDFLiteralString(buf))
+    }
+
     fn read_token(&mut self) -> PDFResult<Token> {
         let mut c = self.peek_byte()?;
         while c.is_white() && !c.is_eof() {
@@ -204,30 +241,31 @@ impl<T: Read + Seek> Tokenizer<T> {
         if c.is_persent() {
             loop {
                 c = self.peek_byte()?;
-                if c.as_u8() == b'\r' || c.as_u8() == b'\n' {
+                if c.as_u8() == b'\r' || c.as_u8() == b'\n' || c.is_eof() {
                     break;
                 }
             }
-        }
-
-        if c.is_eof() {
-            return Ok(Token::PDFEof);
         }
 
         while c.is_white() && !c.is_eof() {
             c = self.peek_byte()?;
         }
 
+        if c.is_eof() {
+            return Ok(Token::PDFEof);
+        }
+
         match c {
-            ARRAY_OPEN => Ok(Token::PDFOpenArray),
-            ARRAY_CLOSE => Ok(Token::PDFCloseArray),
-            LESS_THAN => {
+            Bytes::Eof => Ok(Token::PDFEof),
+            Bytes::Byte(b'[') => Ok(Token::PDFOpenArray),
+            Bytes::Byte(b']') => Ok(Token::PDFCloseArray),
+            Bytes::Byte(b'<') => {
                 let mut cs = self.peek_byte()?;
                 match cs {
-                    LESS_THAN => Ok(Token::PDFOpenDict),
+                    Bytes::Byte(b'<') => Ok(Token::PDFOpenDict),
                     _ => {
                         let mut buf = Vec::new();
-                        while cs != GREATER_THAN && !cs.is_eof() {
+                        while cs != Bytes::Byte(b'>') && !cs.is_eof() {
                             buf.push(cs.as_u8());
                             cs = self.peek_byte()?;
                         }
@@ -235,29 +273,18 @@ impl<T: Read + Seek> Tokenizer<T> {
                     }
                 }
             }
-            GREATER_THAN => {
+            Bytes::Byte(b'>') => {
                 let cs = self.peek_byte()?;
-                if cs != GREATER_THAN {
+                if cs != Bytes::Byte(b'>') {
                     return Err(PDFError::LexFailure("`>` can not exist single".to_string()));
+                }
+                if cs.is_eof() {
+                    return Err(PDFError::LexFailure("HexString dosn't closed ".to_string()));
                 }
                 Ok(Token::PDFCloseDict)
             }
-            LEFT_PARENTLEHEISE => {
-                let mut buf = Vec::new();
-                c = self.peek_byte()?;
-                while c != RIGHT_PARENTLEHEISE && !c.is_eof() {
-                    let v = c.as_u8();
-                    if v == 92 {
-                        c = self.peek_byte()?;
-                        buf.push(c.as_u8());
-                    } else {
-                        buf.push(v);
-                    }
-                    c = self.peek_byte()?;
-                }
-                Ok(Token::PDFLiteralString(buf))
-            }
-            SOLIDUS => {
+            Bytes::Byte(b'(') => self.read_literal_string(),
+            Bytes::Byte(b'/') => {
                 let mut cs = self.peek_byte()?;
                 let mut buf = Vec::new();
                 while !cs.is_white() && !cs.is_delimiter() && !cs.is_eof() {
@@ -410,15 +437,45 @@ pub fn is_delimiter(ch: &u8) -> bool {
 mod tests {
     use std::io::Cursor;
 
+    use image::EncodableLayout;
+
     use crate::lexer::Tokenizer;
     use crate::token::Token;
+
+    fn token_result(buffer: &[u8]) -> Vec<Token> {
+        let cursor = Cursor::new(buffer);
+        let mut tokenizer = Tokenizer::new(cursor);
+        let mut res = Vec::new();
+        while let Ok(token) = tokenizer.next_token() {
+            if token == Token::PDFEof{
+                break;
+            }
+            res.push(token);
+        }
+        res
+    }
+
+    #[test]
+    fn test_read_real() {
+        let content = "-80";
+        let cursor = Cursor::new(content);
+        let mut tokenizer = Tokenizer::new(cursor);
+        let token = tokenizer.next_token().unwrap();
+        assert_eq!(token, Token::PDFReal(-80.0));
+    }
+
+    #[test]
+    fn test_read_empty() {
+        let content = "";
+        let cursor = Cursor::new(content);
+        let mut tokenizer = Tokenizer::new(cursor);
+        let token = tokenizer.next_token().unwrap();
+        assert_eq!(token, Token::PDFEof);
+    }
 
     #[test]
     fn test_dict() {
         let content = b"<</Filter/FlateDecode/First 14/Length 166/N 3/Type/ObjStm>>";
-
-        let cursor = Cursor::new(content);
-        let mut tokenizer = Tokenizer::new(cursor);
         let expected = vec![
             Token::PDFOpenDict,
             Token::PDFName("Filter".to_string()),
@@ -433,14 +490,7 @@ mod tests {
             Token::PDFName("ObjStm".to_string()),
             Token::PDFCloseDict,
         ];
-        let mut result = Vec::new();
-        while let Ok(token) = tokenizer.next_token() {
-            if token == Token::PDFEof {
-                break;
-            }
-            result.push(token.to_owned());
-        }
-
+        let result = token_result(content.as_bytes());
         assert_eq!(expected, result);
     }
 
@@ -462,8 +512,6 @@ mod tests {
 ]
 >>";
 
-        let cursor = Cursor::new(content);
-        let mut tokenizer = Tokenizer::new(cursor);
         let expected = vec![
             Token::PDFOpenDict,
             Token::PDFName("Type".to_string()),
@@ -504,14 +552,7 @@ mod tests {
             Token::PDFCloseArray,
             Token::PDFCloseDict,
         ];
-        let mut result = Vec::new();
-        while let Ok(token) = tokenizer.next_token() {
-            if token == Token::PDFEof {
-                break;
-            }
-            result.push(token.to_owned());
-        }
-
+        let result = token_result(content.as_bytes());
         assert_eq!(expected, result);
     }
 
@@ -522,8 +563,6 @@ mod tests {
 288 720 Td
 (ABC) Tj
 ET";
-        let cursor = Cursor::new(content);
-        let mut tokenizer = Tokenizer::new(cursor);
         let expected = vec![
             Token::PDFOther(b"BT".to_vec()),
             Token::PDFName("F13".to_string()),
@@ -536,31 +575,8 @@ ET";
             Token::PDFOther(b"Tj".to_vec()),
             Token::PDFOther(b"ET".to_vec()),
         ];
-        let mut res = Vec::new();
-        while let Ok(token) = tokenizer.next_token() {
-            if token == Token::PDFEof {
-                break;
-            }
-            res.push(token);
-        }
+        let res = token_result(content.as_bytes());
         assert_eq!(res, expected);
-    }
-
-    #[test]
-    fn test_parse_reald() {
-        let content = "-80";
-        let cursor = Cursor::new(content);
-        let mut tokenizer = Tokenizer::new(cursor);
-        let token = tokenizer.next_token().unwrap();
-        assert_eq!(token, Token::PDFReal(-80.0));
-    }
-    #[test]
-    fn test_empty() {
-        let content = "";
-        let cursor = Cursor::new(content);
-        let mut tokenizer = Tokenizer::new(cursor);
-        let token = tokenizer.next_token().unwrap();
-        assert_eq!(token, Token::PDFEof);
     }
 
     #[test]
@@ -580,15 +596,9 @@ ET";
         assert_eq!(res, expected);
     }
     #[test]
-    fn test_escape() {
-        //b"8.88 0 TD 0 Tc (O\\) Tj";
-        let content = vec![
-            56, 46, 56, 56, 32, 48, 32, 84, 68, 32, 48, 32, 84, 99, 32, 40, 79, 92, 92, 41, 32, 84,
-            106,
-        ];
-        let cursor = Cursor::new(content);
-        let mut tokenizer = Tokenizer::new(cursor);
-        let mut res = Vec::new();
+    fn test_reverse_solid() {
+        let content = "8.88 0 TD 0 Tc (O\\\\) Tj";
+        let res = token_result(content.as_bytes());
         let expected = vec![
             Token::PDFReal(8.88),
             Token::PDFNumber(0),
@@ -598,30 +608,23 @@ ET";
             Token::PDFLiteralString(vec![79, 92]),
             Token::PDFOther(vec![84, 106]),
         ];
-
-        while let Ok(token) = tokenizer.read_token() {
-            if token == Token::PDFEof {
-                break;
-            }
-            res.push(token);
-        }
         assert_eq!(expected, res);
     }
 
     #[test]
-    fn test_escape_more() {
-        let content = b"(\\(\\)) Tj";
-        let cursor = Cursor::new(content);
-        let mut tokenizer = Tokenizer::new(cursor);
-        let mut res = Vec::new();
-        while let Ok(token) = tokenizer.next_token() {
-            if token == Token::PDFEof {
-                break;
-            }
-            res.push(token);
-        }
+    fn test_nest_parentthesis() {
+        let content = b"(()) Tj";
+        let res = token_result(content.as_bytes());
         let expected = [
             Token::PDFLiteralString(vec![40, 41]),
+            Token::PDFOther(vec![84, 106]),
+        ];
+        assert_eq!(res, expected);
+
+        let content = b"(\\() Tj";
+        let res = token_result(content.as_bytes());
+        let expected = [
+            Token::PDFLiteralString(vec![40]),
             Token::PDFOther(vec![84, 106]),
         ];
         assert_eq!(res, expected);
