@@ -215,9 +215,8 @@ impl<T: Read + Seek> Tokenizer<T> {
                                 "literal string dons't closed".to_string(),
                             ));
                         }
-                        Bytes::Byte(b'n') => buf.push(b'\n'),
+                        Bytes::Byte(b'\n') => {}
                         Bytes::Byte(b't') => buf.push(b'\t'),
-                        Bytes::Byte(b'r') => buf.push(b'\r'),
                         Bytes::Byte(b'b') => buf.push(8),
                         Bytes::Byte(b'f') => buf.push(12),
                         Bytes::Byte(b'(') => buf.push(b'('),
@@ -436,18 +435,22 @@ pub fn is_delimiter(ch: &u8) -> bool {
 #[cfg(test)]
 mod tests {
     use std::io::Cursor;
+    use std::u8;
 
     use image::EncodableLayout;
 
     use crate::lexer::Tokenizer;
     use crate::token::Token;
+    fn create_tokenizer(buffer: &[u8]) -> Tokenizer<Cursor<&[u8]>> {
+        let cursor = Cursor::new(buffer);
+        Tokenizer::new(cursor)
+    }
 
     fn token_result(buffer: &[u8]) -> Vec<Token> {
-        let cursor = Cursor::new(buffer);
-        let mut tokenizer = Tokenizer::new(cursor);
+        let mut tokenizer = create_tokenizer(buffer);
         let mut res = Vec::new();
         while let Ok(token) = tokenizer.next_token() {
-            if token == Token::PDFEof{
+            if token == Token::PDFEof {
                 break;
             }
             res.push(token);
@@ -467,10 +470,24 @@ mod tests {
     #[test]
     fn test_read_empty() {
         let content = "";
-        let cursor = Cursor::new(content);
-        let mut tokenizer = Tokenizer::new(cursor);
+        let mut tokenizer = create_tokenizer(content.as_bytes());
         let token = tokenizer.next_token().unwrap();
         assert_eq!(token, Token::PDFEof);
+    }
+
+    #[test]
+    fn test_read_empty_literal() {
+        let content = "()";
+        let mut tokenizer = create_tokenizer(content.as_bytes());
+        let token = tokenizer.next_token().unwrap();
+        assert_eq!(token, Token::PDFLiteralString(Vec::new()));
+    }
+    #[test]
+    fn test_read_literal_special() {
+        let content = "(Strings may contain balanced parentheses ( ) and special characters ( * ! & } ^ % and so on ) .)";
+        let mut tokenizer = create_tokenizer(content.as_bytes());
+        let token = tokenizer.next_token().unwrap();
+        assert_eq!(token, Token::PDFLiteralString(b"Strings may contain balanced parentheses ( ) and special characters ( * ! & } ^ % and so on ) .".to_vec()));
     }
 
     #[test]
@@ -628,5 +645,16 @@ ET";
             Token::PDFOther(vec![84, 106]),
         ];
         assert_eq!(res, expected);
+    }
+    #[test]
+    // ISO3200 7.3.4.2 EXAMPLE 2
+    fn test_mutil_line_literal() {
+        let content_a = "( These \\
+two strings \\
+are the same . )";
+        let content_b = "( These two strings are the same . )";
+        let tokens_a = token_result(content_a.as_bytes());
+        let tokens_b = token_result(content_b.as_bytes());
+        assert_eq!(tokens_a, tokens_b);
     }
 }
