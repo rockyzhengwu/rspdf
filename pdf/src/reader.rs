@@ -364,9 +364,27 @@ impl<T: Seek + Read> Reader<T> {
 
 #[cfg(test)]
 mod tests {
+    use crate::object::PDFObject;
+    use std::fs::File;
     use std::io::Cursor;
+    use std::path::PathBuf;
 
     use crate::reader::Reader;
+    fn create_memory_reader(buffer: &[u8]) -> Reader<Cursor<&[u8]>> {
+        let cursor = Cursor::new(buffer);
+        Reader::new(cursor)
+    }
+
+    fn create_file_reader(path: PathBuf) -> Reader<File> {
+        let file = File::open(path).unwrap();
+        Reader::new(file)
+    }
+
+    fn peek_filename(name: &str) -> PathBuf {
+        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        d.push(format!("tests/resources/{}", name));
+        d
+    }
 
     #[test]
     fn test_parse_nest_dict() {
@@ -385,9 +403,18 @@ mod tests {
            24 0 R
            ]
            >>";
-        let file = Cursor::new(content);
-        let mut parser = Reader::new(file);
+        let mut parser = create_memory_reader(content);
         let obj = parser.parse_obj().unwrap();
-        println!("{:?}", obj);
+        assert!(matches!(obj, PDFObject::Dictionary(_)));
+        let resource = obj.get_value("Resources").unwrap().to_owned();
+        assert!(matches!(resource, PDFObject::Dictionary(_)))
+    }
+
+    #[test]
+    fn test_parse_xref_table() {
+        let fname = peek_filename("hello_world.pdf");
+        let mut parser = create_file_reader(fname);
+        let xref = parser.read_xref().unwrap();
+        println!("{:?}", xref);
     }
 }
