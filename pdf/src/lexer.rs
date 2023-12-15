@@ -159,6 +159,7 @@ impl<T: Read + Seek> Tokenizer<T> {
             b"R" => Ok(Token::PDFRef),
             b"false" => Ok(Token::PDFFalse),
             b"true" => Ok(Token::PDFTrue),
+            b"null" => Ok(Token::PDFNull),
             _ => {
                 let mut number = true;
                 let mut real = true;

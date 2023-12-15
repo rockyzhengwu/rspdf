@@ -252,6 +252,7 @@ impl<T: Seek + Read> Reader<T> {
             Token::PDFTrue => Ok(PDFObject::Bool(true)),
             Token::PDFFalse => Ok(PDFObject::Bool(false)),
             Token::PDFReal(v) => Ok(PDFObject::Number(PDFNumber::Real(v))),
+            Token::PDFNull => Ok(PDFObject::Null),
             Token::PDFIndirect(num, gen) => Ok(PDFObject::Indirect(PDFIndirect::new(
                 num.to_owned(),
                 gen.to_owned(),
