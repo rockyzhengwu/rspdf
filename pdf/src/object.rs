@@ -1,9 +1,10 @@
 use std::collections::HashMap;
+use std::fmt;
 
 use crate::errors::{PDFError, PDFResult};
 use crate::filter::new_filter;
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct PDFIndirect {
     number: i64,
     gen: i64,
@@ -47,10 +48,23 @@ impl ToString for PDFName {
 
 pub type PDFDictionary = HashMap<PDFName, PDFObject>;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum PDFString {
     HexString(Vec<u8>),
     Literial(Vec<u8>),
+}
+
+impl fmt::Debug for PDFString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PDFString::HexString(s) => {
+                write!(f, "HexString({:?})", String::from_utf8_lossy(s))
+            }
+            PDFString::Literial(s) => {
+                write!(f, "LiteralString({:?})", String::from_utf8_lossy(s))
+            }
+        }
+    }
 }
 
 impl PDFString {
@@ -73,11 +87,23 @@ impl ToString for PDFString {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct PDFStream {
     offset: u64,
     dict: PDFDictionary,
     buffer: Vec<u8>,
+}
+
+impl fmt::Debug for PDFStream {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "PDFStream(offset:{}, dict:{:?}, buffer:{:?})",
+            self.offset,
+            self.dict,
+            String::from_utf8_lossy(self.buffer.as_slice())
+        )
+    }
 }
 
 impl PDFStream {

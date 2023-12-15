@@ -1,15 +1,14 @@
+use std::fmt;
 use std::i64;
 
 use crate::errors::{PDFError, PDFResult};
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone)]
 pub enum Token {
     PDFOpenArray,
     PDFCloseArray,
     PDFOpenDict,
     PDFCloseDict,
-    PDFOpenBrace,
-    PDFCloseBrace,
     PDFHexString(Vec<u8>),
     PDFLiteralString(Vec<u8>),
     PDFName(String),
@@ -61,6 +60,36 @@ impl Token {
                 "{:?} can't convert to i64",
                 self
             ))),
+        }
+    }
+}
+
+impl fmt::Debug for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Token::PDFOpenArray => write!(f, "["),
+            Token::PDFCloseArray => write!(f, "]"),
+            Token::PDFOpenDict => write!(f, "<<"),
+            Token::PDFCloseDict => write!(f, ">>"),
+            Token::PDFHexString(v) => write!(f, "Hexstring({:?})", String::from_utf8_lossy(v)),
+            Token::PDFLiteralString(v) => write!(f, "Literal({:?})", String::from_utf8_lossy(v)),
+            Token::PDFName(s) => write!(f, "Name({:?})", s),
+            Token::PDFRef => write!(f, "R"),
+            Token::PDFTrue => write!(f, "Bool(true)"),
+            Token::PDFFalse => write!(f, "Bool(false)"),
+            Token::PDFNull => write!(f, "Null"),
+            Token::PDFObj => write!(f, "obj"),
+            Token::PDFEndObj => write!(f, "endobj"),
+            Token::PDFStream => write!(f, "stream"),
+            Token::PDFEndStream => write!(f, "endstream"),
+            Token::PDFXRef => write!(f, "xref"),
+            Token::PDFStartXRef => write!(f, "startxref"),
+            Token::PDFTrailer => write!(f, "trailer"),
+            Token::PDFNumber(i) => write!(f, "Number({})", i),
+            Token::PDFReal(v) => write!(f, "Real({})", v),
+            Token::PDFIndirect(n, g) => write!(f, "Indirect({},{})", n, g),
+            Token::PDFOther(v) => write!(f, "Other({:?})", String::from_utf8_lossy(v)),
+            Token::PDFEof => write!(f, "Eof"),
         }
     }
 }
