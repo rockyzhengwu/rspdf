@@ -10,7 +10,6 @@ Write a PDF processiong library in pure Rust.
 # Usage
 
 ## extract text as xml
-eg:
 
 ```
 cargo run -- --filename <File> --start 0 --end 1 pdftotext --output page0.xml 
@@ -21,6 +20,11 @@ Can just render text on image now
 
 ```
 cargo run -- --filename <File> --start 0 --end 1 pdftopng 
+```
+
+## extract  fonts
+```
+cargo run -- --filename pdffonts
 ```
 
 

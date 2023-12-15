@@ -10,6 +10,7 @@ use pdf::object::{PDFDictionary, PDFObject};
 #[derive(Debug, Parser)]
 pub struct Config {}
 
+#[allow(dead_code)]
 #[derive(Debug)]
 struct FontInfo {
     base_font: String,
@@ -24,13 +25,9 @@ pub fn command(doc: Document<File>, start: u32, end: u32, _cfg: Config) -> PDFRe
         let resource = page.borrow().resources();
         if resource.is_indirect() {
             let resobj = doc.read_indirect(&resource).unwrap();
-            let fonts = match resobj.get_value("Font").unwrap() {
-                PDFObject::Dictionary(d) => PDFObject::Dictionary(d.to_owned()),
-                PDFObject::Indirect(r) => doc
-                    .read_indirect(&PDFObject::Indirect(r.to_owned()))
-                    .unwrap(),
-                _ => panic!("fonts type error"),
-            };
+            let fonts = doc
+                .read_indirect(resobj.get_value("Font").unwrap())
+                .unwrap();
             let fonts_dict: PDFDictionary = fonts.try_into().unwrap();
             for (key, obj) in fonts_dict.iter() {
                 let font_obj = doc.read_indirect(obj).unwrap();

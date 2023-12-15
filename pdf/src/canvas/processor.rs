@@ -53,11 +53,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
             .borrow_mut()
             .begain_page(&self.mediabox, &self.cropbox);
         let resource = page.borrow().resources();
-        let resource_obj = match resource {
-            PDFObject::Indirect(_) => self.doc.read_indirect(&resource)?,
-            PDFObject::Dictionary(_) => resource,
-            _ => panic!("resource is empty"),
-        };
+        let resource_obj = self.doc.read_indirect(&resource)?;
         self.resource_stack.push(resource_obj);
         self.state_stack.push(state);
 
@@ -386,20 +382,13 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
     // Do
     fn do_operation(&mut self, operation: Operation) -> PDFResult<()> {
         let xobject_name = operation.operand(0)?.as_string()?;
-        // TODO fix this if condition
         let xobject = self
             .resource_stack
             .last()
             .unwrap()
             .get_value("XObject")
             .unwrap();
-        let xob = {
-            if xobject.is_indirect() {
-                self.doc.read_indirect(xobject)?
-            } else {
-                xobject.to_owned()
-            }
-        };
+        let xob = self.doc.read_indirect(xobject)?;
         let obj = xob.get_value(xobject_name.as_str()).unwrap();
         let _obj_stream = self.doc.read_indirect(obj)?;
         Ok(())
@@ -594,19 +583,9 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
             .get_value("Font")
             .unwrap();
 
-        let fonts_dict = match fonts {
-            PDFObject::Indirect(_) => self.doc.read_indirect(fonts)?,
-            PDFObject::Dictionary(_) => fonts.to_owned(),
-            _ => panic!("fonts dict error"),
-        };
+        let fonts_dict = self.doc.read_indirect(fonts)?;
         let font_ref = fonts_dict.get_value(fontname).unwrap();
-        let font_obj = {
-            if font_ref.is_indirect() {
-                self.doc.read_indirect(font_ref)?
-            } else {
-                font_ref.to_owned()
-            }
-        };
+        let font_obj = self.doc.read_indirect(font_ref)?;
         let font = create_font(fontname, &font_obj, self.doc)?;
         self.font_cache.insert(fontname.to_string(), font.clone());
         Ok(font)

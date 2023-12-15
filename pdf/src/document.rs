@@ -69,6 +69,10 @@ impl<T: Seek + Read> Document<T> {
     }
 
     pub fn read_indirect(&self, indirect: &PDFObject) -> PDFResult<PDFObject> {
-        self.xref.fetch_object(indirect)
+        if indirect.is_indirect() {
+            self.xref.fetch_object(indirect)
+        } else {
+            Ok(indirect.to_owned())
+        }
     }
 }
