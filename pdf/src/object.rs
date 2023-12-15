@@ -222,6 +222,7 @@ impl PDFObject {
         match self {
             PDFObject::Name(ref s) => Ok(s.to_string()),
             PDFObject::String(ref s) => Ok(s.to_string()),
+            PDFObject::Null => Ok("null".to_string()),
             _ => Err(PDFError::ObjectConvertFailure(format!(
                 "{:?} can't conveto to string",
                 self
