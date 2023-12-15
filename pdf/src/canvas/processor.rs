@@ -83,8 +83,8 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
             let cursor = Cursor::new(raw_bytes);
             let tokenizer = Tokenizer::new(cursor);
             let mut parser = CanvasParser::new(tokenizer);
-            // TODO fix handle EOF
             while let Ok(operation) = parser.parse_op() {
+                println!("{:?}", operation);
                 self.invoke_operation(operation)?;
             }
         }
@@ -470,7 +470,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
 
     // Tr
     fn set_text_reander_mode(&mut self, operation: Operation) -> PDFResult<()> {
-        let render = operation.operand(0)?.as_string()?;
+        let render = operation.operand(0)?.as_i64()?;
         let state = self.state_stack.last_mut().unwrap();
         state.set_rendering_indent(render);
         Ok(())
@@ -586,19 +586,27 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         if let Some(font) = self.font_cache.get(fontname) {
             return Ok(font.clone());
         }
+        // TODO, get_value check indirect
         let fonts = self
             .resource_stack
             .last()
             .unwrap()
             .get_value("Font")
             .unwrap();
+
         let fonts_dict = match fonts {
             PDFObject::Indirect(_) => self.doc.read_indirect(fonts)?,
             PDFObject::Dictionary(_) => fonts.to_owned(),
             _ => panic!("fonts dict error"),
         };
         let font_ref = fonts_dict.get_value(fontname).unwrap();
-        let font_obj = self.doc.read_indirect(font_ref)?;
+        let font_obj = {
+            if font_ref.is_indirect() {
+                self.doc.read_indirect(font_ref)?
+            } else {
+                font_ref.to_owned()
+            }
+        };
         let font = create_font(fontname, &font_obj, self.doc)?;
         self.font_cache.insert(fontname.to_string(), font.clone());
         Ok(font)

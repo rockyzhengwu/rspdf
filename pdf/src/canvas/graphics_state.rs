@@ -22,7 +22,7 @@ pub struct GraphicsState {
     line_join: i64,
     line_miter_limit: i64,
     line_dash_pattern: Vec<f64>,
-    rendering_intent: String,
+    rendering_intent: i64,
     text_matrix: Matrix,
     text_line_matrix: Matrix,
 }
@@ -94,9 +94,10 @@ impl GraphicsState {
         self.font = font;
     }
 
-    pub fn set_rendering_indent(&mut self, indent: String) {
+    pub fn set_rendering_indent(&mut self, indent: i64) {
         self.rendering_intent = indent;
     }
+
     pub fn set_text_rise(&mut self, rise: f64) {
         self.text_rise = rise;
     }
@@ -108,18 +109,23 @@ impl GraphicsState {
     pub fn text_matrix(&self) -> &Matrix {
         &self.text_matrix
     }
+
     pub fn text_leading(&self) -> f64 {
         self.text_leading
     }
+
     pub fn font_size(&self) -> f64 {
         self.font_size
     }
+
     pub fn font(&self) -> &PDFFont {
         &self.font
     }
+
     pub fn char_spacing(&self) -> f64 {
         self.char_spacing
     }
+
     pub fn word_spacing(&self) -> f64 {
         self.word_spacing
     }

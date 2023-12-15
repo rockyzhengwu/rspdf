@@ -3,7 +3,6 @@ use std::i64;
 use std::io::{Read, Seek};
 
 use crate::errors::{PDFError, PDFResult};
-use crate::filter::new_filter;
 use crate::lexer::Tokenizer;
 use crate::object::{
     PDFArray, PDFDictionary, PDFIndirect, PDFName, PDFNumber, PDFObject, PDFStream, PDFString,
@@ -128,7 +127,7 @@ impl<T: Seek + Read> Reader<T> {
         }
 
         let obj = self.parse_obj()?;
-        let stream: PDFStream = obj.try_into()?;
+        let mut stream: PDFStream = obj.try_into()?;
         match stream.attribute("Type") {
             Some(obj) => {
                 if "XRef" != obj.as_string()? {
@@ -144,12 +143,15 @@ impl<T: Seek + Read> Reader<T> {
                 ))
             }
         }
-        let entries = self.parse_xref_subsection_stream(&stream)?;
+        let entries = self.parse_xref_subsection_stream(&mut stream)?;
         let trailer = PDFObject::Dictionary(stream.dict());
         Ok((trailer, entries))
     }
 
-    fn parse_xref_subsection_stream(&mut self, stream: &PDFStream) -> PDFResult<XRefEntryTable> {
+    fn parse_xref_subsection_stream(
+        &mut self,
+        stream: &mut PDFStream,
+    ) -> PDFResult<XRefEntryTable> {
         let wobj: PDFArray = stream
             .attribute("W")
             .ok_or(PDFError::InvalidSyntax(
@@ -177,6 +179,8 @@ impl<T: Seek + Read> Reader<T> {
 
         let length = stream.length().unwrap().as_i64()?;
         let buffer = self.read_stream_content(stream, length as usize)?;
+        stream.set_buffer(buffer);
+        let buffer = stream.bytes();
         let mut entries = HashMap::new();
         let mut bptr = 0;
         for v in index.chunks(2) {
@@ -317,20 +321,6 @@ impl<T: Seek + Read> Reader<T> {
         // token is next stream
         let dict: PDFDictionary = obj.try_into()?;
         let offset = self.tokenizer.skip_white()?;
-        //let mut token = self.tokenizer.next_token()?;
-        //if token != Token::PDFEndStream {
-        //    return Err(PDFError::InvalidSyntax(format!(
-        //        "PDFStream need Token::PDFEndStream got:{:?}",
-        //        token
-        //    )));
-        //}
-        //token = self.tokenizer.next_token()?;
-        //if token != Token::PDFEndObj {
-        //    return Err(PDFError::InvalidSyntax(format!(
-        //        "PDFStream need Token::PDFEndObj got :{:?}",
-        //        token
-        //    )));
-        //}
         let stream = PDFObject::Stream(PDFStream::new(offset, dict));
         Ok(stream)
     }
@@ -340,24 +330,23 @@ impl<T: Seek + Read> Reader<T> {
         self.tokenizer.seek(offset)?;
         let mut buffer = vec![0; length];
         self.tokenizer.peek_buffer(&mut buffer)?;
-        // TODO mutil filter support
-        let filter = stream.attribute("Filter");
-        let mut filters = Vec::new();
-        match filter {
-            Some(PDFObject::Name(name)) => {
-                filters.push(name.to_string());
-            }
-            Some(PDFObject::Arrray(arr)) => {
-                for a in arr.iter() {
-                    filters.push(a.as_string()?);
-                }
-            }
-            _ => {}
-        }
-        for fname in filters {
-            let filter = new_filter(fname.as_str())?;
-            buffer = filter.decode(buffer.as_slice(), None)?;
-        }
+        //let filter = stream.attribute("Filter");
+        //let mut filters = Vec::new();
+        //match filter {
+        //    Some(PDFObject::Name(name)) => {
+        //        filters.push(name.to_string());
+        //    }
+        //    Some(PDFObject::Arrray(arr)) => {
+        //        for a in arr.iter() {
+        //            filters.push(a.as_string()?);
+        //        }
+        //    }
+        //    _ => {}
+        //}
+        //for fname in filters {
+        //    let filter = new_filter(fname.as_str())?;
+        //    buffer = filter.decode(buffer.as_slice(), None)?;
+        //}
         Ok(buffer)
     }
 }

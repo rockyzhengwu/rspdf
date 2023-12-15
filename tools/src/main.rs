@@ -32,15 +32,18 @@ fn main() {
     env_logger::init();
     let cli = Cli::parse();
     let filename = cli.filename;
-    let start = cli.start.unwrap_or(0);
-    let end = cli.end.unwrap_or(1);
     let command = cli.command;
-    info!(
-        "Process {:?},from page {} to {}, {:?}",
-        filename, start, end, command
-    );
-    let file = File::open(filename).unwrap();
+
+    let start = cli.start.unwrap_or(0);
+    let file = File::open(filename.as_path()).unwrap();
     let doc = Document::open(file).unwrap();
+    let end = cli.end.unwrap_or(doc.page_count() as u32);
+    info!(
+        "Process {:?} for page:{} to page {}",
+        filename.display(),
+        start,
+        end
+    );
 
     match command {
         Commands::Pdftotext(cfg) => commands::pdftotext::command(doc, start, end, cfg).unwrap(),

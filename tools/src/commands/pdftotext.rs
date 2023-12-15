@@ -14,7 +14,7 @@ use pdf::errors::PDFResult;
 #[derive(Debug, Parser)]
 pub struct Config {
     #[arg(short, long)]
-    output: PathBuf,
+    pub(crate) output: Option<PathBuf>,
 }
 
 pub fn command(doc: Document<File>, start: u32, end: u32, cfg: Config) -> PDFResult<()> {
@@ -25,7 +25,8 @@ pub fn command(doc: Document<File>, start: u32, end: u32, cfg: Config) -> PDFRes
         processor.process_page_content(page).unwrap();
         processor.reset();
     }
-    let mut file = File::create(cfg.output).unwrap();
+    let outname = cfg.output.unwrap_or(PathBuf::from("pdftotxt.xml"));
+    let mut file = File::create(outname).unwrap();
     file.write_all(device.borrow().result().as_bytes()).unwrap();
     Ok(())
 }

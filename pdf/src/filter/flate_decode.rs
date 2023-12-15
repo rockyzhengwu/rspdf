@@ -16,7 +16,7 @@ impl Filter for FlateDecode {
         let mut out: Vec<u8> = Vec::new();
         decoder
             .read_to_end(&mut out)
-            .map_err(|_| PDFError::Filter("Zlib deocde error".to_string()))?;
+            .map_err(|e| PDFError::Filter(format!("Zlib deocde error:{:?}", e)))?;
         Ok(out)
     }
 }
