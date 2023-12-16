@@ -361,6 +361,8 @@ impl<T: Seek + Read> Reader<T> {
 #[cfg(test)]
 mod tests {
     use crate::object::PDFObject;
+    use crate::xref::{XRefEntry, XRefEntryType};
+    use std::collections::HashMap;
     use std::fs::File;
     use std::io::Cursor;
     use std::path::PathBuf;
@@ -410,15 +412,53 @@ mod tests {
     fn test_parse_xref_table() {
         let fname = peek_filename("hello_world.pdf");
         let mut parser = create_file_reader(fname);
-        let xref = parser.read_xref().unwrap();
-        println!("{:?}", xref);
+        let (trailer, entries)= parser.read_xref().unwrap();
+        assert_eq!(entries.len(), 7);
+        assert_eq!(trailer.get_value("Size").unwrap().as_i64().unwrap(), 7);
     }
 
     #[test]
     fn test_parse_xref_empty() {
         let fname = peek_filename("empty_xref.pdf");
         let mut parser = create_file_reader(fname);
-        let xref = parser.read_xref().unwrap();
-        println!("{:?}", xref);
+        let (_trailer, entries) = parser.read_xref().unwrap();
+        assert_eq!(entries.len(), 7);
+    }
+
+    #[test]
+    fn test_parse_invalid_xref() {
+        let fname = peek_filename("xref_num_start_one.pdf");
+        let mut parser = create_file_reader(fname);
+        let (_trailer, entries) = parser.read_xref().unwrap();
+        let mut expected_entries = HashMap::new();
+        expected_entries.insert(
+            (0, 65535),
+            XRefEntry::new(0, 0, 65535, XRefEntryType::XRefEntryFree),
+        );
+        expected_entries.insert(
+            (1, 0),
+            XRefEntry::new(1, 17, 0, XRefEntryType::XRefEntryUncompressed),
+        );
+        expected_entries.insert(
+            (2, 0),
+            XRefEntry::new(2, 66, 0, XRefEntryType::XRefEntryUncompressed),
+        );
+        expected_entries.insert(
+            (3, 0),
+            XRefEntry::new(3, 122, 0, XRefEntryType::XRefEntryUncompressed),
+        );
+        expected_entries.insert(
+            (4, 0),
+            XRefEntry::new(4, 209, 0, XRefEntryType::XRefEntryUncompressed),
+        );
+        expected_entries.insert(
+            (5, 0),
+            XRefEntry::new(5, 314, 0, XRefEntryType::XRefEntryUncompressed),
+        );
+        expected_entries.insert(
+            (6, 0),
+            XRefEntry::new(6, 445, 0, XRefEntryType::XRefEntryUncompressed),
+        );
+        assert_eq!(entries, expected_entries);
     }
 }

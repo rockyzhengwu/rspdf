@@ -6,14 +6,14 @@ use crate::errors::{PDFError, PDFResult};
 use crate::object::{PDFDictionary, PDFName, PDFObject};
 use crate::reader::Reader;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum XRefEntryType {
     XRefEntryFree,
     XRefEntryUncompressed,
     XRefEntryCompressed,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct XRefEntry {
     number: i64,
     offset: i64,
@@ -147,5 +147,10 @@ impl<T: Seek + Read> XRef<T> {
             PDFObject::Dictionary(_) => root.to_owned(),
             _ => panic!("Root not Indirect or Dictionary"),
         }
+    }
+
+    // just use in test now
+    pub fn entries(&self) -> &XRefEntryTable {
+        &self.entries
     }
 }
