@@ -23,29 +23,29 @@ pub fn command(doc: Document<File>, start: u32, end: u32, _cfg: Config) -> PDFRe
     for p in start..end {
         let page = doc.page(p).unwrap();
         let resource = page.borrow().resources();
-        if resource.is_indirect() {
-            let resobj = doc.read_indirect(&resource).unwrap();
-            let fonts = doc
-                .read_indirect(resobj.get_value("Font").unwrap())
+        let resobj = doc.read_indirect(&resource).unwrap();
+        let fontref = resobj.get_value("Font");
+        if fontref.is_none() {
+            continue;
+        }
+        let fonts = doc.read_indirect(fontref.unwrap()).unwrap();
+        let fonts_dict: PDFDictionary = fonts.try_into().unwrap();
+        for (key, obj) in fonts_dict.iter() {
+            let font_obj = doc.read_indirect(obj).unwrap();
+            let encoding = font_obj
+                .get_value("Encoding")
+                .unwrap_or(&PDFObject::Null)
+                .as_string()
                 .unwrap();
-            let fonts_dict: PDFDictionary = fonts.try_into().unwrap();
-            for (key, obj) in fonts_dict.iter() {
-                let font_obj = doc.read_indirect(obj).unwrap();
-                let encoding = font_obj
-                    .get_value("Encoding")
-                    .unwrap_or(&PDFObject::Null)
-                    .as_string()
-                    .unwrap();
-                let font_type = font_obj.get_value("Subtype").unwrap().as_string().unwrap();
-                let base_font = font_obj.get_value("BaseFont").unwrap().as_string().unwrap();
-                let name = key.to_string();
-                let finfo = FontInfo {
-                    base_font,
-                    font_type,
-                    encoding,
-                };
-                allfonts.entry(name).or_insert(finfo);
-            }
+            let font_type = font_obj.get_value("Subtype").unwrap().as_string().unwrap();
+            let base_font = font_obj.get_value("BaseFont").unwrap().as_string().unwrap();
+            let name = key.to_string();
+            let finfo = FontInfo {
+                base_font,
+                font_type,
+                encoding,
+            };
+            allfonts.entry(name).or_insert(finfo);
         }
     }
     for (name, info) in allfonts {
