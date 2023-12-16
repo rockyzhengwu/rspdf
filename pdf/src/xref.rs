@@ -2,6 +2,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{Read, Seek};
 
+use log::warn;
+
 use crate::errors::{PDFError, PDFResult};
 use crate::object::{PDFDictionary, PDFName, PDFObject};
 use crate::reader::Reader;
@@ -128,7 +130,10 @@ impl<T: Seek + Read> XRef<T> {
                         .reader
                         .borrow_mut()
                         .read_stream_content(s, l as usize)?,
-                    None => self.reader.borrow_mut().read_stream_content_unitl_end(s)?,
+                    None => {
+                        warn!("Invalid Length in Stream :{:?}", indirect);
+                        self.reader.borrow_mut().read_stream_content_unitl_end(s)?
+                    }
                 };
                 s.set_buffer(buffer);
                 Ok(obj)
