@@ -86,6 +86,7 @@ impl<T: Seek + Read> Reader<T> {
             }
             let start: i64 = token.as_i64()?;
             let count: i64 = self.tokenizer.next_token()?.as_i64()?;
+            let mut fix_num = start;
             for num in start..(start + count) {
                 let mut token = self.tokenizer.next_token()?;
                 if token == Token::PDFTrailer {
@@ -105,8 +106,13 @@ impl<T: Seek + Read> Reader<T> {
                         )))
                     }
                 };
-                let entry = XRefEntry::new(num, offset, gen, xtype);
-                entries.insert((num, gen), entry);
+                // fix this https://github.com/pdf-rs/pdf/issues/101
+                if num == 1 && gen == 65535 && matches!(xtype, XRefEntryType::XRefEntryFree) {
+                    fix_num = 0;
+                }
+                let entry = XRefEntry::new(fix_num, offset, gen, xtype);
+                entries.insert((fix_num, gen), entry);
+                fix_num += 1;
             }
         }
         Ok(entries)

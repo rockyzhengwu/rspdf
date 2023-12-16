@@ -13,7 +13,6 @@ pub enum XRefEntryType {
     XRefEntryCompressed,
 }
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct XRefEntry {
     number: i64,
@@ -48,6 +47,10 @@ impl XRefEntry {
 
     pub fn gen(&self) -> i64 {
         self.gen
+    }
+
+    pub fn is_free(&self) -> bool {
+        matches!(self.xtype, XRefEntryType::XRefEntryFree)
     }
 }
 

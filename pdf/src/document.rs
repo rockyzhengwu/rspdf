@@ -21,6 +21,7 @@ impl<T: Seek + Read> Document<T> {
         let mut reader = RefCell::new(Reader::new(input));
         debug!("Read XRef");
         let (trailer, entries) = reader.get_mut().read_xref()?;
+        println!("{:?}", entries);
 
         let xref = XRef::try_new(reader, trailer, entries)?;
         // xref, reader
