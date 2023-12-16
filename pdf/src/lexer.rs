@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::io::{Read, Seek, SeekFrom};
 
 use crate::errors::{PDFError, PDFResult};
@@ -122,6 +123,30 @@ impl<T: Read + Seek> Tokenizer<T> {
         }
         self.step_back()?;
         self.offset()
+    }
+
+    pub fn read_unitil(&mut self, expected: &[u8]) -> PDFResult<Vec<u8>> {
+        let mut buf = Vec::new();
+        let n = expected.len();
+        let mut tmp: VecDeque<u8> = VecDeque::with_capacity(n);
+        loop {
+            let c = self.peek_byte()?;
+            if c.is_eof() {
+                return Err(PDFError::InvalidSyntax(format!(
+                    "Read until didn't reatch {:?}",
+                    expected
+                )));
+            }
+            tmp.push_back(c.as_u8());
+            if tmp.len() == n {
+                if tmp == expected {
+                    break;
+                }
+                let v = tmp.pop_front().unwrap();
+                buf.push(v);
+            }
+        }
+        Ok(buf)
     }
 
     fn peek_byte(&mut self) -> PDFResult<Bytes> {

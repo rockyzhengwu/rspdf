@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::i64;
 use std::io::{Read, Seek};
 
+use log::warn;
+
 use crate::errors::{PDFError, PDFResult};
 use crate::lexer::Tokenizer;
 use crate::object::{
@@ -182,9 +184,20 @@ impl<T: Seek + Read> Reader<T> {
         for v in indexobj {
             index.push(v.as_i64()?);
         }
+        let buffer = match stream.length() {
+            Some(l) => match l.as_i64() {
+                Ok(ll) => self.read_stream_content(stream, ll as usize)?,
+                Err(e) => {
+                    warn!("Xref Stream Length not number got:{:?}", e);
+                    self.read_stream_content_unitl_end(stream)?
+                }
+            },
+            None => {
+                warn!("Xref Stream Length not exists");
+                self.read_stream_content_unitl_end(stream)?
+            }
+        };
 
-        let length = stream.length().unwrap().as_i64()?;
-        let buffer = self.read_stream_content(stream, length as usize)?;
         stream.set_buffer(buffer);
         let buffer = stream.bytes();
         let mut entries = HashMap::new();
@@ -337,23 +350,13 @@ impl<T: Seek + Read> Reader<T> {
         self.tokenizer.seek(offset)?;
         let mut buffer = vec![0; length];
         self.tokenizer.peek_buffer(&mut buffer)?;
-        //let filter = stream.attribute("Filter");
-        //let mut filters = Vec::new();
-        //match filter {
-        //    Some(PDFObject::Name(name)) => {
-        //        filters.push(name.to_string());
-        //    }
-        //    Some(PDFObject::Arrray(arr)) => {
-        //        for a in arr.iter() {
-        //            filters.push(a.as_string()?);
-        //        }
-        //    }
-        //    _ => {}
-        //}
-        //for fname in filters {
-        //    let filter = new_filter(fname.as_str())?;
-        //    buffer = filter.decode(buffer.as_slice(), None)?;
-        //}
+        Ok(buffer)
+    }
+
+    pub fn read_stream_content_unitl_end(&mut self, stream: &PDFStream) -> PDFResult<Vec<u8>> {
+        let offset = stream.offset();
+        self.tokenizer.seek(offset)?;
+        let buffer = self.tokenizer.read_unitil(b"endstream")?;
         Ok(buffer)
     }
 }
@@ -412,7 +415,7 @@ mod tests {
     fn test_parse_xref_table() {
         let fname = peek_filename("hello_world.pdf");
         let mut parser = create_file_reader(fname);
-        let (trailer, entries)= parser.read_xref().unwrap();
+        let (trailer, entries) = parser.read_xref().unwrap();
         assert_eq!(entries.len(), 7);
         assert_eq!(trailer.get_value("Size").unwrap().as_i64().unwrap(), 7);
     }

@@ -109,30 +109,27 @@ impl<T: Seek + Read> XRef<T> {
         }
     }
 
-    // TODO simpleile
     pub fn fetch_object(&self, indirect: &PDFObject) -> PDFResult<PDFObject> {
         let entry = self.indirect_entry(indirect)?;
         let mut obj = self.reader.borrow_mut().fetch_object(entry)?;
         match obj {
             PDFObject::Stream(ref mut s) => {
-                let lobj = s.length().unwrap();
+                let lobj = s.length();
                 let length = match lobj {
-                    PDFObject::Indirect(_) => {
-                        let le = self.indirect_entry(lobj).unwrap();
-                        self.reader.borrow_mut().fetch_object(le)?.as_i64()?
+                    Some(&PDFObject::Indirect(_)) => {
+                        let le = self.indirect_entry(lobj.unwrap())?;
+                        Some(self.reader.borrow_mut().fetch_object(le)?.as_i64()?)
                     }
-                    PDFObject::Number(v) => v.as_i64(),
-                    _ => {
-                        return Err(PDFError::InvalidSyntax(format!(
-                            "Length in stream is not Number or Indirect got:{:?}",
-                            lobj
-                        )));
-                    }
+                    Some(PDFObject::Number(ref v)) => Some(v.as_i64()),
+                    _ => None,
                 };
-                let buffer = self
-                    .reader
-                    .borrow_mut()
-                    .read_stream_content(s, length as usize)?;
+                let buffer = match length {
+                    Some(l) => self
+                        .reader
+                        .borrow_mut()
+                        .read_stream_content(s, l as usize)?,
+                    None => self.reader.borrow_mut().read_stream_content_unitl_end(s)?,
+                };
                 s.set_buffer(buffer);
                 Ok(obj)
             }
@@ -152,5 +149,38 @@ impl<T: Seek + Read> XRef<T> {
     // just use in test now
     pub fn entries(&self) -> &XRefEntryTable {
         &self.entries
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::XRef;
+    use crate::object::{PDFIndirect, PDFObject};
+    use crate::reader::Reader;
+
+    use std::cell::RefCell;
+    use std::fs::File;
+    use std::path::PathBuf;
+
+    fn abslute_path(name: &str) -> PathBuf {
+        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        d.push(format!("tests/resources/{}", name));
+        d
+    }
+    fn create_xref(path: PathBuf) -> XRef<File> {
+        let file = File::open(path).unwrap();
+        let mut reader = Reader::new(file);
+        let (trailer, entries) = reader.read_xref().unwrap();
+        XRef::try_new(RefCell::new(reader), trailer, entries).unwrap()
+    }
+
+    #[test]
+    fn test_stream_without_length() {
+        let path = abslute_path("stream_without_length.pdf");
+        let xref = create_xref(path);
+        let stream = xref
+            .fetch_object(&PDFObject::Indirect(PDFIndirect::new(6, 0)))
+            .unwrap();
+        assert_eq!(stream.bytes().unwrap().len(), 83);
     }
 }
