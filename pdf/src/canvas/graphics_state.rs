@@ -1,6 +1,6 @@
 use crate::canvas::matrix::Matrix;
 use crate::canvas::path::Path;
-use crate::font::simple_font::SimpleFont;
+use crate::font::Font;
 
 #[allow(dead_code)]
 #[derive(Default, Debug, Clone)]
@@ -16,7 +16,7 @@ pub struct GraphicsState {
     font_size: f64,
     text_rise: f64,
     text_knockout: bool,
-    font: SimpleFont,
+    font: Font,
     line_width: f64,
     line_cap_style: i64,
     line_join: i64,
@@ -89,7 +89,7 @@ impl GraphicsState {
     pub fn set_text_leading(&mut self, leading: f64) {
         self.text_leading = leading;
     }
-    pub fn set_font(&mut self, font: SimpleFont, size: f64) {
+    pub fn set_font(&mut self, font: Font, size: f64) {
         self.font_size = size;
         self.font = font;
     }
@@ -118,7 +118,7 @@ impl GraphicsState {
         self.font_size
     }
 
-    pub fn font(&self) -> &SimpleFont {
+    pub fn font(&self) -> &Font {
         &self.font
     }
 

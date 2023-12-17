@@ -36,9 +36,20 @@ impl CMap {
     pub fn code_to_character_len(&self) -> usize {
         self.code_to_character.len()
     }
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    pub fn cmap_type(&self) -> Option<u8> {
+        self.cmap_type
+    }
 
     pub fn set_name(&mut self, name: String) {
         self.name = name;
+    }
+
+    pub fn set_type(&mut self, cmap_type: Option<u8>) {
+        self.cmap_type = cmap_type;
     }
 
     pub fn add_code_space_range(&mut self, space_range: CodeSpaceRange) {

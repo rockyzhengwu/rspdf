@@ -56,7 +56,7 @@ impl TextInfo {
     }
 
     pub fn get_character_width(&self, code: u32) -> f64 {
-        ((self.state.font().get_char_with(&code) as f64 / 1000.0) * self.state.font_size()
+        ((self.state.font().get_width(&code) as f64 / 1000.0) * self.state.font_size()
             + self.state.char_spacing())
             * self.state.text_matrix().v11
     }

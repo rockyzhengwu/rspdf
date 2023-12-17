@@ -12,7 +12,7 @@ use crate::canvas::text_info::TextInfo;
 use crate::device::Device;
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
-use crate::font::{create_font, simple_font::SimpleFont};
+use crate::font::{create_font, Font};
 use crate::geom::{path::Path, point::Point, rectangle::Rectangle};
 use crate::lexer::Tokenizer;
 use crate::object::{PDFNumber, PDFObject};
@@ -22,7 +22,7 @@ pub struct Processor<'a, T: Seek + Read, D: Device> {
     doc: &'a Document<T>,
     state_stack: Vec<GraphicsState>,
     resource_stack: Vec<PDFObject>,
-    font_cache: HashMap<String, SimpleFont>,
+    font_cache: HashMap<String, Font>,
     device: Rc<RefCell<D>>,
     mediabox: Rectangle,
     cropbox: Rectangle,
@@ -571,7 +571,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         Ok(())
     }
 
-    fn get_font(&mut self, fontname: &str) -> PDFResult<SimpleFont> {
+    fn get_font(&mut self, fontname: &str) -> PDFResult<Font> {
         if let Some(font) = self.font_cache.get(fontname) {
             return Ok(font.clone());
         }

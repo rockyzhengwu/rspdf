@@ -10,6 +10,8 @@
 use std::collections::HashMap;
 use std::io::{Read, Seek};
 
+use log::warn;
+
 use crate::errors::{PDFError, PDFResult};
 use crate::font::cmap::{CMap, CodeSpaceRange};
 use crate::lexer::Tokenizer;
@@ -55,9 +57,18 @@ impl<T: Seek + Read> CMapParser<T> {
                 "def" => {
                     if command.len() == 2 {
                         let key = command[0].as_string()?;
-                        if key == "CMapName" {
-                            let val = command[1].to_owned().as_string()?;
-                            cmap.set_name(val);
+                        match key.as_str() {
+                            "CMapName" => {
+                                let val = command[1].to_owned().as_string()?;
+                                cmap.set_name(val);
+                            }
+                            "CMapType" => {
+                                let val = command[1].to_owned().as_i64().unwrap() as u8;
+                                cmap.set_type(Some(val));
+                            }
+                            _ => {
+                                //
+                            }
                         }
                     }
                 }
@@ -68,6 +79,8 @@ impl<T: Seek + Read> CMapParser<T> {
                             let uv = hex_to_number(&item[1])?;
                             cmap.add_cid(mark, uv);
                         }
+                    } else {
+                        warn!("Cmap parer endcidchar command not valid");
                     }
                 }
                 "endbfchar" => {
@@ -77,7 +90,8 @@ impl<T: Seek + Read> CMapParser<T> {
                             let uv = hex_to_number(&item[1])?;
                             cmap.add_character(mark, uv);
                         }
-                        // TODO
+                    } else {
+                        warn!("Cmap parer endbfchar command not valid");
                     }
                 }
                 "endcidrange" => {
@@ -135,7 +149,8 @@ impl<T: Seek + Read> CMapParser<T> {
                     }
                 }
                 "usecmap" => {
-                    //TODO,
+                    println!("usecmap: {:?}", command);
+                    // TODO
                 }
                 "endcodespacerange" => {
                     let low = hex_to_number(&command[0])?;
@@ -254,6 +269,7 @@ endbfrange
 endcmap CMapName currentdict /CMap defineresource pop end end";
         let cmap = CMap::new_from_bytes(content.as_slice());
         assert_eq!(cmap.code_to_character_len(), 107);
-        println!("{:?}", cmap.code_space_range);
+        assert_eq!(cmap.name(), "AAAAAA+F4+0");
+        assert_eq!(cmap.cmap_type(), Some(2));
     }
 }

@@ -1,19 +1,11 @@
-use crate::object::PDFObject;
 
 // WiinAnsiEncoding
 // Identity-H
 // qlq
 
-#[allow(unused)]
+#[allow(dead_code)]
 pub struct FontEncoding {
-    encoding: Vec<u8>,
+    encoding: [u8; 256],
 }
 
-
-#[allow(unused)]
-impl FontEncoding {
-    pub fn new(obj: PDFObject) -> Self {
-        let encoding = Vec::new();
-        FontEncoding { encoding }
-    }
-}
+impl FontEncoding {}

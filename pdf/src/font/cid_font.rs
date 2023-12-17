@@ -56,6 +56,7 @@ impl CIDFont {
         assert_eq!(n, 2);
         u16::from_be_bytes(buf)
     }
+
     fn read_u8(&self) -> u8 {
         let mut buf: [u8; 1] = [0; 1];
         let n = self.reader.borrow_mut().read(&mut buf).unwrap();

@@ -1,92 +1,65 @@
-use std::collections::HashMap;
 use std::io::{Read, Seek};
 
-use freetype::{Face, Library};
+use freetype::{Bitmap, Face, Library};
 
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
-use crate::font::cid_font::CIDFont;
-use crate::object::PDFObject;
+use crate::object::{PDFObject, PDFString};
 
 pub(crate) mod cid_font;
 pub(crate) mod cmap;
+pub(crate) mod composite_font;
 pub(crate) mod encoding;
 pub(crate) mod simple_font;
-pub(crate) mod type0_font;
 
-use cmap::CMap;
-use simple_font::SimpleFont;
+use composite_font::{create_composite_font, CompositeFont};
+use simple_font::{create_simple_font, SimpleFont};
 
-pub trait Font {}
+#[derive(Clone, Debug, Default)]
+pub enum Font {
+    Simple(SimpleFont),
+    Composite(CompositeFont),
+    #[default]
+    None,
+}
+
+impl Font {
+    pub fn decode_to_glyph(&self, code: u32, sx: u32, sy: u32) -> Bitmap {
+        match self {
+            Font::Simple(sf) => sf.decode_to_glyph(code, sx, sy),
+            Font::Composite(cf) => cf.decode_to_glyph(code, sx, sy),
+            _ => panic!("not implemented"),
+        }
+    }
+
+    pub fn get_unicode(&self, content: &PDFString) -> String {
+        match self {
+            Font::Simple(sf) => sf.get_unicode(content),
+            Font::Composite(cf)=>cf.get_unicode(content),
+            _ => panic!("unimplemented!"),
+        }
+    }
+
+    pub fn get_width(&self, code: &u32) -> u32 {
+        match self {
+            Font::Simple(sf) => sf.get_width(code),
+            Font::Composite(cf)=>cf.get_width(code),
+            _ => panic!("unimplemented"),
+        }
+    }
+}
 
 pub fn create_font<T: Seek + Read>(
     fontname: &str,
     obj: &PDFObject,
     doc: &Document<T>,
-) -> PDFResult<SimpleFont> {
+) -> PDFResult<Font> {
     println!("{:?},{:?}", fontname, obj);
     let subtype = obj.get_value_as_string("Subtype").unwrap()?;
-    let mut width_map: HashMap<u32, u32> = HashMap::new();
-    if let Some(widths) = obj.get_value("Widths") {
-        let first_char = obj.get_value("FirstChar").unwrap().as_i64()?;
-        let last_char = obj.get_value("LastChar").unwrap().as_i64()?;
-        let ws = widths.as_array()?;
-        for i in first_char..=last_char {
-            // TODO handle this
-            width_map.insert(
-                (i & 0xffffffff) as u32,
-                (ws[(i - first_char) as usize].as_i64().unwrap() & 0xffffffff) as u32,
-            );
-        }
+    match subtype.as_str() {
+        "Type0" => Ok(Font::Composite(create_composite_font(fontname, obj, doc)?)),
+        _ => Ok(Font::Simple(create_simple_font(fontname, obj, doc)?)),
     }
-
-    let mut face: Option<Face> = None;
-    let mut cid: Option<CIDFont> = None;
-
-    if let Some(descriptor) = obj.get_value("FontDescriptor") {
-        let desc = doc.read_indirect(descriptor)?;
-        let font_program = match subtype.as_str() {
-            "TrueType" => "FontFile2",
-            _ => "FontFile3",
-        };
-        let font_file = desc.get_value(font_program).unwrap();
-        let font_stream = doc.read_indirect(font_file)?;
-        //let lengths = font_stream.get_value("Length1").unwrap();
-
-        face = Some(load_face(font_stream.bytes()?)?);
-        if obj.get_value("Encoding").is_none() && subtype == "TrueType" {
-            cid = Some(CIDFont::new(font_stream.bytes()?));
-        }
-    }
-
-    // TODO encoding
-    if let Some(enc) = obj.get_value("Encoding") {
-        let enc_obj = if enc.is_indirect() {
-            doc.read_indirect(enc)?
-        } else {
-            enc.to_owned()
-        };
-        // code -> char 的 mapping
-        println!("encoding {:?}", enc_obj);
-        //let _diffs = enc.get_value("Differences").unwrap();
-    }
-
-    let mut cmap = CMap::default();
-    if let Some(tu) = obj.get_value("ToUnicode") {
-        let to_unicode = doc.read_indirect(tu)?;
-        let bytes = to_unicode.bytes()?;
-        cmap = cmap::CMap::new_from_bytes(bytes.as_slice());
-        // parse cmap
-    }
-
-    Ok(SimpleFont::new(
-        fontname,
-        obj.to_owned(),
-        cmap,
-        width_map,
-        face,
-        cid,
-    ))
 }
 
 fn load_face(buffer: Vec<u8>) -> PDFResult<Face> {
