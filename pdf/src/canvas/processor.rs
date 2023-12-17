@@ -12,7 +12,7 @@ use crate::canvas::text_info::TextInfo;
 use crate::device::Device;
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
-use crate::font::{create_font, simple_font::PDFFont};
+use crate::font::{create_font, simple_font::SimpleFont};
 use crate::geom::{path::Path, point::Point, rectangle::Rectangle};
 use crate::lexer::Tokenizer;
 use crate::object::{PDFNumber, PDFObject};
@@ -22,7 +22,7 @@ pub struct Processor<'a, T: Seek + Read, D: Device> {
     doc: &'a Document<T>,
     state_stack: Vec<GraphicsState>,
     resource_stack: Vec<PDFObject>,
-    font_cache: HashMap<String, PDFFont>,
+    font_cache: HashMap<String, SimpleFont>,
     device: Rc<RefCell<D>>,
     mediabox: Rectangle,
     cropbox: Rectangle,
@@ -71,16 +71,16 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         for obj in objs {
             let stream = self.doc.read_indirect(&obj)?;
             let raw_bytes = stream.bytes()?;
-            println!(
-                "raw_bytes:{}",
-                String::from_utf8_lossy(raw_bytes.as_slice())
-            );
+            //println!(
+            //    "raw_bytes:{}",
+            //    String::from_utf8_lossy(raw_bytes.as_slice())
+            //);
 
             let cursor = Cursor::new(raw_bytes);
             let tokenizer = Tokenizer::new(cursor);
             let mut parser = CanvasParser::new(tokenizer);
             while let Ok(operation) = parser.parse_op() {
-                println!("{:?}", operation);
+                //println!("{:?}", operation);
                 self.invoke_operation(operation)?;
             }
         }
@@ -571,7 +571,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         Ok(())
     }
 
-    fn get_font(&mut self, fontname: &str) -> PDFResult<PDFFont> {
+    fn get_font(&mut self, fontname: &str) -> PDFResult<SimpleFont> {
         if let Some(font) = self.font_cache.get(fontname) {
             return Ok(font.clone());
         }

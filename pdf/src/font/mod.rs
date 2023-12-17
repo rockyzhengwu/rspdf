@@ -6,20 +6,25 @@ use freetype::{Face, Library};
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::font::cid_font::CIDFont;
-use crate::font::cmap::CMap;
 use crate::object::PDFObject;
 
 pub(crate) mod cid_font;
-mod cmap;
+pub(crate) mod cmap;
+pub(crate) mod encoding;
 pub(crate) mod simple_font;
+pub(crate) mod type0_font;
 
-use simple_font::PDFFont;
+use cmap::CMap;
+use simple_font::SimpleFont;
+
+pub trait Font {}
 
 pub fn create_font<T: Seek + Read>(
     fontname: &str,
     obj: &PDFObject,
     doc: &Document<T>,
-) -> PDFResult<PDFFont> {
+) -> PDFResult<SimpleFont> {
+    println!("{:?},{:?}", fontname, obj);
     let subtype = obj.get_value_as_string("Subtype").unwrap()?;
     let mut width_map: HashMap<u32, u32> = HashMap::new();
     if let Some(widths) = obj.get_value("Widths") {
@@ -55,8 +60,14 @@ pub fn create_font<T: Seek + Read>(
     }
 
     // TODO encoding
-    if let Some(_enc) = obj.get_value("Encoding") {
-        //let enc = doc.read_indirect(enc)?;
+    if let Some(enc) = obj.get_value("Encoding") {
+        let enc_obj = if enc.is_indirect() {
+            doc.read_indirect(enc)?
+        } else {
+            enc.to_owned()
+        };
+        // code -> char 的 mapping
+        println!("encoding {:?}", enc_obj);
         //let _diffs = enc.get_value("Differences").unwrap();
     }
 
@@ -64,10 +75,11 @@ pub fn create_font<T: Seek + Read>(
     if let Some(tu) = obj.get_value("ToUnicode") {
         let to_unicode = doc.read_indirect(tu)?;
         let bytes = to_unicode.bytes()?;
-        cmap = CMap::new(bytes.as_slice());
+        cmap = cmap::CMap::new_from_bytes(bytes.as_slice());
         // parse cmap
     }
-    Ok(PDFFont::new(
+
+    Ok(SimpleFont::new(
         fontname,
         obj.to_owned(),
         cmap,

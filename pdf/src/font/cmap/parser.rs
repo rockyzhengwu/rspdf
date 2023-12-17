@@ -1,33 +1,22 @@
+// https://adobe-type-tools.github.io/font-tech-notes/pdfs/5014.CIDFont_Spec.pdf
+// Operators That Use CIDs as Selectors
+// functional: specifies range of CIDFont characters
+//   begincidchar endcidchar && begincidrange endcidrange
+//
+// Operators That Use Character Names
+// or Character Codes as Selectors
+//
+
 use std::collections::HashMap;
-use std::io::{Cursor, Read, Seek};
+use std::io::{Read, Seek};
 
 use crate::errors::{PDFError, PDFResult};
+use crate::font::cmap::{CMap, CodeSpaceRange};
 use crate::lexer::Tokenizer;
 use crate::object::{PDFName, PDFNumber, PDFObject, PDFString};
 use crate::token::Token;
 
-#[derive(Default, Clone, Debug)]
-pub struct CMap {
-    code_to_unicode: HashMap<u32, char>,
-}
-
-impl CMap {
-    pub fn decode_string(&self, content: &PDFString) -> String {
-        let mut res = String::new();
-        for b in content.bytes() {
-            let code = *b as u32;
-            if let Some(c) = self.code_to_unicode.get(&code) {
-                res.push(c.to_owned());
-            }
-        }
-        res
-    }
-    pub fn is_empty(&self) -> bool {
-        self.code_to_unicode.is_empty()
-    }
-}
-
-struct CMapParser<T: Seek + Read> {
+pub struct CMapParser<T: Seek + Read> {
     tokenizer: Tokenizer<T>,
 }
 
@@ -46,12 +35,12 @@ fn hex_to_number(o: &PDFObject) -> PDFResult<u32> {
 }
 
 impl<T: Seek + Read> CMapParser<T> {
-    fn new(tokenizer: Tokenizer<T>) -> Self {
+    pub fn new(tokenizer: Tokenizer<T>) -> Self {
         CMapParser { tokenizer }
     }
 
     pub fn parse(&mut self) -> PDFResult<CMap> {
-        let mut code_to_unicode: HashMap<u32, char> = HashMap::new();
+        let mut cmap = CMap::default();
 
         while !self.tokenizer.check_next(&Token::PDFEof)? {
             let mut command = self.parse_cmp_command()?;
@@ -62,46 +51,84 @@ impl<T: Seek + Read> CMapParser<T> {
                     "Command object is empty".to_string(),
                 ))?
                 .as_string()?;
-
             match cmd.as_str() {
                 "def" => {
                     if command.len() == 2 {
-                        let _key = command[0].as_string()?;
-                        let _val = command[1].to_owned();
-                        //println!("defaine {:?},{:?}", key, val);
+                        let key = command[0].as_string()?;
+                        if key == "CMapName" {
+                            let val = command[1].to_owned().as_string()?;
+                            cmap.set_name(val);
+                        }
                     }
                 }
-                "endcidchar" | "endbfchar" => {
+                "endcidchar" => {
                     if command.len() >= 2 {
                         for item in command.chunks(2) {
                             let mark = hex_to_number(&item[0])?;
-                            // TODO unwrap
-                            let c = char::from_u32(hex_to_number(&item[1])?).unwrap();
-                            code_to_unicode.insert(mark, c);
+                            let uv = hex_to_number(&item[1])?;
+                            cmap.add_cid(mark, uv);
+                        }
+                    }
+                }
+                "endbfchar" => {
+                    if command.len() >= 2 {
+                        for item in command.chunks(2) {
+                            let mark = hex_to_number(&item[0])?;
+                            let uv = hex_to_number(&item[1])?;
+                            cmap.add_character(mark, uv);
                         }
                         // TODO
                     }
                 }
-                "endcidrange" | "endbfrange" => {
+                "endcidrange" => {
                     if command.len() >= 3 {
                         for item in command.chunks(3) {
-                            //println!("{:?}", item);
                             let start = hex_to_number(&item[0])?;
                             let end = hex_to_number(&item[1])?;
                             match item[2] {
                                 PDFObject::String(_) => {
-                                    let mut iv = hex_to_number(&item[2])?;
-                                    for m in start..=end {
-                                        let c = char::from_u32(iv).unwrap();
-                                        code_to_unicode.insert(m, c);
-                                        iv += 1;
-                                    }
+                                    let iv = hex_to_number(&item[2])?;
+                                    cmap.add_range_cid(start, end, iv);
                                 }
-                                PDFObject::Arrray(_) => {}
+                                PDFObject::Number(_) => {
+                                    let n = item[2].as_i64().unwrap() as u32;
+                                    cmap.add_range_cid(start, end, n)
+                                }
+                                PDFObject::Arrray(_) => {
+                                    unimplemented!()
+                                }
                                 _ => {
-                                    return Err(PDFError::FontCmapFailure(
-                                        "parse cmaps endbfrange error".to_string(),
-                                    ));
+                                    return Err(PDFError::FontCmapFailure(format!(
+                                        "parse cmaps endbfrange error expected String or Array:{:?}",
+                                        item[2]
+                                    )));
+                                }
+                            }
+                        }
+                    }
+                }
+                "endbfrange" => {
+                    if command.len() >= 3 {
+                        for item in command.chunks(3) {
+                            let start = hex_to_number(&item[0])?;
+                            let end = hex_to_number(&item[1])?;
+                            match item[2] {
+                                PDFObject::String(_) => {
+                                    let iv = hex_to_number(&item[2])?;
+                                    cmap.add_range_to_character(start, end, iv)
+                                }
+                                PDFObject::Number(_) => {
+                                    let n = item[2].as_i64().unwrap() as u32;
+                                    cmap.add_range_to_character(start, end, n);
+                                }
+                                PDFObject::Arrray(_) => {
+                                    unimplemented!()
+                                }
+                                _ => {
+                                    return Err(PDFError::FontCmapFailure(format!(
+                                        "parse cmaps endbfrange error expected String or Array:{:?}",
+                                        item[2]
+                                    )));
                                 }
                             }
                         }
@@ -111,12 +138,14 @@ impl<T: Seek + Read> CMapParser<T> {
                     //TODO,
                 }
                 "endcodespacerange" => {
-                    //TODO
+                    let low = hex_to_number(&command[0])?;
+                    let high = hex_to_number(&command[1])?;
+                    cmap.add_code_space_range(CodeSpaceRange { low, high })
                 }
                 _ => {}
             }
         }
-        Ok(CMap { code_to_unicode })
+        Ok(cmap)
     }
 
     fn parse_cmp_command(&mut self) -> PDFResult<Vec<PDFObject>> {
@@ -182,15 +211,6 @@ impl<T: Seek + Read> CMapParser<T> {
     }
 }
 
-impl CMap {
-    pub fn new(buffer: &[u8]) -> Self {
-        let cursor = Cursor::new(buffer);
-        let tokenizer = Tokenizer::new(cursor);
-        let mut parser = CMapParser::new(tokenizer);
-        parser.parse().unwrap()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::font::cmap::CMap;
@@ -232,7 +252,8 @@ endbfchar
 <e0> <e1> <00E0>
 endbfrange
 endcmap CMapName currentdict /CMap defineresource pop end end";
-        let cmap = CMap::new(content.as_slice());
-        assert_eq!(cmap.code_to_unicode.len(), 107);
+        let cmap = CMap::new_from_bytes(content.as_slice());
+        assert_eq!(cmap.code_to_character_len(), 107);
+        println!("{:?}", cmap.code_space_range);
     }
 }

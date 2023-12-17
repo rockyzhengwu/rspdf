@@ -10,29 +10,29 @@ use crate::object::{PDFObject, PDFString};
 const GLYPH_SPACE: f64 = 1000.0;
 
 #[derive(Clone, Default)]
-pub struct PDFFont {
+pub struct SimpleFont {
     #[allow(dead_code)]
     name: String,
     obj: PDFObject,
-    cmap: CMap,
+    tounicode: CMap,
     widths: HashMap<u32, u32>,
     face: Option<Face>,
     cid: Option<CIDFont>,
 }
 
-impl PDFFont {
+impl SimpleFont {
     pub fn new(
         name: &str,
         obj: PDFObject,
-        cmap: CMap,
+        tounicode: CMap,
         widths: HashMap<u32, u32>,
         face: Option<Face>,
         cid: Option<CIDFont>,
     ) -> Self {
-        PDFFont {
+        SimpleFont {
             name: name.to_string(),
             obj,
-            cmap,
+            tounicode,
             widths,
             face,
             cid,
@@ -91,10 +91,10 @@ impl PDFFont {
 
     pub fn get_unicode(&self, content: &PDFString) -> String {
         // TODO fix this
-        if self.cmap.is_empty(){
+        if self.tounicode.has_to_unicode() {
             return content.to_string();
         }
-        self.cmap.decode_string(content)
+        self.tounicode.decode_string(content)
     }
 
     pub fn get_width(&self, code: &u32) -> u32 {
@@ -102,7 +102,7 @@ impl PDFFont {
     }
 }
 
-impl Debug for PDFFont {
+impl Debug for SimpleFont {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PDFFont")
             .field("font_dict:", &self.obj)

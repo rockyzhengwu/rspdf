@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs::File;
 
 use clap::Parser;
+use log::info;
 
 use pdf::document::Document;
 use pdf::errors::PDFResult;
@@ -21,6 +22,7 @@ struct FontInfo {
 pub fn command(doc: Document<File>, start: u32, end: u32, _cfg: Config) -> PDFResult<()> {
     let mut allfonts: HashMap<String, FontInfo> = HashMap::new();
     for p in start..end {
+        info!("processing page:{}", p);
         let page = doc.page(p).unwrap();
         let resource = page.borrow().resources();
         let resobj = doc.read_indirect(&resource).unwrap();
