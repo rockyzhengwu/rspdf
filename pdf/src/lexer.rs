@@ -683,4 +683,11 @@ are the same . )";
         let tokens_b = token_result(content_b.as_bytes());
         assert_eq!(tokens_a, tokens_b);
     }
+
+    #[test]
+    fn test_tok_cmap() {
+        let content = include_bytes!("../cmaps/Identity-H");
+        let res = token_result(content);
+        println!("{:?}", res);
+    }
 }

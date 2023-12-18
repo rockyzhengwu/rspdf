@@ -35,7 +35,7 @@ impl Font {
     pub fn get_unicode(&self, content: &PDFString) -> String {
         match self {
             Font::Simple(sf) => sf.get_unicode(content),
-            Font::Composite(cf)=>cf.get_unicode(content),
+            Font::Composite(cf) => cf.get_unicode(content),
             _ => panic!("unimplemented!"),
         }
     }
@@ -43,7 +43,7 @@ impl Font {
     pub fn get_width(&self, code: &u32) -> u32 {
         match self {
             Font::Simple(sf) => sf.get_width(code),
-            Font::Composite(cf)=>cf.get_width(code),
+            Font::Composite(cf) => cf.get_width(code),
             _ => panic!("unimplemented"),
         }
     }
@@ -54,7 +54,6 @@ pub fn create_font<T: Seek + Read>(
     obj: &PDFObject,
     doc: &Document<T>,
 ) -> PDFResult<Font> {
-    println!("{:?},{:?}", fontname, obj);
     let subtype = obj.get_value_as_string("Subtype").unwrap()?;
     match subtype.as_str() {
         "Type0" => Ok(Font::Composite(create_composite_font(fontname, obj, doc)?)),

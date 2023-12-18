@@ -26,7 +26,7 @@ pub struct CIDFont {
     tables: Vec<TrueTypeTalbe>,
     cmaps: Vec<TrueTypeCmap>,
 }
-
+#[allow(dead_code)]
 impl CIDFont {
     pub fn new(buf: Vec<u8>) -> Self {
         let mut font = CIDFont {

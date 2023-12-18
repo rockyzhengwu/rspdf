@@ -47,6 +47,9 @@ impl<T: Seek + Read> CMapParser<T> {
         while !self.tokenizer.check_next(&Token::PDFEof)? {
             let mut command = self.parse_cmp_command()?;
             // TODO fix
+            if command.len() < 2 {
+                continue;
+            }
             let cmd: String = command
                 .pop()
                 .ok_or(PDFError::FontCmapFailure(
@@ -165,7 +168,9 @@ impl<T: Seek + Read> CMapParser<T> {
 
     fn parse_cmp_command(&mut self) -> PDFResult<Vec<PDFObject>> {
         let mut command = Vec::new();
-        while !self.tokenizer.check_next(&Token::PDFOther(Vec::new()))? {
+        while !self.tokenizer.check_next(&Token::PDFOther(Vec::new()))?
+            && !self.tokenizer.check_next(&Token::PDFEof)?
+        {
             let obj = self.parse_obj()?;
             command.push(obj);
         }
@@ -173,6 +178,9 @@ impl<T: Seek + Read> CMapParser<T> {
         match token {
             Token::PDFOther(ref v) => {
                 command.push(PDFObject::String(PDFString::Literial(v.to_owned())));
+            }
+            Token::PDFEof => {
+                return Ok(command);
             }
             _ => {
                 panic!("unexpect cmap toekn ");
@@ -196,7 +204,6 @@ impl<T: Seek + Read> CMapParser<T> {
                 Ok(PDFObject::String(PDFString::Literial(s.to_owned())))
             }
             Token::PDFOther(s) => Ok(PDFObject::String(PDFString::Literial(s))),
-            Token::PDFEof => Ok(PDFObject::Null),
             _ => Err(PDFError::FontCmapFailure(format!(
                 "parse Cmap object Unexpected Token:{:?}",
                 token

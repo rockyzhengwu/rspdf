@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::fmt;
 
 use crate::errors::{PDFError, PDFResult};
-use crate::filter::new_filter;
+use crate::filter::asciihex_decode::ASCIIHexDecode;
+use crate::filter::{new_filter, Filter};
 
 #[derive(Clone, Debug)]
 pub struct PDFIndirect {
@@ -72,6 +73,12 @@ impl PDFString {
         match self {
             Self::HexString(v) => v.as_slice(),
             Self::Literial(v) => v.as_slice(),
+        }
+    }
+    pub fn binary_bytes(&self) -> Vec<u8> {
+        match self {
+            Self::HexString(v) => ASCIIHexDecode::default().decode(v, None).unwrap(),
+            Self::Literial(v) => v.to_owned(),
         }
     }
 }

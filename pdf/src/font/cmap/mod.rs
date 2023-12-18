@@ -5,7 +5,9 @@ use std::u8;
 use crate::lexer::Tokenizer;
 use crate::object::PDFString;
 
+pub mod identity_h;
 pub mod parser;
+pub mod predefined;
 
 #[allow(dead_code)]
 #[derive(Default, Clone, Debug)]
@@ -94,6 +96,35 @@ impl CMap {
             let code = *b as u32;
             if let Some(c) = self.code_to_character.get(&code) {
                 res.push(char::from_u32(c.to_owned()).unwrap());
+            }
+        }
+        res
+    }
+
+    pub fn code_to_cid(&self, bytes: &[u8]) -> Vec<u32> {
+        let mut cids: Vec<u32> = Vec::new();
+        if matches!(self.name.as_str(), "Identity-H" | "Identity-V") {
+            for v in bytes.chunks(2) {
+                if v.len() == 2 {
+                    let h = v[0] as u32;
+                    let l = v[1] as u32;
+                    let code = (h << 8) + l;
+                    let cid = self.code_to_cid.get(&code).unwrap();
+
+                    cids.push(cid.to_owned())
+                } else {
+                    cids.push(v[0] as u32)
+                }
+            }
+        }
+        cids
+    }
+
+    pub fn cid_to_string(&self, cids: &[u32]) -> String {
+        let mut res = String::new();
+        for c in cids {
+            if let Some(ch) = self.code_to_character.get(c) {
+                res.push(char::from_u32(ch.to_owned()).unwrap());
             }
         }
         res

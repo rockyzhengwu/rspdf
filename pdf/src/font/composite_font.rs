@@ -6,6 +6,7 @@ use freetype::{Bitmap, Face};
 use crate::document::Document;
 use crate::errors::PDFResult;
 use crate::font::cid_font::CIDFont;
+use crate::font::cmap::predefined::get_predefine_cmap;
 use crate::font::{cmap::CMap, load_face};
 use crate::object::{PDFObject, PDFString};
 
@@ -25,8 +26,20 @@ impl CompositeFont {
         self.widths.get(code).unwrap_or(&0_u32).to_owned()
     }
 
-    pub fn get_unicode(&self, _content: &PDFString) -> String {
-        unimplemented!()
+    pub fn get_unicode(&self, content: &PDFString) -> String {
+        // bytes -> cid ;
+        let bytes = content.binary_bytes();
+        let cids = self.encoding.code_to_cid(bytes.as_slice());
+        let s = self.tounicode.cid_to_string(cids.as_slice());
+        println!(
+            "unicode: {:?},{:?},{:?}, {:?},{}",
+            s,
+            cids,
+            self.tounicode,
+            content,
+            self.encoding.name(),
+        );
+        s
     }
 
     pub fn decode_to_glyph(&self, _code: u32, _sx: u32, _sy: u32) -> Bitmap {
@@ -79,9 +92,7 @@ pub fn create_composite_font<T: Seek + Read>(
             enc.to_owned()
         };
         match enc_obj {
-            PDFObject::Name(_) => {
-                //predefine cmap file
-            }
+            PDFObject::Name(name) => encoding = get_predefine_cmap(name.to_string().as_str()),
             PDFObject::Stream(s) => {
                 let bytes = s.bytes();
                 encoding = CMap::new_from_bytes(bytes.as_slice());
@@ -96,7 +107,6 @@ pub fn create_composite_font<T: Seek + Read>(
     if let Some(tu) = obj.get_value("ToUnicode") {
         let to_unicode = doc.read_indirect(tu)?;
         let bytes = to_unicode.bytes()?;
-        println!("ToUnicode {:?}", String::from_utf8_lossy(bytes.as_slice()));
         tounicode = CMap::new_from_bytes(bytes.as_slice());
     }
 

@@ -71,16 +71,16 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         for obj in objs {
             let stream = self.doc.read_indirect(&obj)?;
             let raw_bytes = stream.bytes()?;
-            //println!(
-            //    "raw_bytes:{}",
-            //    String::from_utf8_lossy(raw_bytes.as_slice())
-            //);
+            println!(
+                "raw_bytes:{}",
+                String::from_utf8_lossy(raw_bytes.as_slice())
+            );
 
             let cursor = Cursor::new(raw_bytes);
             let tokenizer = Tokenizer::new(cursor);
             let mut parser = CanvasParser::new(tokenizer);
             while let Ok(operation) = parser.parse_op() {
-                //println!("{:?}", operation);
+                println!("{:?}", operation);
                 self.invoke_operation(operation)?;
             }
         }

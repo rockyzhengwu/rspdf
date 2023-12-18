@@ -43,6 +43,7 @@ pub fn command(doc: Document<File>, start: u32, end: u32, _cfg: Config) -> PDFRe
             };
             let font_type = font_obj.get_value("Subtype").unwrap().as_string().unwrap();
             let base_font = font_obj.get_value("BaseFont").unwrap().as_string().unwrap();
+            let _tounicode = font_obj.get_value("ToUnicode").unwrap();
             let name = key.to_string();
             let finfo = FontInfo {
                 base_font,
