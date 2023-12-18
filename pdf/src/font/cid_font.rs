@@ -42,6 +42,7 @@ impl CIDFont {
         let tag = u32::from_be_bytes(tag.to_owned());
         self.tables.iter().find(|&t| t.tag == tag)
     }
+
     fn read_be_u32(&self) -> u32 {
         let mut buf: [u8; 4] = [0; 4];
         // TODO fix

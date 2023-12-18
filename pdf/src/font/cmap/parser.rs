@@ -152,8 +152,8 @@ impl<T: Seek + Read> CMapParser<T> {
                     }
                 }
                 "usecmap" => {
-                    println!("usecmap: {:?}", command);
-                    // TODO
+                    let name = command[0].as_string().unwrap();
+                    cmap.set_usecmap(name);
                 }
                 "endcodespacerange" => {
                     let low = hex_to_number(&command[0])?;
@@ -235,6 +235,7 @@ impl<T: Seek + Read> CMapParser<T> {
 
 #[cfg(test)]
 mod tests {
+
     use crate::font::cmap::CMap;
 
     #[test]
@@ -278,5 +279,12 @@ endcmap CMapName currentdict /CMap defineresource pop end end";
         assert_eq!(cmap.code_to_character_len(), 107);
         assert_eq!(cmap.name(), "AAAAAA+F4+0");
         assert_eq!(cmap.cmap_type(), Some(2));
+    }
+
+    #[test]
+    fn test_usecmap() {
+        let bytes = include_bytes!("../../../cmaps/Identity-V");
+        let cmap = CMap::new_from_bytes(bytes.as_slice());
+        println!("{:?}", cmap);
     }
 }

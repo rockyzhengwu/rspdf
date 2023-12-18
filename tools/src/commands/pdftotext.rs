@@ -6,6 +6,8 @@ use std::rc::Rc;
 
 use clap::Parser;
 
+use log::info;
+
 use pdf::canvas::processor::Processor;
 use pdf::device::text::TextDevice;
 use pdf::document::Document;
@@ -21,6 +23,7 @@ pub fn command(doc: Document<File>, start: u32, end: u32, cfg: Config) -> PDFRes
     let device = Rc::new(RefCell::new(TextDevice::new()));
     let mut processor = Processor::new(&doc, device.clone());
     for p in start..end {
+        info!("process page:{}", p);
         let page = doc.page(p).unwrap();
         processor.process_page_content(page).unwrap();
         processor.reset();

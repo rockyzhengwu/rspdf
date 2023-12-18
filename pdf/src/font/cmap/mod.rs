@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use std::u8;
 
+use crate::font::cmap::predefined::get_predefine_cmap_ref;
 use crate::lexer::Tokenizer;
 use crate::object::PDFString;
 
-pub mod identity_h;
 pub mod parser;
 pub mod predefined;
 
@@ -29,6 +29,7 @@ pub struct CMap {
     name: String,
     wmode: Option<u8>,
     cmap_type: Option<u8>,
+    usecmap: Option<String>,
     code_space_range: Vec<CodeSpaceRange>,
     code_to_character: HashMap<u32, u32>,
     code_to_cid: HashMap<u32, u32>,
@@ -48,6 +49,10 @@ impl CMap {
 
     pub fn set_name(&mut self, name: String) {
         self.name = name;
+    }
+
+    pub fn set_usecmap(&mut self, other: String) {
+        self.usecmap = Some(other);
     }
 
     pub fn set_type(&mut self, cmap_type: Option<u8>) {
@@ -109,8 +114,20 @@ impl CMap {
                     let h = v[0] as u32;
                     let l = v[1] as u32;
                     let code = (h << 8) + l;
-                    let cid = self.code_to_cid.get(&code).unwrap();
-
+                    let cid = match self.code_to_cid.get(&code) {
+                        Some(cd) => cd,
+                        // TODO fix
+                        None => match self.usecmap {
+                            Some(ref scp) => {
+                                let um = get_predefine_cmap_ref(scp);
+                                let ucid = um.code_to_cid.get(&code).unwrap();
+                                ucid
+                            }
+                            None => {
+                                panic!("usep is none");
+                            }
+                        },
+                    };
                     cids.push(cid.to_owned())
                 } else {
                     cids.push(v[0] as u32)

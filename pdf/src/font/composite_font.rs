@@ -31,14 +31,6 @@ impl CompositeFont {
         let bytes = content.binary_bytes();
         let cids = self.encoding.code_to_cid(bytes.as_slice());
         let s = self.tounicode.cid_to_string(cids.as_slice());
-        println!(
-            "unicode: {:?},{:?},{:?}, {:?},{}",
-            s,
-            cids,
-            self.tounicode,
-            content,
-            self.encoding.name(),
-        );
         s
     }
 

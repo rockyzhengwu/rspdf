@@ -110,7 +110,7 @@ pub fn create_simple_font<T: Seek + Read>(
         } else {
             enc.to_owned()
         };
-        println!("encoding {:?}", enc_obj);
+        //println!("encoding {:?}", enc_obj);
         //let _diffs = enc.get_value("Differences").unwrap();
     }
 
@@ -118,7 +118,7 @@ pub fn create_simple_font<T: Seek + Read>(
     if let Some(tu) = obj.get_value("ToUnicode") {
         let to_unicode = doc.read_indirect(tu)?;
         let bytes = to_unicode.bytes()?;
-        println!("ToUnicode {:?}", String::from_utf8_lossy(bytes.as_slice()));
+        //println!("ToUnicode {:?}", String::from_utf8_lossy(bytes.as_slice()));
         cmap = CMap::new_from_bytes(bytes.as_slice());
     }
 
