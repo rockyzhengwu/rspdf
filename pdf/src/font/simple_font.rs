@@ -110,7 +110,7 @@ pub fn create_simple_font<T: Seek + Read>(
         } else {
             enc.to_owned()
         };
-        //println!("encoding {:?}", enc_obj);
+        println!("encoding {:?}", enc_obj);
         //let _diffs = enc.get_value("Differences").unwrap();
     }
 

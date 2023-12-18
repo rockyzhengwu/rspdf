@@ -57,19 +57,17 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         self.resource_stack.push(resource_obj);
         self.state_stack.push(state);
 
-        let contents = page.borrow().contents();
-        let objs = match &contents {
-            PDFObject::Arrray(arr) => arr.to_owned(),
-            PDFObject::Indirect(_) => {
-                vec![contents]
-            }
-            _ => {
-                panic!("contents must be array or stream");
-            }
-        };
+        let contents = page.borrow().contents(self.doc)?;
 
-        for obj in objs {
-            let stream = self.doc.read_indirect(&obj)?;
+        for obj in contents {
+            println!("obj {:?}", obj);
+            let stream = if obj.is_indirect() {
+                self.doc.read_indirect(&obj)?
+            } else {
+                obj
+            };
+
+            println!("stream: {:?}", stream);
             let raw_bytes = stream.bytes()?;
             //println!(
             //    "raw_bytes:{}",
@@ -80,7 +78,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
             let tokenizer = Tokenizer::new(cursor);
             let mut parser = CanvasParser::new(tokenizer);
             while let Ok(operation) = parser.parse_op() {
-                //println!("{:?}", operation);
+                println!("{:?}", operation);
                 self.invoke_operation(operation)?;
             }
         }

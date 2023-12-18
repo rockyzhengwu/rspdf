@@ -6,7 +6,7 @@ use log::info;
 
 use pdf::document::Document;
 use pdf::errors::PDFResult;
-use pdf::object::PDFDictionary;
+use pdf::object::{PDFDictionary, PDFObject};
 
 #[derive(Debug, Parser)]
 pub struct Config {}
@@ -34,16 +34,17 @@ pub fn command(doc: Document<File>, start: u32, end: u32, _cfg: Config) -> PDFRe
         let fonts_dict: PDFDictionary = fonts.try_into().unwrap();
         for (key, obj) in fonts_dict.iter() {
             let font_obj = doc.read_indirect(obj).unwrap();
-            let enc_obj = font_obj.get_value("Encoding").unwrap();
-            let encoding = if enc_obj.is_indirect() {
-                let _enc_o = doc.read_indirect(enc_obj);
-                "Embedding".to_string()
-            } else {
-                enc_obj.as_string().unwrap()
+            let enc_obj = font_obj.get_value("Encoding");
+            let encoding = match enc_obj {
+                Some(&PDFObject::Indirect(_)) => "Embedding".to_string(),
+                Some(PDFObject::Name(n)) => n.to_string(),
+                _ => "".to_string(),
             };
+
             let font_type = font_obj.get_value("Subtype").unwrap().as_string().unwrap();
             let base_font = font_obj.get_value("BaseFont").unwrap().as_string().unwrap();
-            let _tounicode = font_obj.get_value("ToUnicode").unwrap();
+            let _tounicode = font_obj.get_value("ToUnicode");
+            println!("{:?}, ToUnicode: {:?}, {:?}", key, _tounicode, enc_obj);
             let name = key.to_string();
             let finfo = FontInfo {
                 base_font,

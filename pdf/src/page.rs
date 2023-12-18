@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::io::{Read, Seek};
 use std::rc::{Rc, Weak};
 
+use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::geom::rectangle::Rectangle;
 use crate::object::PDFObject;
@@ -91,11 +92,40 @@ impl Page {
         }
     }
 
-    pub fn contents(&self) -> PDFObject {
+    pub fn contents<T: Seek + Read>(&self, doc: &Document<T>) -> PDFResult<Vec<PDFObject>> {
         // TODO contents is array or not
-        self.dict
-            .get_value("Contents")
-            .map_or_else(|| PDFObject::Arrray(Vec::new()), |v| v.to_owned())
+        let mut objects = Vec::new();
+        let content = self.dict.get_value("Contents");
+        // TODO fix recursive indirect
+        match content {
+            Some(&PDFObject::Indirect(_)) => {
+                let o = doc.read_indirect(content.unwrap())?;
+                match o {
+                    PDFObject::Dictionary(d) => objects.push(PDFObject::Dictionary(d)),
+                    PDFObject::Arrray(arr) => {
+                        for ar in arr.iter() {
+                            match ar {
+                                PDFObject::Indirect(_) => objects.push(doc.read_indirect(ar)?),
+                                _ => objects.push(ar.to_owned()),
+                            }
+                        }
+                    }
+                    _ => panic!("conntents array type error "),
+                }
+            }
+            Some(PDFObject::Dictionary(d)) => objects.push(PDFObject::Dictionary(d.clone())),
+            Some(PDFObject::Arrray(arr)) => {
+                for ar in arr.iter() {
+                    match ar {
+                        PDFObject::Indirect(_) => objects.push(doc.read_indirect(ar)?),
+                        _ => objects.push(ar.to_owned()),
+                    }
+                }
+            }
+            None => panic!("contents not exists"),
+            _ => panic!("contents type error:{:?}", content),
+        }
+        Ok(objects)
     }
 
     pub fn resources(&self) -> PDFObject {
