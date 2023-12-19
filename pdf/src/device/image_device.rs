@@ -64,18 +64,18 @@ impl Device for ImageDevice {
         // TODO color
         let _unicode = textinfo.get_unicode();
 
-        let character = textinfo.decoded_character();
         let (x, y) = textinfo.position();
-        println!("{}, x:{},y:{}, ", _unicode, x, y);
+
         let bbox = textinfo.bbox();
         let sx = self.image.width() as f64 / bbox.width();
         let sy = self.image.width() as f64 / bbox.height();
         let mut x = x * sx;
         let y = y * sx;
         let scale = f64::sqrt((sx * sx + sy * sy) / 2.0);
-        for code in character {
-            let w = textinfo.get_character_width(code);
-            let bitmap = textinfo.get_glyph(code, scale);
+        let cids = textinfo.cids();
+        for cid in cids {
+            let w = textinfo.get_character_width(cid);
+            let bitmap = textinfo.get_glyph(cid, scale);
             if bitmap.is_none() {
                 warn!("bitmap is NOne");
                 continue;

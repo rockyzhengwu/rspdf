@@ -27,6 +27,14 @@ impl TrueType {
         self.widths.get(code).unwrap_or(&0_u32).to_owned()
     }
 
+    pub fn get_gids(&self, bytes: &[u8]) -> Vec<u32> {
+        let mut res: Vec<u32> = Vec::new();
+        for code in bytes {
+            res.push(code.to_owned() as u32);
+        }
+        res
+    }
+
     pub fn get_unicode(&self, content: &PDFString) -> String {
         let bytes = content.binary_bytes();
         let cids: Vec<u32> = bytes.iter().map(|v| v.to_owned() as u32).collect();

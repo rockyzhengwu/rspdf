@@ -40,6 +40,17 @@ impl Font {
             }
         }
     }
+    pub fn code_to_gids(&self, bytes: &[u8]) -> Vec<u32> {
+        match self {
+            Font::Simple(sf) => sf.get_gids(bytes),
+            Font::Composite(cf) => cf.get_gids(bytes),
+            Font::TrueType(tf) => tf.get_gids(bytes),
+            _ => {
+                warn!("not support font {:?}", self);
+                Vec::new()
+            }
+        }
+    }
 
     pub fn get_unicode(&self, content: &PDFString) -> String {
         match self {

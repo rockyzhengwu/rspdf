@@ -35,6 +35,14 @@ impl SimpleFont {
         }
     }
 
+    pub fn get_gids(&self, bytes: &[u8]) -> Vec<u32> {
+        let mut res: Vec<u32> = Vec::new();
+        for code in bytes {
+            res.push(code.to_owned() as u32);
+        }
+        res
+    }
+
     pub fn decode_to_glyph(&self, code: u32, sx: u32, sy: u32) -> Bitmap {
         match self.face {
             Some(ref f) => {

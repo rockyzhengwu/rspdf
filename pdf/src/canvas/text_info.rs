@@ -23,6 +23,11 @@ impl TextInfo {
     pub fn get_unicode(&self) -> String {
         self.state.font().get_unicode(&self.characters)
     }
+
+    pub fn content_bytes(&self) -> &[u8] {
+        self.characters.bytes()
+    }
+
     pub fn decoded_character(&self) -> Vec<u32> {
         let mut chs = Vec::new();
         for c in self.characters.bytes() {
@@ -44,6 +49,10 @@ impl TextInfo {
             total += (w as f64 / 1000.0) * self.state.font_size() + self.state.char_spacing()
         }
         total
+    }
+
+    pub fn cids(&mut self) -> Vec<u32> {
+        self.state.font().code_to_gids(self.characters.bytes())
     }
 
     pub fn get_glyph(&mut self, code: u32, scale: f64) -> Option<Bitmap> {

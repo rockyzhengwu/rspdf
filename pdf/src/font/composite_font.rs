@@ -35,6 +35,9 @@ impl CompositeFont {
     pub fn decode_to_glyph(&self, _code: u32, _sx: u32, _sy: u32) -> Bitmap {
         unimplemented!()
     }
+    pub fn get_gids(&self, _bytes:&[u8])->Vec<u32>{
+        unimplemented!()
+    }
 }
 
 pub fn create_composite_font<T: Seek + Read>(
