@@ -1,12 +1,16 @@
-#![allow(dead_code)]
-
 // WiinAnsiEncoding
 // Identity-H
 // qlq
 
-
+#[derive(Debug, Clone)]
 pub struct FontEncoding {
-    encoding: [u8; 256],
+    encoding: [u32; 256],
+}
+
+impl Default for FontEncoding {
+    fn default() -> Self {
+        FontEncoding { encoding: [0; 256] }
+    }
 }
 
 static WIN_ANSI_ENCODING: [u32; 256] = [
@@ -43,11 +47,15 @@ static STANDARD_ENCODIING: [u32; 256] = [
 
 impl FontEncoding {}
 
-pub fn predefine_encoding(name: &str) -> [u32; 256] {
+pub fn predefine_encoding(name: &str) -> FontEncoding {
     // TODO: fix this panic
     match name {
-        "WinAnsiEncoding" => WIN_ANSI_ENCODING,
-        "StandardEncoding" => STANDARD_ENCODIING,
+        "WinAnsiEncoding" => FontEncoding {
+            encoding: WIN_ANSI_ENCODING,
+        },
+        "StandardEncoding" => FontEncoding {
+            encoding: STANDARD_ENCODIING,
+        },
         _ => panic!("{:?} encoding not exists", name),
     }
 }

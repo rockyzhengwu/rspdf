@@ -58,29 +58,21 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         self.state_stack.push(state);
 
         let contents = page.borrow().contents(self.doc)?;
-
+        let mut content_buffer = Vec::new();
         for obj in contents {
-            println!("obj {:?}", obj);
             let stream = if obj.is_indirect() {
                 self.doc.read_indirect(&obj)?
             } else {
                 obj
             };
-
-            println!("stream: {:?}", stream);
-            let raw_bytes = stream.bytes()?;
-            //println!(
-            //    "raw_bytes:{}",
-            //    String::from_utf8_lossy(raw_bytes.as_slice())
-            //);
-
-            let cursor = Cursor::new(raw_bytes);
-            let tokenizer = Tokenizer::new(cursor);
-            let mut parser = CanvasParser::new(tokenizer);
-            while let Ok(operation) = parser.parse_op() {
-                println!("{:?}", operation);
-                self.invoke_operation(operation)?;
-            }
+            content_buffer.extend(stream.bytes()?);
+        }
+        let cursor = Cursor::new(content_buffer);
+        let tokenizer = Tokenizer::new(cursor);
+        let mut parser = CanvasParser::new(tokenizer);
+        while let Ok(operation) = parser.parse_op() {
+            //println!("{:?}", operation);
+            self.invoke_operation(operation)?;
         }
         self.device.borrow_mut().end_page();
         Ok(())

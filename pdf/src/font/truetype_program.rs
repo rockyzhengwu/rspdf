@@ -20,16 +20,17 @@ struct TrueTypeCmap {
     fmt: u16,
 }
 
-#[derive(Debug, Clone)]
-pub struct CIDFont {
+#[derive(Debug, Clone, Default)]
+pub struct TrueTypeProgram {
     reader: RefCell<Cursor<Vec<u8>>>,
     tables: Vec<TrueTypeTalbe>,
     cmaps: Vec<TrueTypeCmap>,
 }
+
 #[allow(dead_code)]
-impl CIDFont {
+impl TrueTypeProgram {
     pub fn new(buf: Vec<u8>) -> Self {
-        let mut font = CIDFont {
+        let mut font = TrueTypeProgram {
             reader: RefCell::new(Cursor::new(buf)),
             tables: Vec::new(),
             cmaps: Vec::new(),
@@ -157,16 +158,16 @@ mod tests {
     use std::io::Read;
     use std::path::PathBuf;
 
-    use super::CIDFont;
+    use super::TrueTypeProgram;
 
     #[test]
     fn teset_parse() {
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        d.push("tests/resources/cid_opentype.otf");
+        d.push("tests/resources/truetype.otf");
         let mut file = File::open(d).unwrap();
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).unwrap();
-        let font = CIDFont::new(buffer);
+        let font = TrueTypeProgram::new(buffer);
         assert_eq!(font.map_code_gid(109), 79);
     }
 }
