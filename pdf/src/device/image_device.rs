@@ -1,6 +1,8 @@
 use freetype::Bitmap;
 use image::{Rgb, RgbImage};
 
+use log::warn;
+
 use crate::canvas::path_info::PathInfo;
 use crate::canvas::text_info::TextInfo;
 use crate::device::Device;
@@ -64,7 +66,7 @@ impl Device for ImageDevice {
 
         let character = textinfo.decoded_character();
         let (x, y) = textinfo.position();
-        //println!("{}, x:{},y:{}, ", unicode, x, y);
+        println!("{}, x:{},y:{}, ", _unicode, x, y);
         let bbox = textinfo.bbox();
         let sx = self.image.width() as f64 / bbox.width();
         let sy = self.image.width() as f64 / bbox.height();
@@ -74,6 +76,11 @@ impl Device for ImageDevice {
         for code in character {
             let w = textinfo.get_character_width(code);
             let bitmap = textinfo.get_glyph(code, scale);
+            if bitmap.is_none() {
+                warn!("bitmap is NOne");
+                continue;
+            }
+            let bitmap = bitmap.unwrap();
             self.draw_char(x as u32, (y + bitmap.rows() as f64) as u32, &bitmap);
             x += w * sx;
         }

@@ -29,12 +29,15 @@ pub enum Font {
 }
 
 impl Font {
-    pub fn decode_to_glyph(&self, code: u32, sx: u32, sy: u32) -> Bitmap {
+    pub fn decode_to_glyph(&self, code: u32, sx: u32, sy: u32) -> Option<Bitmap> {
         match self {
-            Font::Simple(sf) => sf.decode_to_glyph(code, sx, sy),
-            Font::Composite(cf) => cf.decode_to_glyph(code, sx, sy),
-            Font::TrueType(tf) => tf.decode_to_glyph(code, sx, sy),
-            _ => panic!("not implemented"),
+            Font::Simple(sf) => Some(sf.decode_to_glyph(code, sx, sy)),
+            Font::Composite(cf) => Some(cf.decode_to_glyph(code, sx, sy)),
+            Font::TrueType(tf) => Some(tf.decode_to_glyph(code, sx, sy)),
+            _ => {
+                warn!("not support font {:?}", self);
+                None
+            }
         }
     }
 

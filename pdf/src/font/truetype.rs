@@ -34,8 +34,19 @@ impl TrueType {
         s
     }
 
-    pub fn decode_to_glyph(&self, _code: u32, _sx: u32, _sy: u32) -> Bitmap {
-        unimplemented!()
+    pub fn decode_to_glyph(&self, code: u32, sx: u32, sy: u32) -> Bitmap {
+        let gid = self.program.as_ref().unwrap().map_code_gid(code);
+        match self.face {
+            Some(ref f) => {
+                f.set_pixel_sizes(sx, sy).unwrap();
+                f.load_glyph(gid, freetype::face::LoadFlag::RENDER).unwrap();
+                let glyph = f.glyph();
+                glyph.bitmap()
+            }
+            None => {
+                panic!("truee type doesn't hav face");
+            }
+        }
     }
 }
 

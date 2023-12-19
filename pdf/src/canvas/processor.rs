@@ -67,6 +67,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
             };
             content_buffer.extend(stream.bytes()?);
         }
+        //println!("{:#?}", String::from_utf8_lossy(content_buffer.as_slice()));
         let cursor = Cursor::new(content_buffer);
         let tokenizer = Tokenizer::new(cursor);
         let mut parser = CanvasParser::new(tokenizer);

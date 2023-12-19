@@ -46,7 +46,7 @@ impl TextInfo {
         total
     }
 
-    pub fn get_glyph(&mut self, code: u32, scale: f64) -> Bitmap {
+    pub fn get_glyph(&mut self, code: u32, scale: f64) -> Option<Bitmap> {
         let font_size = self.state.font_size();
         let sx = self.state.text_matrix().v11 * font_size * scale;
         let sy = self.state.text_matrix().v22 * font_size * scale;

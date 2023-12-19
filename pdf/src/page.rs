@@ -102,6 +102,7 @@ impl Page {
                 let o = doc.read_indirect(content.unwrap())?;
                 match o {
                     PDFObject::Dictionary(d) => objects.push(PDFObject::Dictionary(d)),
+                    PDFObject::Stream(s) => objects.push(PDFObject::Stream(s)),
                     PDFObject::Arrray(arr) => {
                         for ar in arr.iter() {
                             match ar {
@@ -114,6 +115,7 @@ impl Page {
                 }
             }
             Some(PDFObject::Dictionary(d)) => objects.push(PDFObject::Dictionary(d.clone())),
+            Some(PDFObject::Stream(s)) => objects.push(PDFObject::Stream(s.clone())),
             Some(PDFObject::Arrray(arr)) => {
                 for ar in arr.iter() {
                     match ar {
