@@ -65,6 +65,7 @@ impl Device for ImageDevice {
         let _unicode = textinfo.get_unicode();
 
         let (x, y) = textinfo.position();
+        println!("{:?},{:?},{:?}",x, y, _unicode);
 
         let bbox = textinfo.bbox();
         let sx = self.image.width() as f64 / bbox.width();

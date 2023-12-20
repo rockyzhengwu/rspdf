@@ -67,12 +67,11 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
             };
             content_buffer.extend(stream.bytes()?);
         }
-        //println!("{:#?}", String::from_utf8_lossy(content_buffer.as_slice()));
+        //println!("{:?}", String::from_utf8_lossy(content_buffer.as_slice()));
         let cursor = Cursor::new(content_buffer);
         let tokenizer = Tokenizer::new(cursor);
         let mut parser = CanvasParser::new(tokenizer);
         while let Ok(operation) = parser.parse_op() {
-            //println!("{:?}", operation);
             self.invoke_operation(operation)?;
         }
         self.device.borrow_mut().end_page();
@@ -551,7 +550,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
                 }
                 PDFObject::Number(v) => {
                     let state = self.last_mut_state();
-                    let adjust_by = -1.0 * v.as_f64() / 1000.0 * state.font_size();
+                    let adjust_by = -1.0 * v.as_f64() * 0.001 * state.font_size();
                     state.update_text_matrix(&Matrix::new_translation_matrix(adjust_by, 0.0));
                 }
                 _ => {

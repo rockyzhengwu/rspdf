@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::{Read, Seek};
 
 use freetype::{Bitmap, Face, Library};
@@ -42,9 +43,9 @@ impl Font {
     }
     pub fn code_to_gids(&self, bytes: &[u8]) -> Vec<u32> {
         match self {
-            Font::Simple(sf) => sf.get_gids(bytes),
-            Font::Composite(cf) => cf.get_gids(bytes),
-            Font::TrueType(tf) => tf.get_gids(bytes),
+            Font::Simple(sf) => sf.get_cids(bytes),
+            Font::Composite(cf) => cf.get_cids(bytes),
+            Font::TrueType(tf) => tf.get_cids(bytes),
             _ => {
                 warn!("not support font {:?}", self);
                 Vec::new()
@@ -84,7 +85,6 @@ pub fn create_font<T: Seek + Read>(
     doc: &Document<T>,
 ) -> PDFResult<Font> {
     let subtype = obj.get_value_as_string("Subtype").unwrap()?;
-    println!("{:?},{:?}", subtype, fontname);
     match subtype.as_str() {
         "Type0" => Ok(Font::Composite(create_composite_font(fontname, obj, doc)?)),
         "TrueType" => Ok(Font::TrueType(create_truetype_font(fontname, obj, doc)?)),
@@ -98,4 +98,20 @@ fn load_face(buffer: Vec<u8>) -> PDFResult<Face> {
         Ok(face) => Ok(face),
         Err(e) => Err(PDFError::FontFreeType(format!("Load face error{:?}", e))),
     }
+}
+
+pub fn parse_widhts(obj: &PDFObject) -> PDFResult<HashMap<u32, u32>> {
+    let mut width_map: HashMap<u32, u32> = HashMap::new();
+    if let Some(widths) = obj.get_value("Widths") {
+        let first_char = obj.get_value("FirstChar").unwrap().as_i64()?;
+        let last_char = obj.get_value("LastChar").unwrap().as_i64()?;
+        let ws = widths.as_array()?;
+        for i in first_char..=last_char {
+            width_map.insert(
+                (i & 0xffffffff) as u32,
+                (ws[(i - first_char) as usize].as_i64().unwrap() & 0xffffffff) as u32,
+            );
+        }
+    }
+    Ok(width_map)
 }

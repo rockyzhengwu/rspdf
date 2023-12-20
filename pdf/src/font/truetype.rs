@@ -7,8 +7,8 @@ use crate::document::Document;
 use crate::errors::PDFResult;
 use crate::font::cmap::CMap;
 use crate::font::encoding::{predefine_encoding, FontEncoding};
-use crate::font::load_face;
 use crate::font::truetype_program::TrueTypeProgram;
+use crate::font::{load_face, parse_widhts};
 use crate::object::{PDFObject, PDFString};
 
 #[allow(dead_code)]
@@ -24,10 +24,10 @@ pub struct TrueType {
 
 impl TrueType {
     pub fn get_width(&self, code: &u32) -> u32 {
-        self.widths.get(code).unwrap_or(&0_u32).to_owned()
+        self.widths.get(code).unwrap().to_owned()
     }
 
-    pub fn get_gids(&self, bytes: &[u8]) -> Vec<u32> {
+    pub fn get_cids(&self, bytes: &[u8]) -> Vec<u32> {
         let mut res: Vec<u32> = Vec::new();
         for code in bytes {
             res.push(code.to_owned() as u32);
@@ -52,7 +52,7 @@ impl TrueType {
                 glyph.bitmap()
             }
             None => {
-                panic!("truee type doesn't hav face");
+                panic!("true type doesn't hav face");
             }
         }
     }
@@ -63,19 +63,7 @@ pub fn create_truetype_font<T: Seek + Read>(
     obj: &PDFObject,
     doc: &Document<T>,
 ) -> PDFResult<TrueType> {
-    let mut widths: HashMap<u32, u32> = HashMap::new();
-    if let Some(ws) = obj.get_value("Widths") {
-        let first_char = obj.get_value("FirstChar").unwrap().as_i64()?;
-        let last_char = obj.get_value("LastChar").unwrap().as_i64()?;
-        let ws = ws.as_array()?;
-        for i in first_char..=last_char {
-            widths.insert(
-                (i & 0xffffffff) as u32,
-                (ws[(i - first_char) as usize].as_i64().unwrap() & 0xffffffff) as u32,
-            );
-        }
-    }
-
+    let widths = parse_widhts(obj)?;
     let mut face: Option<Face> = None;
     let mut program = None;
 
@@ -84,6 +72,7 @@ pub fn create_truetype_font<T: Seek + Read>(
         let font_file = desc.get_value("FontFile2").unwrap();
         let font_stream = doc.read_indirect(font_file)?;
         face = Some(load_face(font_stream.bytes()?)?);
+        println!("font_stream:{:?}", desc);
         program = Some(TrueTypeProgram::new(font_stream.bytes()?));
     }
 
@@ -95,6 +84,7 @@ pub fn create_truetype_font<T: Seek + Read>(
         } else {
             enc.to_owned()
         };
+
         match enc_obj {
             PDFObject::Name(name) => encoding = predefine_encoding(name.to_string().as_str()),
             PDFObject::Dictionary(_) => {}

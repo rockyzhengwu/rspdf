@@ -2,6 +2,7 @@
 // Identity-H
 // qlq
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct FontEncoding {
     encoding: [u32; 256],

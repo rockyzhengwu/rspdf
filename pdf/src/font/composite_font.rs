@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::io::{Read, Seek};
+use std::u32;
 
 use freetype::{Bitmap, Face};
 
@@ -7,7 +8,7 @@ use crate::document::Document;
 use crate::errors::PDFResult;
 use crate::font::cmap::predefined::get_predefine_cmap;
 use crate::font::{cmap::CMap, load_face};
-use crate::object::{PDFObject, PDFString};
+use crate::object::{PDFArray, PDFObject, PDFString};
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
@@ -17,11 +18,15 @@ pub struct CompositeFont {
     tounicode: CMap,
     face: Option<Face>,
     widths: HashMap<u32, u32>,
+    dw: u32,
 }
 
 impl CompositeFont {
     pub fn get_width(&self, code: &u32) -> u32 {
-        self.widths.get(code).unwrap_or(&0_u32).to_owned()
+        match self.widths.get(code) {
+            Some(w) => w.to_owned(),
+            None => self.dw,
+        }
     }
 
     pub fn get_unicode(&self, content: &PDFString) -> String {
@@ -32,47 +37,88 @@ impl CompositeFont {
         s
     }
 
-    pub fn decode_to_glyph(&self, _code: u32, _sx: u32, _sy: u32) -> Bitmap {
-        unimplemented!()
+    pub fn decode_to_glyph(&self, code: u32, sx: u32, sy: u32) -> Bitmap {
+        match self.face {
+            Some(ref f) => {
+                f.set_pixel_sizes(sx, sy).unwrap();
+                f.load_char(code as usize, freetype::face::LoadFlag::RENDER)
+                    .unwrap();
+                let glyph = f.glyph();
+                glyph.bitmap()
+            }
+            None => {
+                panic!("face is None in font");
+            }
+        }
     }
-    pub fn get_gids(&self, _bytes:&[u8])->Vec<u32>{
-        unimplemented!()
+
+    pub fn get_cids(&self, bytes: &[u8]) -> Vec<u32> {
+        self.encoding.code_to_cid(bytes)
     }
 }
+fn parse_widths(w: &PDFArray) -> HashMap<u32, u32> {
+    let mut widths = HashMap::new();
+    let n = w.len();
+    let mut i = 0;
+    while i < n {
+        let obj1 = w.get(i).unwrap().as_i64().unwrap() as u32;
+        let obj2 = w.get(i + 1).unwrap();
+        match obj2 {
+            PDFObject::Arrray(arr) => {
+                let mut start = obj1;
+                for a in arr {
+                    let aw = a.as_i64().unwrap() as u32;
+                    widths.insert(start, aw);
+                    start += 1;
+                }
+                i += 2;
+            }
+            PDFObject::Number(n) => {
+                let aw = w.get(i + 2).unwrap().as_i64().unwrap() as u32;
+                let end = n.as_i64() as u32;
+                for k in obj1..end {
+                    widths.insert(k, aw);
+                }
+                i += 3;
+            }
+            _ => {
+                panic!("obj2 is need array or number")
+            }
+        }
+    }
+    widths
+}
 
+// TODO robust
 pub fn create_composite_font<T: Seek + Read>(
     fontname: &str,
     obj: &PDFObject,
     doc: &Document<T>,
 ) -> PDFResult<CompositeFont> {
-    let subtype = obj.get_value_as_string("Subtype").unwrap()?;
-    let mut widths: HashMap<u32, u32> = HashMap::new();
-    if let Some(ws) = obj.get_value("Widths") {
-        let first_char = obj.get_value("FirstChar").unwrap().as_i64()?;
-        let last_char = obj.get_value("LastChar").unwrap().as_i64()?;
-        let ws = ws.as_array()?;
-        for i in first_char..=last_char {
-            widths.insert(
-                (i & 0xffffffff) as u32,
-                (ws[(i - first_char) as usize].as_i64().unwrap() & 0xffffffff) as u32,
-            );
-        }
-    }
+    let mut widths = HashMap::new();
+    let mut dw: u32 = 0;
 
     let mut face: Option<Face> = None;
 
-    if let Some(descriptor) = obj.get_value("FontDescriptor") {
-        let desc = doc.read_indirect(descriptor)?;
-        let font_program = match subtype.as_str() {
-            "TrueType" => "FontFile2",
-            _ => "FontFile3",
-        };
-        let font_file = desc.get_value(font_program).unwrap();
-        let font_stream = doc.read_indirect(font_file)?;
-        face = Some(load_face(font_stream.bytes()?)?);
+    if let Some(descendant_fonts) = obj.get_value("DescendantFonts") {
+        let descendant = doc.read_indirect(descendant_fonts)?;
+        let desc_font = descendant.as_array()?.get(0).unwrap();
+        let desc_font_obj = doc.read_indirect(desc_font)?;
+        dw = desc_font_obj.get_value("DW").unwrap().as_f64()? as u32;
+        match desc_font_obj.get_value("W") {
+            Some(PDFObject::Arrray(arr)) => widths = parse_widths(arr),
+            None => {}
+            _ => {
+                panic!("w need a array");
+            }
+        }
+
+        let desc_font_descriptor =
+            doc.read_indirect(desc_font_obj.get_value("FontDescriptor").unwrap())?;
+        let font_file = doc.read_indirect(desc_font_descriptor.get_value("FontFile2").unwrap())?;
+        face = Some(load_face(font_file.bytes()?)?);
     }
 
-    // TODO encoding
     let mut encoding = CMap::default();
     if let Some(enc) = obj.get_value("Encoding") {
         let enc_obj = if enc.is_indirect() {
@@ -89,7 +135,6 @@ pub fn create_composite_font<T: Seek + Read>(
             }
             _ => {}
         }
-        //let _diffs = enc.get_value("Differences").unwrap();
     }
 
     let mut tounicode = CMap::default();
@@ -98,6 +143,8 @@ pub fn create_composite_font<T: Seek + Read>(
         let bytes = to_unicode.bytes()?;
         tounicode = CMap::new_from_bytes(bytes.as_slice());
     }
+    println!("{:?}", widths);
+    //println!("Tounicode {:?}", tounicode.code_to_character_len());
 
     Ok(CompositeFont {
         name: fontname.to_string(),
@@ -105,5 +152,6 @@ pub fn create_composite_font<T: Seek + Read>(
         tounicode,
         face,
         widths,
+        dw,
     })
 }

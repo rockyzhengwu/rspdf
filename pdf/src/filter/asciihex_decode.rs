@@ -51,7 +51,7 @@ impl Filter for ASCIIHexDecode {
 
 #[cfg(test)]
 mod tests {
-    use crate::filter::asciihex_decode::ASCIIHexDecode;
+    use super::ASCIIHexDecode;
     use crate::filter::Filter;
 
     #[test]

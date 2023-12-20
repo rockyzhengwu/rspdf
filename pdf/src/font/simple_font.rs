@@ -6,7 +6,7 @@ use freetype::{Bitmap, Face};
 
 use crate::document::Document;
 use crate::errors::PDFResult;
-use crate::font::{cmap::CMap, load_face};
+use crate::font::{cmap::CMap, load_face, parse_widhts};
 use crate::object::{PDFObject, PDFString};
 
 #[derive(Clone, Default)]
@@ -35,7 +35,7 @@ impl SimpleFont {
         }
     }
 
-    pub fn get_gids(&self, bytes: &[u8]) -> Vec<u32> {
+    pub fn get_cids(&self, bytes: &[u8]) -> Vec<u32> {
         let mut res: Vec<u32> = Vec::new();
         for code in bytes {
             res.push(code.to_owned() as u32);
@@ -84,18 +84,7 @@ pub fn create_simple_font<T: Seek + Read>(
     doc: &Document<T>,
 ) -> PDFResult<SimpleFont> {
     let subtype = obj.get_value_as_string("Subtype").unwrap()?;
-    let mut width_map: HashMap<u32, u32> = HashMap::new();
-    if let Some(widths) = obj.get_value("Widths") {
-        let first_char = obj.get_value("FirstChar").unwrap().as_i64()?;
-        let last_char = obj.get_value("LastChar").unwrap().as_i64()?;
-        let ws = widths.as_array()?;
-        for i in first_char..=last_char {
-            width_map.insert(
-                (i & 0xffffffff) as u32,
-                (ws[(i - first_char) as usize].as_i64().unwrap() & 0xffffffff) as u32,
-            );
-        }
-    }
+    let widths = parse_widhts(obj)?;
 
     let mut face: Option<Face> = None;
 
@@ -134,7 +123,7 @@ pub fn create_simple_font<T: Seek + Read>(
         fontname,
         obj.to_owned(),
         cmap,
-        width_map,
+        widths,
         face,
     ))
 }

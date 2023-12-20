@@ -44,15 +44,18 @@ impl TextInfo {
 
     pub fn get_content_width(&self) -> f64 {
         let mut total = 0.0;
-        for code in self.characters.bytes() {
-            let w = self.state.font().get_width(&(code.to_owned() as u32));
+        let cids = self.cids();
+        for code in cids {
+            let w = self.state.font().get_width(&code);
             total += (w as f64 / 1000.0) * self.state.font_size() + self.state.char_spacing()
         }
         total
     }
 
-    pub fn cids(&mut self) -> Vec<u32> {
-        self.state.font().code_to_gids(self.characters.bytes())
+    pub fn cids(&self) -> Vec<u32> {
+        self.state
+            .font()
+            .code_to_gids(self.characters.binary_bytes().as_slice())
     }
 
     pub fn get_glyph(&mut self, code: u32, scale: f64) -> Option<Bitmap> {
