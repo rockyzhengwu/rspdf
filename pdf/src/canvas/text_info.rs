@@ -21,6 +21,7 @@ impl TextInfo {
         }
     }
     pub fn get_unicode(&self) -> String {
+        //println!("{:?}",self.characters.bytes());
         self.state.font().get_unicode(&self.characters)
     }
 
