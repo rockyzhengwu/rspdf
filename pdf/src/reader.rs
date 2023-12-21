@@ -45,7 +45,7 @@ impl<T: Seek + Read> Reader<T> {
     pub fn read_xref(&mut self) -> PDFResult<(PDFObject, XRefEntryTable)> {
         let start = self.tokenizer.find_start_xref()?;
         self.tokenizer.seek(start)?;
-        if self.tokenizer.check_next(&Token::PDFXRef)? {
+        if self.tokenizer.check_next_type(&Token::PDFXRef)? {
             self.parse_xref_table(start)
         } else {
             self.parse_xref_stream()
@@ -327,7 +327,7 @@ impl<T: Seek + Read> Reader<T> {
     pub fn parse_array(&mut self) -> PDFResult<PDFObject> {
         let mut array: Vec<PDFObject> = Vec::new();
         loop {
-            if self.tokenizer.check_next(&Token::PDFCloseArray)? {
+            if self.tokenizer.check_next_type(&Token::PDFCloseArray)? {
                 self.tokenizer.next_token()?;
                 break;
             }

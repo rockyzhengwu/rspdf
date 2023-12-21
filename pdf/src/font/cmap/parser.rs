@@ -44,7 +44,7 @@ impl<T: Seek + Read> CMapParser<T> {
     pub fn parse(&mut self) -> PDFResult<CMap> {
         let mut cmap = CMap::default();
 
-        while !self.tokenizer.check_next(&Token::PDFEof)? {
+        while !self.tokenizer.check_next_type(&Token::PDFEof)? {
             let mut command = self.parse_cmp_command()?;
             // TODO fix
             if command.len() < 2 {
@@ -168,8 +168,8 @@ impl<T: Seek + Read> CMapParser<T> {
 
     fn parse_cmp_command(&mut self) -> PDFResult<Vec<PDFObject>> {
         let mut command = Vec::new();
-        while !self.tokenizer.check_next(&Token::PDFOther(Vec::new()))?
-            && !self.tokenizer.check_next(&Token::PDFEof)?
+        while !self.tokenizer.check_next_type(&Token::PDFOther(Vec::new()))?
+            && !self.tokenizer.check_next_type(&Token::PDFEof)?
         {
             let obj = self.parse_obj()?;
             command.push(obj);
@@ -213,7 +213,7 @@ impl<T: Seek + Read> CMapParser<T> {
 
     fn read_dict(&mut self) -> PDFResult<PDFObject> {
         let mut dict = HashMap::new();
-        while !self.tokenizer.check_next(&Token::PDFCloseDict)? {
+        while !self.tokenizer.check_next_type(&Token::PDFCloseDict)? {
             let key: PDFName = self.parse_obj()?.try_into()?;
             let val = self.parse_obj()?;
             dict.insert(key, val);
@@ -224,7 +224,7 @@ impl<T: Seek + Read> CMapParser<T> {
 
     fn read_array(&mut self) -> PDFResult<PDFObject> {
         let mut array = Vec::new();
-        while !self.tokenizer.check_next(&Token::PDFCloseArray)? {
+        while !self.tokenizer.check_next_type(&Token::PDFCloseArray)? {
             let val = self.parse_obj()?;
             array.push(val);
         }

@@ -59,12 +59,14 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
 
         let contents = page.borrow().contents(self.doc)?;
         let mut content_buffer = Vec::new();
+        println!("{:?}", contents.len());
         for obj in contents {
             let stream = if obj.is_indirect() {
                 self.doc.read_indirect(&obj)?
             } else {
                 obj
             };
+            println!("{:?}", String::from_utf8_lossy(stream.bytes()?.as_slice()));
             content_buffer.extend(stream.bytes()?);
         }
         //println!("{:?}", String::from_utf8_lossy(content_buffer.as_slice()));

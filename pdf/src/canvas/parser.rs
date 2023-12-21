@@ -17,13 +17,39 @@ impl<T: Seek + Read> CanvasParser<T> {
 
     pub fn parse_op(&mut self) -> PDFResult<Operation> {
         let mut objs = Vec::new();
-        while !self.tokenizer.check_next(&Token::PDFOther(Vec::new()))? {
+        // BI
+        if self
+            .tokenizer
+            .check_next_value(&Token::PDFOther(vec![66, 73]))?
+        {
+            return self.parse_inline_image();
+        }
+        while !self
+            .tokenizer
+            .check_next_type(&Token::PDFOther(Vec::new()))?
+        {
             let obj = self.read_object()?;
             objs.push(obj);
         }
         let token = self.tokenizer.next_token()?;
         let op = token.as_string()?;
         Ok(Operation::new(op, objs))
+    }
+
+    pub fn parse_inline_image(&mut self) -> PDFResult<Operation> {
+        let _bi = self.tokenizer.next_token();
+        let mut objs = Vec::new();
+        while !self
+            .tokenizer
+            .check_next_value(&Token::PDFOther(vec![73, 68]))?
+        {
+            let obj = self.read_object()?;
+            objs.push(obj);
+        }
+        let _id = self.tokenizer.next_token()?;
+        let image_buffer = self.tokenizer.read_unitil(b"EI")?;
+        objs.push(PDFObject::String(PDFString::Literial(image_buffer)));
+        Ok(Operation::new("EI".to_string(), objs))
     }
 
     pub fn read_object(&mut self) -> PDFResult<PDFObject> {
@@ -67,7 +93,7 @@ impl<T: Seek + Read> CanvasParser<T> {
 
     pub fn read_array(&mut self) -> PDFResult<PDFObject> {
         let mut array = PDFArray::default();
-        while !self.tokenizer.check_next(&Token::PDFCloseArray)? {
+        while !self.tokenizer.check_next_type(&Token::PDFCloseArray)? {
             let val = self.read_object()?;
             array.push(val);
         }
@@ -78,10 +104,17 @@ impl<T: Seek + Read> CanvasParser<T> {
 
 #[cfg(test)]
 mod tests {
+    use std::fs::File;
     use std::io::Cursor;
+    use std::path::PathBuf;
 
     use super::CanvasParser;
     use crate::lexer::Tokenizer;
+    fn peek_filename(name: &str) -> PathBuf {
+        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        d.push(format!("tests/resources/{}", name));
+        d
+    }
 
     #[test]
     fn test_parser() {
@@ -94,4 +127,15 @@ mod tests {
         println!("{:?}", op);
     }
 
+    #[test]
+    fn test_inline_image() {
+        let filename = peek_filename("content_with_inline_image.bin");
+        let file = File::open(filename).unwrap();
+        let tokenizer = Tokenizer::new(file);
+        let mut parser = CanvasParser::new(tokenizer);
+        // TODO assert
+        while let Ok(op) = parser.parse_op() {
+            println!("{:?}", op);
+        }
+    }
 }

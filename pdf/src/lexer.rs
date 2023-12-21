@@ -85,13 +85,20 @@ impl<T: Read + Seek> Tokenizer<T> {
         Ok(())
     }
 
-    pub fn check_next(&mut self, expected: &Token) -> PDFResult<bool> {
+    pub fn check_next_type(&mut self, expected: &Token) -> PDFResult<bool> {
         let ofs = self.offset()?;
         let next = self.next_token()?;
         self.seek(ofs)?;
         let old = std::mem::discriminant(&next);
         let new = std::mem::discriminant(expected);
         Ok(old == new)
+    }
+
+    pub fn check_next_value(&mut self, expected: &Token) -> PDFResult<bool> {
+        let ofs = self.offset()?;
+        let next = self.next_token()?;
+        self.seek(ofs)?;
+        Ok(&next == expected)
     }
 
     pub fn next_token(&mut self) -> PDFResult<Token> {
