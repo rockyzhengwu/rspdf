@@ -291,8 +291,7 @@ dependencies = [
 [[package]]
 name = "freetype-rs"
 version = "0.34.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1392567e4faa8d54772a27113b9990c9d2c84dffcd7b20dbc2a57dbd9625d35"
+source = "git+https://github.com/rockyzhengwu/freetype-rs.git?branch=fix#ef51a712cf00814b5c9c1f5ce78cc28e4834c55f"
 dependencies = [
  "bitflags 2.4.1",
  "freetype-sys",
@@ -302,8 +301,7 @@ dependencies = [
 [[package]]
 name = "freetype-sys"
 version = "0.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66ee28c39a43d89fbed8b4798fb4ba56722cfd2b5af81f9326c27614ba88ecd5"
+source = "git+https://github.com/rockyzhengwu/freetype-sys.git#48e5a82d3e2b27a75b8297b0a83002c3665f6d15"
 dependencies = [
  "cc",
  "libc",
@@ -499,7 +497,6 @@ dependencies = [
  "env_logger",
  "flate2",
  "freetype-rs",
- "freetype-sys",
  "image",
  "lazy_static",
  "log",
@@ -509,9 +506,9 @@ dependencies = [
 
 [[package]]
 name = "pkg-config"
-version = "0.3.27"
+version = "0.3.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
+checksum = "69d3587f8a9e599cc7ec2c00e331f71c4e69a5f9a4b8a6efd5b07466b9736f9a"
 
 [[package]]
 name = "png"
@@ -686,9 +683,9 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
 name = "syn"
-version = "2.0.41"
+version = "2.0.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44c8b28c477cc3bf0e7966561e3460130e1255f7a1cf71931075f1c5e7a7e269"
+checksum = "5b7d0a2c048d661a1a59fcd7355baa232f7ed34e0ee4df2eef3c1c1c0d3852d8"
 dependencies = [
  "proc-macro2",
  "quote",
