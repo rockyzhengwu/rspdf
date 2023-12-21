@@ -99,7 +99,7 @@ pub fn create_simple_font<T: Seek + Read>(
     let widths = parse_widhts(obj)?;
 
     let mut face: Option<Face> = None;
-    //println!("fontdict {:?},{:?}, {:?}", fontname, subtype, obj);
+    println!("fontdict {:?},{:?}, {:?}", fontname, subtype, obj);
 
     if let Some(descriptor) = obj.get_value("FontDescriptor") {
         let desc = doc.read_indirect(descriptor)?;
@@ -134,25 +134,33 @@ pub fn create_simple_font<T: Seek + Read>(
         };
         if subtype == "Type1" {
             let difference = enc_obj.get_value("Differences").unwrap().as_array()?;
-            let chunks = difference.chunks(2);
             let mut to_name = HashMap::new();
             let mut to_gid = HashMap::new();
-            for chunk in chunks {
-                let code = chunk[0].as_i64()? as u32;
-                let name = chunk[1].as_string()?;
-                // TODO replace unwrap
-                let gid = face
-                    .as_ref()
-                    .unwrap()
-                    .get_name_index(name.as_str())
-                    .unwrap();
-                to_name.insert(code, name);
-                to_gid.insert(code, gid);
+            let mut code: u32 = 0;
+            for df in difference {
+                match df {
+                    PDFObject::Number(n) => {
+                        code = n.as_i64() as u32;
+                    }
+                    PDFObject::Name(_) => {
+                        let name = df.as_string()?;
+                        let gid = face
+                            .as_ref()
+                            .unwrap()
+                            .get_name_index(name.as_str())
+                            .unwrap();
+                        to_name.insert(code, name);
+                        to_gid.insert(code, gid);
+                        code += 1;
+                    }
+                    _ => {
+                        panic!("{:?} can't in font Differences", df);
+                    }
+                }
             }
             code_to_name = Some(to_name);
             code_to_gid = Some(to_gid);
         }
-        //println!("{:?},{:?}", code_to_name, code_to_gid);
     }
 
     let mut cmap = CMap::default();
