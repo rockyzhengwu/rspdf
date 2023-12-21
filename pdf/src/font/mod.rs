@@ -85,6 +85,7 @@ pub fn create_font<T: Seek + Read>(
     doc: &Document<T>,
 ) -> PDFResult<Font> {
     let subtype = obj.get_value_as_string("Subtype").unwrap()?;
+    println!("createfont subtype:{:?}", subtype);
     match subtype.as_str() {
         "Type0" => Ok(Font::Composite(create_composite_font(fontname, obj, doc)?)),
         "TrueType" => Ok(Font::TrueType(create_truetype_font(fontname, obj, doc)?)),

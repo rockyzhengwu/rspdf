@@ -25,11 +25,12 @@ impl TextDevice {
 }
 
 impl Device for TextDevice {
-    fn begain_page(&mut self, media: &Rectangle, crop: &Rectangle) {
+    fn begain_page(&mut self, page_num: u32, media: &Rectangle, crop: &Rectangle) {
         self.current = String::new();
         self.current.push_str(
             format!(
-                "<page mediabox=\"{},{},{},{}\" cropbox=\"{},{},{},{}\">",
+                "<page={} mediabox=\"{},{},{},{}\" cropbox=\"{},{},{},{}\">",
+                page_num,
                 media.x(),
                 media.y(),
                 media.width(),
@@ -43,7 +44,7 @@ impl Device for TextDevice {
         );
     }
 
-    fn end_page(&mut self) {
+    fn end_page(&mut self, _page_num: u32) {
         self.current.push_str("</page>");
         let text = std::mem::take(&mut self.current);
         self.results.push(text);

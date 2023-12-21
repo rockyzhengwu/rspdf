@@ -45,7 +45,7 @@ impl ImageDevice {
 }
 
 impl Device for ImageDevice {
-    fn begain_page(&mut self, media: &Rectangle, _crop: &Rectangle) {
+    fn begain_page(&mut self, _page_num: u32, media: &Rectangle, _crop: &Rectangle) {
         let width = self.x_res / 72.0 * media.width();
         let height = self.y_res / 72.0 * media.height();
 
@@ -54,8 +54,8 @@ impl Device for ImageDevice {
         });
     }
 
-    fn end_page(&mut self) {
-        self.image.save(format!("page-{}.png", 2)).unwrap()
+    fn end_page(&mut self, page_num: u32) {
+        self.image.save(format!("page-{}.png", page_num)).unwrap()
     }
 
     fn show_text(&mut self, mut textinfo: TextInfo) -> PDFResult<()> {

@@ -72,7 +72,7 @@ pub fn create_truetype_font<T: Seek + Read>(
         let font_file = desc.get_value("FontFile2").unwrap();
         let font_stream = doc.read_indirect(font_file)?;
         face = Some(load_face(font_stream.bytes()?)?);
-        println!("font_stream:{:?}", desc);
+        //println!("font_stream:{:?}", desc);
         program = Some(TrueTypeProgram::new(font_stream.bytes()?));
     }
 

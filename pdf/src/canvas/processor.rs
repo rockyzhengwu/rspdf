@@ -43,7 +43,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         }
     }
 
-    pub fn process_page_content(&mut self, page: PageRef) -> PDFResult<()> {
+    pub fn process_page_content(&mut self, page: PageRef, page_num: u32) -> PDFResult<()> {
         self.mediabox = page.borrow().media_box().unwrap();
         self.cropbox = page.borrow().crop_box().unwrap();
 
@@ -51,7 +51,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
 
         self.device
             .borrow_mut()
-            .begain_page(&self.mediabox, &self.cropbox);
+            .begain_page(page_num, &self.mediabox, &self.cropbox);
         let resource = page.borrow().resources();
         let resource_obj = self.doc.read_indirect(&resource)?;
         self.resource_stack.push(resource_obj);
@@ -78,7 +78,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
             //println!("{:?}", operation);
             self.invoke_operation(operation)?;
         }
-        self.device.borrow_mut().end_page();
+        self.device.borrow_mut().end_page(page_num);
         Ok(())
     }
 
