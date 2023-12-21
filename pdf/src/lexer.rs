@@ -233,6 +233,7 @@ impl<T: Read + Seek> Tokenizer<T> {
                     }
                     buf.push(c.as_u8());
                 }
+                // TODO refactor can be more simple
                 Bytes::Byte(b'\\') => {
                     let cn = self.peek_byte()?;
                     match cn {
@@ -241,14 +242,50 @@ impl<T: Read + Seek> Tokenizer<T> {
                                 "literal string dons't closed".to_string(),
                             ));
                         }
-                        Bytes::Byte(b'\n') => {}
+                        Bytes::Byte(b'\n') => buf.push(b'\n'),
                         Bytes::Byte(b't') => buf.push(b'\t'),
                         Bytes::Byte(b'b') => buf.push(8),
                         Bytes::Byte(b'f') => buf.push(12),
                         Bytes::Byte(b'(') => buf.push(b'('),
                         Bytes::Byte(b')') => buf.push(b')'),
                         Bytes::Byte(b'\\') => buf.push(b'\\'),
-                        _ => buf.push(cn.as_u8()),
+                        Bytes::Byte(b'0')
+                        | Bytes::Byte(b'1')
+                        | Bytes::Byte(b'2')
+                        | Bytes::Byte(b'3')
+                        | Bytes::Byte(b'4')
+                        | Bytes::Byte(b'5')
+                        | Bytes::Byte(b'6')
+                        | Bytes::Byte(b'7') => {
+                            let mut n: u32 = 0;
+                            n += (cn.as_u8() - b'0') as u32;
+                            let cn = self.peek_byte()?;
+                            if cn.is_eof() {
+                                break;
+                            }
+                            let v = cn.as_u8();
+                            if (b'0'..=b'7').contains(&v) {
+                                n = (n << 3) + (v - b'0') as u32;
+                                let cn = self.peek_byte()?;
+                                if cn.is_eof() {
+                                    break;
+                                }
+                                let v = cn.as_u8();
+                                if (b'0'..=b'7').contains(&v) {
+                                    n = (n << 3) + (v - b'0') as u32;
+                                }
+                            }
+                            for b in n.to_be_bytes() {
+                                if b == 0 {
+                                    continue;
+                                }
+                                buf.push(b);
+                            }
+                        }
+                        _ => {
+                            buf.push(c.as_u8());
+                            self.step_back()?;
+                        }
                     }
                 }
                 _ => buf.push(c.as_u8()),
@@ -689,5 +726,16 @@ are the same . )";
         let content = include_bytes!("../cmaps/Identity-H");
         let res = token_result(content);
         println!("{:?}", res);
+    }
+
+    #[test]
+    fn test_octal_string() {
+        let content = vec![40, 92, 49, 55, 55, 41, 84, 106];
+        let res = token_result(content.as_slice());
+        let expected = vec![
+            Token::PDFLiteralString(vec![127]),
+            Token::PDFOther(vec![84, 106]),
+        ];
+        assert_eq!(expected, res);
     }
 }
