@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::{Read, Seek};
+use std::io::{Read, Seek, Write};
 
 use freetype::{Bitmap, Face};
 
@@ -66,6 +66,7 @@ pub fn create_truetype_font<T: Seek + Read>(
     let widths = parse_widhts(obj)?;
     let mut face: Option<Face> = None;
     let mut program = None;
+    println!("{:?},{:?}", fontname, obj);
 
     if let Some(descriptor) = obj.get_value("FontDescriptor") {
         let desc = doc.read_indirect(descriptor)?;
@@ -73,6 +74,8 @@ pub fn create_truetype_font<T: Seek + Read>(
         let font_stream = doc.read_indirect(font_file)?;
         face = Some(load_face(font_stream.bytes()?)?);
         //println!("font_stream:{:?}", desc);
+        let mut file = std::fs::File::create("truetype.otf").unwrap();
+        file.write_all(font_stream.bytes()?.as_slice()).unwrap();
         program = Some(TrueTypeProgram::new(font_stream.bytes()?));
     }
 
@@ -84,6 +87,7 @@ pub fn create_truetype_font<T: Seek + Read>(
         } else {
             enc.to_owned()
         };
+        println!("encoding: {:?}", enc_obj);
 
         match enc_obj {
             PDFObject::Name(name) => encoding = predefine_encoding(name.to_string().as_str()),

@@ -27,6 +27,8 @@ pub struct Processor<'a, T: Seek + Read, D: Device> {
     mediabox: Rectangle,
     cropbox: Rectangle,
     current_path: Path,
+    text_matrix: Matrix,
+    text_line_matrix: Matrix,
 }
 
 impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
@@ -40,6 +42,8 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
             mediabox: Rectangle::default(),
             cropbox: Rectangle::default(),
             current_path: Path::default(),
+            text_matrix: Matrix::default(),
+            text_line_matrix: Matrix::default(),
         }
     }
 
@@ -77,9 +81,12 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         let tokenizer = Tokenizer::new(cursor);
         let mut parser = CanvasParser::new(tokenizer);
         while let Ok(operation) = parser.parse_op() {
-            //println!("{:?}", operation);
+            println!("{:?}", operation);
             self.invoke_operation(operation)?;
         }
+        self.text_matrix = Matrix::default();
+        self.text_line_matrix = Matrix::default();
+
         self.device.borrow_mut().end_page(page_num);
         Ok(())
     }
@@ -101,7 +108,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
             "Tc" => self.set_text_character_spacing(operation),
             "Tw" => self.set_text_word_spacing(operation),
             "Tz" => self.set_text_horizal_scaling(operation),
-            "Tl" => self.set_text_leading(operation),
+            "TL" => self.set_text_leading(operation),
             "Tf" => self.set_text_font(operation),
             "Tr" => self.set_text_reander_mode(operation),
             "Ts" => self.set_text_rise_mode(operation),
@@ -335,11 +342,12 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
 
         match content {
             PDFObject::String(s) => {
-                let textinfo = TextInfo::new(s.clone(), state.clone(), bbox);
-                state.update_text_matrix(&Matrix::new_translation_matrix(
-                    textinfo.get_content_width(),
-                    0.0,
-                ));
+                let textinfo =
+                    TextInfo::new(s.clone(), state.clone(), bbox, self.text_matrix.clone());
+
+                println!("width {:?}", textinfo.get_content_width());
+                let mat = Matrix::new_translation_matrix(textinfo.get_content_width(), 0.0);
+                self.text_matrix = mat.mutiply(&self.text_matrix);
                 self.device.borrow_mut().show_text(textinfo)?;
                 Ok(())
             }
@@ -352,7 +360,8 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
 
     // q
     fn push_graph_state(&mut self) -> PDFResult<()> {
-        self.state_stack.push(GraphicsState::default());
+        let last = self.state_stack.last().unwrap().clone();
+        self.state_stack.push(last);
         Ok(())
     }
 
@@ -436,7 +445,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         self.last_mut_state().set_hscaling(scale);
         Ok(())
     }
-    // Tl
+    // TL
     fn set_text_leading(&mut self, operation: Operation) -> PDFResult<()> {
         let leading = operation.operand(0)?.as_f64()?;
         self.last_mut_state().set_text_leading(leading);
@@ -472,15 +481,17 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
     fn text_move_start_next_line(&mut self, operation: Operation) -> PDFResult<()> {
         let x = operation.operand(0)?.as_f64()?;
         let y = operation.operand(1)?.as_f64()?;
-        self.last_mut_state()
-            .update_text_matrix_new_line(&Matrix::new_translation_matrix(x, y));
+        let mat = Matrix::new_translation_matrix(x, y);
+        self.text_matrix = mat.mutiply(&self.text_line_matrix);
+        self.text_line_matrix = self.text_matrix.clone();
         Ok(())
     }
     // TD
     fn text_move_start_next_line_with_leading(&mut self, operation: Operation) -> PDFResult<()> {
+        println!("{:?}", self.text_matrix);
         let ty = operation.operand(1)?.as_f64()? * -1.0;
         let tlop = Operation::new(
-            "Tl".to_string(),
+            "TL".to_string(),
             vec![PDFObject::Number(PDFNumber::Real(ty))],
         );
         self.set_text_leading(tlop)?;
@@ -495,10 +506,9 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         let d = operation.operand(3)?.as_f64()?;
         let e = operation.operand(4)?.as_f64()?;
         let f = operation.operand(5)?.as_f64()?;
-        let state = self.last_mut_state();
         let matrix = Matrix::new(a, b, c, d, e, f);
-        state.set_text_line_matrix(matrix.clone());
-        state.set_text_matrix(matrix);
+        self.text_line_matrix = matrix.clone();
+        self.text_matrix = matrix;
         Ok(())
     }
 
@@ -557,7 +567,8 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
                 PDFObject::Number(v) => {
                     let state = self.last_mut_state();
                     let adjust_by = -1.0 * v.as_f64() * 0.001 * state.font_size();
-                    state.update_text_matrix(&Matrix::new_translation_matrix(adjust_by, 0.0));
+                    let mat = Matrix::new_translation_matrix(adjust_by, 0.0);
+                    self.text_matrix = mat.mutiply(&self.text_matrix);
                 }
                 _ => {
                     println!("TJ impossiable:{:?}", operand);

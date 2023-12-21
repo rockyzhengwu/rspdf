@@ -1,6 +1,7 @@
 use freetype::Bitmap;
 
 use crate::canvas::graphics_state::GraphicsState;
+use crate::canvas::matrix::Matrix;
 use crate::geom::rectangle::Rectangle;
 use crate::object::PDFString;
 
@@ -10,14 +11,21 @@ pub struct TextInfo {
     characters: PDFString,
     state: GraphicsState,
     bbox: Rectangle,
+    text_matrix: Matrix,
 }
 
 impl TextInfo {
-    pub fn new(characters: PDFString, state: GraphicsState, bbox: Rectangle) -> Self {
+    pub fn new(
+        characters: PDFString,
+        state: GraphicsState,
+        bbox: Rectangle,
+        text_matrix: Matrix,
+    ) -> Self {
         TextInfo {
             characters,
             state,
             bbox,
+            text_matrix,
         }
     }
     pub fn get_unicode(&self) -> String {
@@ -38,8 +46,8 @@ impl TextInfo {
     }
 
     pub fn position(&self) -> (f64, f64) {
-        let tx = self.state.text_matrix().v31;
-        let ty = self.state.text_matrix().v32;
+        let tx = self.text_matrix.v31;
+        let ty = self.text_matrix.v32;
         (tx, ty)
     }
 
@@ -61,8 +69,8 @@ impl TextInfo {
 
     pub fn get_glyph(&mut self, code: u32, scale: f64) -> Option<Bitmap> {
         let font_size = self.state.font_size();
-        let sx = self.state.text_matrix().v11 * font_size * scale;
-        let sy = self.state.text_matrix().v22 * font_size * scale;
+        let sx = self.text_matrix.v11 * font_size * scale;
+        let sy = self.text_matrix.v22 * font_size * scale;
         self.state
             .font()
             .decode_to_glyph(code, sx as u32, sy as u32)
@@ -71,7 +79,7 @@ impl TextInfo {
     pub fn get_character_width(&self, code: u32) -> f64 {
         ((self.state.font().get_width(&code) as f64 / 1000.0) * self.state.font_size()
             + self.state.char_spacing())
-            * self.state.text_matrix().v11
+            * self.text_matrix.v11
     }
 
     pub fn bbox(&self) -> &Rectangle {

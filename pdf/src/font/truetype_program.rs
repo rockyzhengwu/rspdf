@@ -74,7 +74,6 @@ impl TrueTypeProgram {
         self.parse_tables();
         self.parse_cmaps();
         self.parse_post_table();
-        println!("parse_tables");
     }
 
     pub fn map_code_gid(&self, code: u32) -> u32 {
@@ -90,7 +89,7 @@ impl TrueTypeProgram {
             }
             2 => {}
             _ => {
-                println!("not implemented")
+                panic!("not implemented, {}",cmap.fmt)
             }
         }
         println!("cmap:{:?}", cmap);

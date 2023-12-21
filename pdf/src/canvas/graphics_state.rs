@@ -23,8 +23,6 @@ pub struct GraphicsState {
     line_miter_limit: i64,
     line_dash_pattern: Vec<f64>,
     rendering_intent: i64,
-    text_matrix: Matrix,
-    text_line_matrix: Matrix,
 }
 
 impl GraphicsState {
@@ -36,14 +34,6 @@ impl GraphicsState {
     }
     pub fn ctm(&self) -> &Matrix {
         &self.ctm
-    }
-    pub fn update_text_matrix(&mut self, mat: &Matrix) {
-        self.text_matrix = mat.mutiply(&self.text_matrix);
-    }
-
-    pub fn update_text_matrix_new_line(&mut self, mat: &Matrix) {
-        self.text_matrix = mat.mutiply(&self.text_line_matrix);
-        self.text_line_matrix = self.text_matrix.clone();
     }
 
     pub fn set_line_dash_pattern(&mut self, pattern: Vec<f64>) {
@@ -60,14 +50,6 @@ impl GraphicsState {
 
     pub fn set_line_miter_limit(&mut self, limit: i64) {
         self.line_miter_limit = limit;
-    }
-
-    pub fn set_text_line_matrix(&mut self, mat: Matrix) {
-        self.text_line_matrix = mat;
-    }
-
-    pub fn set_text_matrix(&mut self, mat: Matrix) {
-        self.text_matrix = mat;
     }
 
     pub fn update_ctm_matrix(&mut self, mat: &Matrix) {
@@ -104,10 +86,6 @@ impl GraphicsState {
 
     pub fn set_line_width(&mut self, width: f64) {
         self.line_width = width;
-    }
-
-    pub fn text_matrix(&self) -> &Matrix {
-        &self.text_matrix
     }
 
     pub fn text_leading(&self) -> f64 {

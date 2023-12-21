@@ -36,8 +36,7 @@ impl Font {
             Font::Composite(cf) => Some(cf.decode_to_glyph(code, sx, sy)),
             Font::TrueType(tf) => Some(tf.decode_to_glyph(code, sx, sy)),
             _ => {
-                warn!("not support font {:?}", self);
-                None
+                panic!("not support font {:?}", self);
             }
         }
     }
@@ -47,8 +46,7 @@ impl Font {
             Font::Composite(cf) => cf.get_cids(bytes),
             Font::TrueType(tf) => tf.get_cids(bytes),
             _ => {
-                warn!("not support font {:?}", self);
-                Vec::new()
+                panic!("not support font {:?}", self);
             }
         }
     }
@@ -59,8 +57,7 @@ impl Font {
             Font::Composite(cf) => cf.get_unicode(content),
             Font::TrueType(tf) => tf.get_unicode(content),
             _ => {
-                warn!("not supported font:{:?}", self);
-                "".to_string()
+                panic!("not supported font:{:?}", self);
             }
         }
     }
