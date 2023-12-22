@@ -46,7 +46,11 @@ static STANDARD_ENCODIING: [u32; 256] = [
     244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255,
 ];
 
-impl FontEncoding {}
+impl FontEncoding {
+    pub fn code_to_cid(&self, code: u32) -> Option<&u32> {
+        self.encoding.get(code as usize)
+    }
+}
 
 pub fn predefine_encoding(name: &str) -> FontEncoding {
     // TODO: fix this panic

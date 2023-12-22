@@ -89,7 +89,7 @@ impl TrueTypeProgram {
             }
             2 => {}
             _ => {
-                panic!("not implemented, {}",cmap.fmt)
+                panic!("not implemented, {}", cmap.fmt)
             }
         }
         println!("cmap:{:?}", cmap);
@@ -135,8 +135,11 @@ impl TrueTypeProgram {
                 let platform = self.read_be_u16();
                 let encoding = self.read_be_u16();
                 let offset = self.read_be_u32() + ct.offset;
+                let pos = self.reader.borrow().position();
+                self.seek(offset as u64);
                 let fmt = self.read_be_u16();
                 let len = self.read_be_u16();
+                self.seek(pos);
                 let cm = TrueTypeCmap {
                     platform,
                     encoding,
@@ -168,5 +171,16 @@ mod tests {
         file.read_to_end(&mut buffer).unwrap();
         let font = TrueTypeProgram::new(buffer);
         assert_eq!(font.map_code_gid(109), 79);
+    }
+
+    #[test]
+    fn test_parse_two_cmaps() {
+        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        d.push("tests/resources/truetype_2.otf");
+        let mut file = File::open(d).unwrap();
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).unwrap();
+        let font = TrueTypeProgram::new(buffer);
+        assert_eq!(font.map_code_gid(109), 28);
     }
 }

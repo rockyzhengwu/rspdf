@@ -415,6 +415,8 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
     // Text operation
     // BT
     fn begin_text(&mut self) -> PDFResult<()> {
+        self.text_matrix = Matrix::default();
+        self.text_line_matrix = Matrix::default();
         Ok(())
     }
     // ET
@@ -488,7 +490,6 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
     }
     // TD
     fn text_move_start_next_line_with_leading(&mut self, operation: Operation) -> PDFResult<()> {
-        println!("{:?}", self.text_matrix);
         let ty = operation.operand(1)?.as_f64()? * -1.0;
         let tlop = Operation::new(
             "TL".to_string(),

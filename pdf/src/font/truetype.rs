@@ -30,7 +30,12 @@ impl TrueType {
     pub fn get_cids(&self, bytes: &[u8]) -> Vec<u32> {
         let mut res: Vec<u32> = Vec::new();
         for code in bytes {
-            res.push(code.to_owned() as u32);
+            let cid = self
+                .encoding
+                .code_to_cid(code.to_owned() as u32)
+                .unwrap()
+                .to_owned();
+            res.push(cid);
         }
         res
     }
@@ -48,6 +53,7 @@ impl TrueType {
             Some(ref f) => {
                 f.set_pixel_sizes(sx, sy).unwrap();
                 f.load_glyph(gid, freetype::face::LoadFlag::RENDER).unwrap();
+                //f.load_char(code as usize, freetype::face::LoadFlag::RENDER).unwrap();
                 let glyph = f.glyph();
                 glyph.bitmap()
             }
@@ -96,6 +102,8 @@ pub fn create_truetype_font<T: Seek + Read>(
         }
         // TODO use diffs;
         //let _diffs = enc.get_value("Differences").unwrap();
+    } else {
+        encoding = predefine_encoding("WinAnsiEncoding")
     }
 
     let mut tounicode = CMap::default();
