@@ -30,9 +30,6 @@ impl Filter for ASCIIHexDecode {
             if is_white(c) {
                 continue;
             }
-            if *c == b'>' {
-                break;
-            }
             let n = hex_to_decimal(c)?;
             if !f {
                 first = n;
@@ -42,7 +39,7 @@ impl Filter for ASCIIHexDecode {
                 f = false;
             }
         }
-        if !f {
+        if f {
             result.push((first << 4 & 0xff) as u8)
         }
         Ok(result)
@@ -51,15 +48,19 @@ impl Filter for ASCIIHexDecode {
 
 #[cfg(test)]
 mod tests {
+
     use super::ASCIIHexDecode;
     use crate::filter::Filter;
 
     #[test]
     fn test_decode() {
         let decoder = ASCIIHexDecode::default();
-        let hex = "68656c6c6f20776f726c64g>";
+        let hex = "68656c6c6f20776f726c64";
         let result = decoder.decode(hex.as_bytes(), None).unwrap();
         let expected = "hello world";
         assert_eq!(expected, String::from_utf8(result).unwrap());
+        let hex = "28AA0C540E5306A010B511D92BB007D4279534D0047F0359118A03BA540454041B0C4B27";
+        let result = decoder.decode(hex.as_bytes(), None).unwrap();
+        assert_eq!(result.len(), 36);
     }
 }

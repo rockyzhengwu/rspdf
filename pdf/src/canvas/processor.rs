@@ -342,7 +342,6 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
             PDFObject::String(s) => {
                 let textinfo =
                     TextInfo::new(s.clone(), state.clone(), bbox, self.text_matrix.clone());
-                //println!("{:?}", textinfo.get_content_width());
 
                 let mat = Matrix::new_translation_matrix(textinfo.get_content_width(), 0.0);
                 self.text_matrix = mat.mutiply(&self.text_matrix);
