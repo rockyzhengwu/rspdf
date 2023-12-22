@@ -5,7 +5,8 @@ use std::io::{Read, Seek};
 use freetype::{face::LoadFlag, Bitmap, Face};
 
 use crate::document::Document;
-use crate::errors::PDFResult;
+use crate::errors::{PDFError, PDFResult};
+use crate::font::encoding::{predefine_encoding, FontEncoding};
 use crate::font::{cmap::CMap, load_face, parse_widhts};
 use crate::object::{PDFObject, PDFString};
 
@@ -18,8 +19,7 @@ pub struct SimpleFont {
     widths: HashMap<u32, u32>,
     face: Option<Face>,
     code_to_gid: Option<HashMap<u32, u32>>,
-    #[allow(dead_code)]
-    code_to_name: Option<HashMap<u32, String>>,
+    font_encoding: Option<FontEncoding>,
 }
 impl SimpleFont {
     pub fn new(
@@ -29,7 +29,7 @@ impl SimpleFont {
         widths: HashMap<u32, u32>,
         face: Option<Face>,
         code_to_gid: Option<HashMap<u32, u32>>,
-        code_to_name: Option<HashMap<u32, String>>,
+        font_encoding: Option<FontEncoding>,
     ) -> Self {
         SimpleFont {
             name: name.to_string(),
@@ -38,7 +38,7 @@ impl SimpleFont {
             widths,
             face,
             code_to_gid,
-            code_to_name,
+            font_encoding,
         }
     }
 
@@ -56,7 +56,15 @@ impl SimpleFont {
                 f.set_pixel_sizes(sx, sy).unwrap();
                 if self.code_to_gid.is_some() {
                     //println!("glyph: {:?},{:?}, {:?}", code, self.code_to_gid, self.name);
-                    let gid = self.code_to_gid.as_ref().unwrap().get(&code).unwrap();
+                    let gid = if self.code_to_gid.is_some() {
+                        self.code_to_gid.as_ref().unwrap().get(&code).unwrap()
+                    } else {
+                        self.font_encoding
+                            .as_ref()
+                            .unwrap()
+                            .code_to_cid(code)
+                            .unwrap()
+                    };
                     f.load_glyph(gid.to_owned(), LoadFlag::RENDER).unwrap();
                 } else {
                     f.load_char(code as usize, LoadFlag::RENDER).unwrap();
@@ -99,7 +107,6 @@ pub fn create_simple_font<T: Seek + Read>(
     let widths = parse_widhts(obj)?;
 
     let mut face: Option<Face> = None;
-    println!("fontdict {:?},{:?}, {:?}", fontname, subtype, obj);
 
     if let Some(descriptor) = obj.get_value("FontDescriptor") {
         let desc = doc.read_indirect(descriptor)?;
@@ -125,41 +132,49 @@ pub fn create_simple_font<T: Seek + Read>(
 
     // TODO encoding
     let mut code_to_gid = None;
-    let mut code_to_name = None;
+    let mut font_encoding = None;
     if let Some(enc) = obj.get_value("Encoding") {
         let enc_obj = if enc.is_indirect() {
             doc.read_indirect(enc)?
         } else {
             enc.to_owned()
         };
-        if subtype == "Type1" {
-            let difference = enc_obj.get_value("Differences").unwrap().as_array()?;
-            let mut to_name = HashMap::new();
-            let mut to_gid = HashMap::new();
-            let mut code: u32 = 0;
-            for df in difference {
-                match df {
-                    PDFObject::Number(n) => {
-                        code = n.as_i64() as u32;
-                    }
-                    PDFObject::Name(_) => {
-                        let name = df.as_string()?;
-                        let gid = face
-                            .as_ref()
-                            .unwrap()
-                            .get_name_index(name.as_str())
-                            .unwrap();
-                        to_name.insert(code, name);
-                        to_gid.insert(code, gid);
-                        code += 1;
-                    }
-                    _ => {
-                        panic!("{:?} can't in font Differences", df);
+        match enc_obj {
+            PDFObject::Name(_) => {
+                font_encoding = Some(predefine_encoding(enc_obj.as_string().unwrap().as_str()))
+            }
+            PDFObject::Dictionary(_) => {
+                let difference = enc_obj.get_value("Differences").unwrap().as_array()?;
+                let mut to_gid = HashMap::new();
+                let mut code: u32 = 0;
+                for df in difference {
+                    match df {
+                        PDFObject::Number(n) => {
+                            code = n.as_i64() as u32;
+                        }
+                        PDFObject::Name(_) => {
+                            let name = df.as_string()?;
+                            let gid = face
+                                .as_ref()
+                                .unwrap()
+                                .get_name_index(name.as_str())
+                                .unwrap();
+                            to_gid.insert(code, gid);
+                            code += 1;
+                        }
+                        _ => {
+                            panic!("{:?} can't in font Differences", df);
+                        }
                     }
                 }
+                code_to_gid = Some(to_gid);
             }
-            code_to_name = Some(to_name);
-            code_to_gid = Some(to_gid);
+            _ => {
+                return Err(PDFError::FontSimple(format!(
+                    "encoding not a Name, or a Dictionary, got:{:?}",
+                    enc_obj
+                )));
+            }
         }
     }
 
@@ -177,6 +192,6 @@ pub fn create_simple_font<T: Seek + Read>(
         widths,
         face,
         code_to_gid,
-        code_to_name,
+        font_encoding,
     ))
 }

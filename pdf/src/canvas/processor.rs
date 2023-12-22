@@ -63,14 +63,12 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
 
         let contents = page.borrow().contents(self.doc)?;
         let mut content_buffer = Vec::new();
-        println!("{:?}", contents.len());
         for obj in contents {
             let stream = if obj.is_indirect() {
                 self.doc.read_indirect(&obj)?
             } else {
                 obj
             };
-            println!("{:?}", String::from_utf8_lossy(stream.bytes()?.as_slice()));
             content_buffer.extend(stream.bytes()?);
         }
         //println!("{:?}", String::from_utf8_lossy(content_buffer.as_slice()));
@@ -81,7 +79,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         let tokenizer = Tokenizer::new(cursor);
         let mut parser = CanvasParser::new(tokenizer);
         while let Ok(operation) = parser.parse_op() {
-            println!("{:?}", operation);
+            //println!("{:?}", operation);
             self.invoke_operation(operation)?;
         }
         self.text_matrix = Matrix::default();
@@ -345,7 +343,6 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
                 let textinfo =
                     TextInfo::new(s.clone(), state.clone(), bbox, self.text_matrix.clone());
 
-                println!("width {:?}", textinfo.get_content_width());
                 let mat = Matrix::new_translation_matrix(textinfo.get_content_width(), 0.0);
                 self.text_matrix = mat.mutiply(&self.text_matrix);
                 self.device.borrow_mut().show_text(textinfo)?;

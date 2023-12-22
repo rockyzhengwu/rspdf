@@ -30,6 +30,9 @@ pub enum PDFError {
     #[error("FontFreeType Error:{0}")]
     FontFreeType(String),
 
+    #[error("FontSimple Error:{0}")]
+    FontSimple(String),
+
     #[error("Filter Error `{0}`")]
     Filter(String),
 
