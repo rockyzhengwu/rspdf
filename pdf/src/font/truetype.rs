@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::{Read, Seek, Write};
+use std::io::{Read, Seek};
 
 use freetype::{Bitmap, Face};
 
@@ -78,8 +78,6 @@ pub fn create_truetype_font<T: Seek + Read>(
         let font_stream = doc.read_indirect(font_file)?;
         face = Some(load_face(font_stream.bytes()?)?);
         //println!("font_stream:{:?}", desc);
-        let mut file = std::fs::File::create("truetype.otf").unwrap();
-        file.write_all(font_stream.bytes()?.as_slice()).unwrap();
         program = Some(TrueTypeProgram::new(font_stream.bytes()?));
     }
 
