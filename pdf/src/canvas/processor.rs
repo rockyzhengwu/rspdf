@@ -86,6 +86,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         self.text_line_matrix = Matrix::default();
 
         self.device.borrow_mut().end_page(page_num);
+        self.reset();
         Ok(())
     }
 
@@ -606,5 +607,6 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         self.current_path = Path::default();
         self.text_line_matrix = Matrix::default();
         self.text_matrix = Matrix::default();
+        self.font_cache = HashMap::new();
     }
 }

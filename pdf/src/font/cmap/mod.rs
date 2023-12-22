@@ -145,8 +145,8 @@ impl CMap {
             if let Some(ch) = self.code_to_character.get(c) {
                 res.push(char::from_u32(ch.to_owned()).unwrap());
             } else {
-                res.push(' ');
-                warn!("cid not found {:?}", c);
+                // TODO wait fix
+                panic!("cid not found {:?}", c);
             }
         }
         res

@@ -26,7 +26,6 @@ pub fn command(doc: Document<File>, start: u32, end: u32, cfg: Config) -> PDFRes
         info!("process page:{}", p);
         let page = doc.page(p).unwrap();
         processor.process_page_content(page, p).unwrap();
-        processor.reset();
     }
     let outname = cfg.output.unwrap_or(PathBuf::from("pdftotxt.xml"));
     let mut file = File::create(outname).unwrap();
