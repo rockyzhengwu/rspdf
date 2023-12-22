@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::{Read, Seek};
 
 use freetype::{Bitmap, Face, Library};
-use log::{warn, debug};
+use log::{debug, warn};
 
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
@@ -82,7 +82,7 @@ pub fn create_font<T: Seek + Read>(
     doc: &Document<T>,
 ) -> PDFResult<Font> {
     let subtype = obj.get_value_as_string("Subtype").unwrap()?;
-    debug!("createfont subtype:{:?}", subtype);
+    debug!("createfont {}, subtype:{:?}", fontname, subtype);
     match subtype.as_str() {
         "Type0" => Ok(Font::Composite(create_composite_font(fontname, obj, doc)?)),
         "TrueType" => Ok(Font::TrueType(create_truetype_font(fontname, obj, doc)?)),

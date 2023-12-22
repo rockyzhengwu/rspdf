@@ -53,7 +53,6 @@ impl TrueType {
             Some(ref f) => {
                 f.set_pixel_sizes(sx, sy).unwrap();
                 f.load_glyph(gid, freetype::face::LoadFlag::RENDER).unwrap();
-                //f.load_char(code as usize, freetype::face::LoadFlag::RENDER).unwrap();
                 let glyph = f.glyph();
                 glyph.bitmap()
             }
@@ -72,7 +71,6 @@ pub fn create_truetype_font<T: Seek + Read>(
     let widths = parse_widhts(obj)?;
     let mut face: Option<Face> = None;
     let mut program = None;
-    println!("{:?},{:?}", fontname, obj);
 
     if let Some(descriptor) = obj.get_value("FontDescriptor") {
         let desc = doc.read_indirect(descriptor)?;

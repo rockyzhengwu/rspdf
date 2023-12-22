@@ -115,7 +115,12 @@ pub fn create_composite_font<T: Seek + Read>(
 
         let desc_font_descriptor =
             doc.read_indirect(desc_font_obj.get_value("FontDescriptor").unwrap())?;
-        let font_file = doc.read_indirect(desc_font_descriptor.get_value("FontFile2").unwrap())?;
+        let sstype = desc_font_obj.get_value("Subtype").unwrap();
+        let file = match sstype.as_string()?.as_str() {
+            "CIDFontType0" => "FontFile3",
+            _ => "FontFile2",
+        };
+        let font_file = doc.read_indirect(desc_font_descriptor.get_value(file).unwrap())?;
         face = Some(load_face(font_file.bytes()?)?);
     }
 
@@ -143,7 +148,6 @@ pub fn create_composite_font<T: Seek + Read>(
         let bytes = to_unicode.bytes()?;
         tounicode = CMap::new_from_bytes(bytes.as_slice());
     }
-    println!("{:?}", widths);
     //println!("Tounicode {:?}", tounicode.code_to_character_len());
 
     Ok(CompositeFont {

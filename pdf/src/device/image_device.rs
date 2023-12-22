@@ -62,10 +62,15 @@ impl Device for ImageDevice {
         // bitmap, x, y for every character
         // TODO Encoding PDFString-> Character Encoding, multi bytes may be one character
         // TODO color
-        let _unicode = textinfo.get_unicode();
+        let unicode = textinfo.get_unicode();
 
         let (x, y) = textinfo.position();
-        //println!("{:?},{:?},{:?}", x, y, _unicode);
+        // some text position is negative , just ignore
+        if x < 0.0 || y < 0.0 {
+            warn!("content out of device bound:{},{},{}", x, y, unicode);
+            return Ok(());
+        }
+        // println!("{:?},{:?},{:?}", x, y, unicode);
 
         let bbox = textinfo.bbox();
         let sx = self.image.width() as f64 / bbox.width();
