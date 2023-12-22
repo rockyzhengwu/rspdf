@@ -163,14 +163,17 @@ pub fn create_simple_font<T: Seek + Read>(
                             code += 1;
                         }
                         _ => {
-                            panic!("{:?} can't in font Differences", df);
+                            return Err(PDFError::FontEncoding(format!(
+                                "encoding Differences need Name, or Number, got:{:?}",
+                                enc_obj
+                            )));
                         }
                     }
                 }
                 code_to_gid = Some(to_gid);
             }
             _ => {
-                return Err(PDFError::FontSimple(format!(
+                return Err(PDFError::FontEncoding(format!(
                     "encoding not a Name, or a Dictionary, got:{:?}",
                     enc_obj
                 )));

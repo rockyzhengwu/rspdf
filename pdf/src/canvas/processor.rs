@@ -342,6 +342,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
             PDFObject::String(s) => {
                 let textinfo =
                     TextInfo::new(s.clone(), state.clone(), bbox, self.text_matrix.clone());
+                //println!("{:?}", textinfo.get_content_width());
 
                 let mat = Matrix::new_translation_matrix(textinfo.get_content_width(), 0.0);
                 self.text_matrix = mat.mutiply(&self.text_matrix);
@@ -564,12 +565,16 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
                 }
                 PDFObject::Number(v) => {
                     let state = self.last_mut_state();
-                    let adjust_by = -1.0 * v.as_f64() * 0.001 * state.font_size();
+                    let adjust_by =
+                        -1.0 * v.as_f64() * 0.001 * state.font_size() * (state.hscaling() * 0.01);
                     let mat = Matrix::new_translation_matrix(adjust_by, 0.0);
                     self.text_matrix = mat.mutiply(&self.text_matrix);
                 }
                 _ => {
-                    println!("TJ impossiable:{:?}", operand);
+                    return Err(PDFError::InvalidSyntax(format!(
+                        "TJ impossiable:{:?}",
+                        operand
+                    )));
                 }
             }
         }
@@ -600,5 +605,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         self.state_stack.clear();
         self.resource_stack.clear();
         self.current_path = Path::default();
+        self.text_line_matrix = Matrix::default();
+        self.text_matrix = Matrix::default();
     }
 }

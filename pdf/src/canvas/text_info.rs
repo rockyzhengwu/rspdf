@@ -55,8 +55,12 @@ impl TextInfo {
         let mut total = 0.0;
         let cids = self.cids();
         for code in cids {
+            if code == 32 {
+                total += self.state.word_spacing() * self.state.hscaling() * 0.01;
+                continue;
+            }
             let w = self.state.font().get_width(&code);
-            total += (w as f64 / 1000.0) * self.state.font_size() + self.state.char_spacing()
+            total += (w as f64 * 0.001) * self.state.font_size();
         }
         total
     }

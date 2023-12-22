@@ -26,6 +26,7 @@ pub fn command(doc: Document<File>, start: u32, end: u32, cfg: Config) -> PDFRes
         info!("Process page: {}", p);
         let page = doc.page(p).unwrap();
         processor.process_page_content(page, p).unwrap();
+        processor.reset();
     }
     Ok(())
 }

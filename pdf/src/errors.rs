@@ -31,7 +31,7 @@ pub enum PDFError {
     FontFreeType(String),
 
     #[error("FontSimple Error:{0}")]
-    FontSimple(String),
+    FontEncoding(String),
 
     #[error("Filter Error `{0}`")]
     Filter(String),
@@ -41,7 +41,7 @@ pub enum PDFError {
 
     #[error("OperationError `{0}`")]
     OperationError(String),
-    
+
     #[error("PathCreatError `{0}`")]
     PathCreatError(String),
 }

@@ -70,7 +70,7 @@ impl Device for ImageDevice {
             warn!("content out of device bound:{},{},{}", x, y, unicode);
             return Ok(());
         }
-        // println!("{:?},{:?},{:?}", x, y, unicode);
+        //println!("{:?},{:?},{:?}", x, y, unicode,);
 
         let bbox = textinfo.bbox();
         let sx = self.image.width() as f64 / bbox.width();

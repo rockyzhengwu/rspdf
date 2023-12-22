@@ -4,7 +4,7 @@ use std::io::{Read, Seek};
 use freetype::{Bitmap, Face};
 
 use crate::document::Document;
-use crate::errors::PDFResult;
+use crate::errors::{PDFError, PDFResult};
 use crate::font::cmap::CMap;
 use crate::font::encoding::{predefine_encoding, FontEncoding};
 use crate::font::truetype_program::TrueTypeProgram;
@@ -89,12 +89,16 @@ pub fn create_truetype_font<T: Seek + Read>(
         } else {
             enc.to_owned()
         };
-        println!("encoding: {:?}", enc_obj);
 
         match enc_obj {
             PDFObject::Name(name) => encoding = predefine_encoding(name.to_string().as_str()),
             PDFObject::Dictionary(_) => {}
-            _ => {}
+            _ => {
+                return Err(PDFError::FontEncoding(format!(
+                    "truetype encoding invalid expected Name, DIcition got:{:?}",
+                    enc_obj,
+                )))
+            }
         }
         // TODO use diffs;
         //let _diffs = enc.get_value("Differences").unwrap();

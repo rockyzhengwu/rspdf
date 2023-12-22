@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use std::u8;
 
+use log::warn;
+
 use crate::font::cmap::predefined::get_predefine_cmap_ref;
 use crate::lexer::Tokenizer;
 use crate::object::PDFString;
@@ -142,6 +144,9 @@ impl CMap {
         for c in cids {
             if let Some(ch) = self.code_to_character.get(c) {
                 res.push(char::from_u32(ch.to_owned()).unwrap());
+            } else {
+                res.push(' ');
+                warn!("cid not found {:?}", c);
             }
         }
         res

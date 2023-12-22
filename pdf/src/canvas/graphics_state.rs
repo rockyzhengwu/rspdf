@@ -107,6 +107,10 @@ impl GraphicsState {
     pub fn word_spacing(&self) -> f64 {
         self.word_spacing
     }
+
+    pub fn hscaling(&self) -> f64 {
+        self.hcaling
+    }
 }
 
 #[cfg(test)]
