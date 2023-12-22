@@ -79,7 +79,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         let tokenizer = Tokenizer::new(cursor);
         let mut parser = CanvasParser::new(tokenizer);
         while let Ok(operation) = parser.parse_op() {
-            //println!("{:?}", operation);
+            // println!("{:?}", operation);
             self.invoke_operation(operation)?;
         }
         self.text_matrix = Matrix::default();

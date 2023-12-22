@@ -36,9 +36,12 @@ impl ImageDevice {
                 if pixel == 0 {
                     continue;
                 }
+                if self.image.height() + i < y {
+                    continue;
+                }
                 let rgb = Rgb([0, 0, 0]);
                 self.image
-                    .put_pixel(x + j, self.image.height() - y + i, rgb);
+                    .put_pixel(x + j, self.image.height() + i - y, rgb);
             }
         }
     }
@@ -70,7 +73,7 @@ impl Device for ImageDevice {
             warn!("content out of device bound:{},{},{}", x, y, unicode);
             return Ok(());
         }
-        // println!("{:?},{:?},{:?}", x, y, unicode,);
+        // println!("draw: {:?},{:?},{:?}", x, y, unicode,);
 
         let bbox = textinfo.bbox();
         let sx = self.image.width() as f64 / bbox.width();
@@ -83,14 +86,12 @@ impl Device for ImageDevice {
             let w = textinfo.get_character_width(cid);
             let bitmap = textinfo.get_glyph(cid, scale);
             if bitmap.is_none() {
-                warn!("bitmap is NOne");
-                continue;
+                panic!("bitmap is NOne");
             }
             let bitmap = bitmap.unwrap();
             self.draw_char(x as u32, (y + bitmap.rows() as f64) as u32, &bitmap);
             x += w * sx;
         }
-
         Ok(())
     }
 

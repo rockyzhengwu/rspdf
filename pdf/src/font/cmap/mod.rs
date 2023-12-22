@@ -145,8 +145,8 @@ impl CMap {
             if let Some(ch) = self.code_to_character.get(c) {
                 res.push(char::from_u32(ch.to_owned()).unwrap());
             } else {
-                // TODO wait fix
-                panic!("cid not found {:?}", c);
+                // some cmap is not exist , so pdf can copy but got invalid string
+                warn!("cid not found {:?}", c);
             }
         }
         res

@@ -41,7 +41,7 @@ impl CompositeFont {
         match self.face {
             Some(ref f) => {
                 f.set_pixel_sizes(sx, sy).unwrap();
-                f.load_char(code as usize, freetype::face::LoadFlag::RENDER)
+                f.load_glyph(code, freetype::face::LoadFlag::RENDER)
                     .unwrap();
                 let glyph = f.glyph();
                 glyph.bitmap()
@@ -99,29 +99,34 @@ pub fn create_composite_font<T: Seek + Read>(
     let mut dw: u32 = 0;
 
     let mut face: Option<Face> = None;
-
     if let Some(descendant_fonts) = obj.get_value("DescendantFonts") {
-        let descendant = doc.read_indirect(descendant_fonts)?;
-        let desc_font = descendant.as_array()?.get(0).unwrap();
-        let desc_font_obj = doc.read_indirect(desc_font)?;
-        dw = desc_font_obj.get_value("DW").unwrap().as_f64()? as u32;
-        match desc_font_obj.get_value("W") {
-            Some(PDFObject::Arrray(arr)) => widths = parse_widths(arr),
-            None => {}
-            _ => {
-                panic!("w need a array");
+        let descendant_fonts = doc.read_indirect(descendant_fonts)?;
+        let df_ref = descendant_fonts.as_array()?.get(0).unwrap();
+        let df_obj = doc.read_indirect(df_ref)?;
+        dw = df_obj.get_value("DW").unwrap().as_f64()? as u32;
+        if let Some(w_obj) = df_obj.get_value("W") {
+            match w_obj {
+                PDFObject::Arrray(arr) => widths = parse_widths(arr),
+                PDFObject::Indirect(_) => {
+                    let w_arr = doc.read_indirect(w_obj)?;
+                    widths = parse_widths(w_arr.as_array()?);
+                }
+                _ => {
+                    panic!("w need a array:{:?}", df_obj);
+                }
             }
         }
 
-        let desc_font_descriptor =
-            doc.read_indirect(desc_font_obj.get_value("FontDescriptor").unwrap())?;
-        let sstype = desc_font_obj.get_value("Subtype").unwrap();
+        let df_desc = doc.read_indirect(df_obj.get_value("FontDescriptor").unwrap())?;
+        let sstype = df_obj.get_value("Subtype").unwrap();
         let file = match sstype.as_string()?.as_str() {
             "CIDFontType0" => "FontFile3",
             _ => "FontFile2",
         };
-        let font_file = doc.read_indirect(desc_font_descriptor.get_value(file).unwrap())?;
+        let font_file = doc.read_indirect(df_desc.get_value(file).unwrap())?;
         face = Some(load_face(font_file.bytes()?)?);
+        //let mut file = std::fs::File::create("type0.otf").unwrap();
+        //file.write_all(font_file.bytes()?.as_slice()).unwrap();
     }
 
     let mut encoding = CMap::default();
@@ -136,11 +141,11 @@ pub fn create_composite_font<T: Seek + Read>(
             PDFObject::Stream(s) => {
                 let bytes = s.bytes();
                 encoding = CMap::new_from_bytes(bytes.as_slice());
-                println!("encoding")
             }
             _ => {}
         }
     }
+    // println!("encoding {:?}", encoding);
 
     let mut tounicode = CMap::default();
     if let Some(tu) = obj.get_value("ToUnicode") {

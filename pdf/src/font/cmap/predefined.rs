@@ -38,6 +38,7 @@ pub fn get_predefine_cmap_ref(name: &str) -> &CMap {
 
 #[cfg(test)]
 mod tests {
+
     use super::get_predefine_cmap;
 
     #[test]
@@ -45,5 +46,6 @@ mod tests {
         let name = "Identity-H";
         let cmap = get_predefine_cmap(name);
         println!("{:?}", cmap);
+        println!("{:?}",cmap.code_to_cid(vec![0,36].as_slice()));
     }
 }
