@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use std::io::{Cursor, Read, Seek, Write};
 use std::rc::Rc;
 
+use log::warn;
+
 use crate::canvas::graphics_state::GraphicsState;
 use crate::canvas::matrix::Matrix;
 use crate::canvas::operation::Operation;
@@ -79,7 +81,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         let tokenizer = Tokenizer::new(cursor);
         let mut parser = CanvasParser::new(tokenizer);
         while let Ok(operation) = parser.parse_op() {
-            // println!("{:?}", operation);
+            //println!("{:?}", operation);
             self.invoke_operation(operation)?;
         }
         self.text_matrix = Matrix::default();
@@ -565,9 +567,13 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
                 }
                 PDFObject::Number(v) => {
                     let state = self.last_mut_state();
-                    let adjust_by =
-                        -1.0 * v.as_f64() * 0.001 * state.font_size() * (state.hscaling() * 0.01);
+                    let adjust_by = -1.0 * v.as_f64() * 0.001 * state.font_size();
+                    // TODO when hscaling setted adjust
+                    if state.hscaling() > 0.0 {
+                        warn!("hscaling {:?}", state.hscaling());
+                    }
                     let mat = Matrix::new_translation_matrix(adjust_by, 0.0);
+
                     self.text_matrix = mat.mutiply(&self.text_matrix);
                 }
                 _ => {

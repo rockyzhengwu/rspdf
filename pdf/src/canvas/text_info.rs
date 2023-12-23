@@ -45,24 +45,21 @@ impl TextInfo {
         chs
     }
 
-    pub fn position(&self) -> (f64, f64) {
-        let tx = self.text_matrix.v31;
-        let ty = self.text_matrix.v32;
-        (tx, ty)
-    }
-
     pub fn get_content_width(&self) -> f64 {
         let mut total = 0.0;
         let cids = self.cids();
         for code in cids {
-            if code == 32 {
-                total += self.state.word_spacing() * self.state.hscaling() * 0.01;
-                continue;
-            }
             let w = self.state.font().get_width(&code);
             total += (w as f64 * 0.001) * self.state.font_size();
+            if code == 32 {
+                total += self.state.word_spacing() * self.state.hscaling() * 0.01;
+            }
         }
         total
+    }
+
+    pub fn get_ctm(&self) -> &Matrix {
+        self.state.ctm()
     }
 
     pub fn cids(&self) -> Vec<u32> {
@@ -86,7 +83,23 @@ impl TextInfo {
             * self.text_matrix.v11
     }
 
-    pub fn bbox(&self) -> &Rectangle {
-        &self.bbox
+    pub fn adjust_tmx(&mut self, tx: f64) {
+        let mat = Matrix::new_translation_matrix(tx, 0.0);
+        self.text_matrix = mat.mutiply(&self.text_matrix);
+    }
+
+    pub fn position(&self) -> (f64, f64) {
+        let tx = self.text_matrix.v31;
+        let ty = self.text_matrix.v32;
+        (tx, ty)
+    }
+    pub fn out_pos(&mut self, cid: u32, ctm: &Matrix) -> (u32, u32) {
+        let x = self.text_matrix.v31;
+        let y = self.text_matrix.v32;
+        let ox: u32 = (x * ctm.v11 + y * ctm.v21 + ctm.v31) as u32;
+        let oy: u32 = (x * ctm.v12 + y * ctm.v22 + ctm.v32) as u32;
+        let w = self.get_character_width(cid);
+        self.adjust_tmx(w);
+        (ox, oy)
     }
 }

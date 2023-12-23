@@ -1,11 +1,13 @@
 use freetype::Bitmap;
 use image::{Rgb, RgbImage};
 
+use crate::canvas::matrix::Matrix;
+
 use log::warn;
 
 use crate::canvas::path_info::PathInfo;
 use crate::canvas::text_info::TextInfo;
-use crate::device::Device;
+use crate::device::{text, Device};
 use crate::errors::PDFResult;
 use crate::geom::rectangle::Rectangle;
 
@@ -13,6 +15,7 @@ pub struct ImageDevice {
     x_res: f64,
     y_res: f64,
     image: RgbImage,
+    ctm: Matrix,
 }
 
 impl ImageDevice {
@@ -22,6 +25,7 @@ impl ImageDevice {
             x_res,
             y_res,
             image,
+            ctm: Matrix::default(),
         }
     }
 }
@@ -36,12 +40,8 @@ impl ImageDevice {
                 if pixel == 0 {
                     continue;
                 }
-                if self.image.height() + i < y {
-                    continue;
-                }
                 let rgb = Rgb([0, 0, 0]);
-                self.image
-                    .put_pixel(x + j, self.image.height() + i - y, rgb);
+                self.image.put_pixel(x + j, y + i, rgb);
             }
         }
     }
@@ -49,12 +49,21 @@ impl ImageDevice {
 
 impl Device for ImageDevice {
     fn begain_page(&mut self, _page_num: u32, media: &Rectangle, _crop: &Rectangle) {
-        let width = self.x_res / 72.0 * media.width();
-        let height = self.y_res / 72.0 * media.height();
+        let sx = self.x_res / 72.0;
+        let sy = self.y_res / 72.0;
+        let ctm = Matrix::new(
+            sx,
+            0.0,
+            0.0,
+            -1.0 * sy,
+            -1.0 * sx * media.x(),
+            sy * media.height(),
+        );
+        self.ctm = ctm;
+        let width = (sx * (media.width() - media.x() + 0.5)) as u32;
+        let height = (sy * (media.height() - media.y() + 0.5)) as u32;
 
-        self.image = RgbImage::from_fn(width as u32, height as u32, |_, _| {
-            image::Rgb([255, 255, 255])
-        });
+        self.image = RgbImage::from_fn(width, height, |_, _| image::Rgb([255, 255, 255]));
     }
 
     fn end_page(&mut self, page_num: u32) {
@@ -62,9 +71,7 @@ impl Device for ImageDevice {
     }
 
     fn show_text(&mut self, mut textinfo: TextInfo) -> PDFResult<()> {
-        // bitmap, x, y for every character
-        // TODO Encoding PDFString-> Character Encoding, multi bytes may be one character
-        // TODO color
+        // TODO implement render
         let unicode = textinfo.get_unicode();
 
         let (x, y) = textinfo.position();
@@ -73,24 +80,22 @@ impl Device for ImageDevice {
             warn!("content out of device bound:{},{},{}", x, y, unicode);
             return Ok(());
         }
+
         // println!("draw: {:?},{:?},{:?}", x, y, unicode,);
 
-        let bbox = textinfo.bbox();
-        let sx = self.image.width() as f64 / bbox.width();
-        let sy = self.image.width() as f64 / bbox.height();
-        let mut x = x * sx;
-        let y = y * sx;
+        let sx = self.x_res / 72.0;
+        let sy = self.y_res / 72.0;
         let scale = f64::sqrt((sx * sx + sy * sy) / 2.0);
         let cids = textinfo.cids();
+        let ctm = textinfo.get_ctm().mutiply(&self.ctm);
         for cid in cids {
-            let w = textinfo.get_character_width(cid);
+            let (ox, oy) = textinfo.out_pos(cid, &ctm);
             let bitmap = textinfo.get_glyph(cid, scale);
             if bitmap.is_none() {
                 panic!("bitmap is NOne");
             }
             let bitmap = bitmap.unwrap();
-            self.draw_char(x as u32, (y + bitmap.rows() as f64) as u32, &bitmap);
-            x += w * sx;
+            self.draw_char(ox, oy - bitmap.rows() as u32, &bitmap);
         }
         Ok(())
     }
