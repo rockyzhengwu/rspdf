@@ -338,13 +338,12 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
     }
 
     fn display_string(&mut self, content: &PDFObject) -> PDFResult<()> {
-        let bbox = self.cropbox.clone();
         let state = self.last_mut_state();
 
         match content {
             PDFObject::String(s) => {
                 let textinfo =
-                    TextInfo::new(s.clone(), state.clone(), bbox, self.text_matrix.clone());
+                    TextInfo::new(s.clone(), state.clone(), self.text_matrix.clone());
 
                 let mat = Matrix::new_translation_matrix(textinfo.get_content_width(), 0.0);
                 self.text_matrix = mat.mutiply(&self.text_matrix);

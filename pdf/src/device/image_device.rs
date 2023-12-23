@@ -7,7 +7,7 @@ use log::warn;
 
 use crate::canvas::path_info::PathInfo;
 use crate::canvas::text_info::TextInfo;
-use crate::device::{text, Device};
+use crate::device::Device;
 use crate::errors::PDFResult;
 use crate::geom::rectangle::Rectangle;
 
@@ -49,6 +49,7 @@ impl ImageDevice {
 
 impl Device for ImageDevice {
     fn begain_page(&mut self, _page_num: u32, media: &Rectangle, _crop: &Rectangle) {
+        println!("{:?},{:?}", media, _crop);
         let sx = self.x_res / 72.0;
         let sy = self.y_res / 72.0;
         let ctm = Matrix::new(
@@ -81,11 +82,12 @@ impl Device for ImageDevice {
             return Ok(());
         }
 
-        // println!("draw: {:?},{:?},{:?}", x, y, unicode,);
+        //println!("draw: {:?},{:?},{:?}", x, y, unicode,);
 
         let sx = self.x_res / 72.0;
         let sy = self.y_res / 72.0;
-        let scale = f64::sqrt((sx * sx + sy * sy) / 2.0);
+        // TODO calc font size
+        let scale = f64::sqrt((sx * sx + sy * sy) / 4.0);
         let cids = textinfo.cids();
         let ctm = textinfo.get_ctm().mutiply(&self.ctm);
         for cid in cids {

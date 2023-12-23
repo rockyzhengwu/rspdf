@@ -2,7 +2,6 @@ use freetype::Bitmap;
 
 use crate::canvas::graphics_state::GraphicsState;
 use crate::canvas::matrix::Matrix;
-use crate::geom::rectangle::Rectangle;
 use crate::object::PDFString;
 
 // TODO charactor glyph cache
@@ -10,21 +9,14 @@ use crate::object::PDFString;
 pub struct TextInfo {
     characters: PDFString,
     state: GraphicsState,
-    bbox: Rectangle,
     text_matrix: Matrix,
 }
 
 impl TextInfo {
-    pub fn new(
-        characters: PDFString,
-        state: GraphicsState,
-        bbox: Rectangle,
-        text_matrix: Matrix,
-    ) -> Self {
+    pub fn new(characters: PDFString, state: GraphicsState, text_matrix: Matrix) -> Self {
         TextInfo {
             characters,
             state,
-            bbox,
             text_matrix,
         }
     }
@@ -78,9 +70,8 @@ impl TextInfo {
     }
 
     pub fn get_character_width(&self, code: u32) -> f64 {
-        ((self.state.font().get_width(&code) as f64 / 1000.0) * self.state.font_size()
-            + self.state.char_spacing())
-            * self.text_matrix.v11
+        (self.state.font().get_width(&code) as f64 / 1000.0) * self.state.font_size()
+            + self.state.char_spacing()
     }
 
     pub fn adjust_tmx(&mut self, tx: f64) {
