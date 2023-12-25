@@ -35,7 +35,7 @@ cargo run -- --filename pdffonts
   - [ ] face optional , because face will never used when just extract text
 
 - [ ] text
-  -[ ] merge text chunk to line, program, and add label to text line like title ？
+  - [ ] merge text chunk to line, program, and add label to text line like title ？
 
 - [ ] render
   - [ ] path
