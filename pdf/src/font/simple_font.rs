@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::{Read, Seek};
 
 use crate::document::Document;
@@ -39,13 +40,13 @@ pub fn create_simple_font<T: Seek + Read>(
     doc: &Document<T>,
 ) -> PDFResult<Font> {
     let mut font = Font::default();
+    let subtype = obj.get_value_as_string("Subtype").unwrap()?;
 
     let basefont = obj.get_value_as_string("BaseFont").unwrap()?;
-    println!("Dict {:?}", obj);
 
     font.widths = parse_widhts(obj)?;
-
     let mut face = None;
+
     if let Some(descriptor) = obj.get_value("FontDescriptor") {
         let desc = doc.read_indirect(descriptor)?;
         font.descriptor = create_font_descriptor(&desc, &basefont)?;
@@ -58,32 +59,43 @@ pub fn create_simple_font<T: Seek + Read>(
             let program = doc.read_indirect(emb)?;
             face = Some(load_face(program.bytes()?)?);
         } else {
-            println!("{:?}", "builit");
             // TODO load load_builitin_font
         }
-        println!("DESC {:?}", desc);
     } else {
         load_builitin_font(&basefont)?;
     }
 
+    // TODO FIX set cmap for face
+    match subtype.as_str() {
+        "TrueType" => {
+            let num_charmap = face.as_ref().unwrap().num_charmaps();
+            for i in 0..num_charmap {
+                let charmap = face.as_ref().unwrap().get_charmap(i as isize);
+                face.as_ref().unwrap().set_charmap(&charmap).unwrap();
+            }
+        }
+        "Type1" => {}
+        _ => {}
+    }
+
     // TODO encoding
+    let mut encoding = HashMap::new();
     if let Some(enc) = obj.get_value("Encoding") {
         let enc_obj = if enc.is_indirect() {
             doc.read_indirect(enc)?
         } else {
             enc.to_owned()
         };
-        println!("enc:{:?}", enc_obj);
         // TODO is default encoding is None, select default encoding
         match enc_obj {
             PDFObject::Name(_) => {
                 let name = enc_obj.as_string().unwrap();
-                font.encoding = get_encoding(&name);
+                encoding = get_encoding(&name);
             }
             PDFObject::Dictionary(_) => {
                 if let Some(base_enc) = enc_obj.get_value("BaseEncoding") {
                     let base_name = base_enc.as_string()?;
-                    font.encoding = get_encoding(&base_name);
+                    encoding = get_encoding(&base_name);
                 }
                 let difference = enc_obj.get_value("Differences").unwrap().as_array()?;
                 let mut code: u32 = 0;
@@ -94,7 +106,7 @@ pub fn create_simple_font<T: Seek + Read>(
                         }
                         PDFObject::Name(_) => {
                             let name = df.as_string()?;
-                            font.encoding.insert(code, name);
+                            encoding.insert(code, name);
                             code += 1;
                         }
                         _ => {
@@ -114,9 +126,28 @@ pub fn create_simple_font<T: Seek + Read>(
             }
         }
     }
-    for (code, name) in &font.encoding {
+    if encoding.is_empty() {
+        match obj.get_value_as_string("Subtype").unwrap()?.as_str() {
+            "TrueType" => encoding = get_encoding("WinAnsiEncoding"),
+            _ => panic!("not set default encoding"),
+        };
+    }
+
+    println!("{:?},{:?}", encoding, font.widths);
+    for (code, name) in &encoding {
         if let Some(gid) = face.as_ref().unwrap().get_name_index(name) {
             font.cid_to_gid.insert(code.to_owned(), gid);
+        }
+    }
+
+    let is_empty = font.cid_to_gid.is_empty();
+    if is_empty {
+        for i in 1..=256 {
+            if let Some(gid) = face.as_ref().unwrap().get_char_index(i) {
+                font.cid_to_gid.insert(i as u32, gid);
+            } else if let Some(gd) = face.as_ref().unwrap().get_char_index(0xf000 + i) {
+                font.cid_to_gid.insert(i as u32, gd);
+            }
         }
     }
 

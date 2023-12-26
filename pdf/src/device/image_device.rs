@@ -49,7 +49,6 @@ impl ImageDevice {
 
 impl Device for ImageDevice {
     fn begain_page(&mut self, _page_num: u32, media: &Rectangle, _crop: &Rectangle) {
-        println!("{:?},{:?}", media, _crop);
         let sx = self.x_res / 72.0;
         let sy = self.y_res / 72.0;
         let ctm = Matrix::new(
@@ -82,7 +81,7 @@ impl Device for ImageDevice {
             return Ok(());
         }
 
-        //println!("draw: {:?},{:?},{:?}", x, y, unicode,);
+        // println!("draw: {:?},{:?},{:?}", x, y, unicode,);
 
         let sx = self.x_res / 72.0;
         let sy = self.y_res / 72.0;

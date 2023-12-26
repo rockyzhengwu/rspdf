@@ -57,7 +57,7 @@ impl TextInfo {
     pub fn cids(&self) -> Vec<u32> {
         self.state
             .font()
-            .code_to_cids(self.characters.binary_bytes().as_slice())
+            .code_to_gids(self.characters.binary_bytes().as_slice())
     }
 
     pub fn get_glyph(&mut self, code: u32, scale: f64) -> Option<Bitmap> {

@@ -38,17 +38,6 @@ pub struct CMap {
 }
 
 impl CMap {
-    pub fn code_to_character_len(&self) -> usize {
-        self.code_to_character.len()
-    }
-    pub fn name(&self) -> &str {
-        self.name.as_str()
-    }
-
-    pub fn cmap_type(&self) -> Option<u8> {
-        self.cmap_type
-    }
-
     pub fn set_name(&mut self, name: String) {
         self.name = name;
     }
@@ -93,22 +82,17 @@ impl CMap {
         parser.parse().unwrap()
     }
 
-    pub fn has_to_unicode(&self) -> bool {
-        self.code_to_character.is_empty()
-    }
-
-    pub fn decode_string(&self, content: &PDFString) -> String {
+    pub fn decode_string(&self, gids: &[u32]) -> String {
         let mut res = String::new();
-        for b in content.bytes() {
-            let code = *b as u32;
-            if let Some(c) = self.code_to_character.get(&code) {
+        for code in gids {
+            if let Some(c) = self.code_to_character.get(code) {
                 res.push(char::from_u32(c.to_owned()).unwrap());
             }
         }
         res
     }
 
-    pub fn code_to_cid(&self, bytes: &[u8]) -> Vec<u32> {
+    pub fn code_to_gid(&self, bytes: &[u8]) -> Vec<u32> {
         let mut cids: Vec<u32> = Vec::new();
         if matches!(self.name.as_str(), "Identity-H" | "Identity-V") {
             for v in bytes.chunks(2) {

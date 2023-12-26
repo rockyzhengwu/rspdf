@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::{Read, Seek};
 use std::u32;
 
-use freetype::{Bitmap, Face};
+use freetype::Face;
 
 use crate::document::Document;
 use crate::errors::PDFResult;
@@ -10,7 +10,7 @@ use crate::font::cmap::predefined::get_predefine_cmap;
 use crate::font::{cmap::CMap, load_face, Font};
 use crate::object::{PDFArray, PDFObject};
 
-fn parse_widths(w: &PDFArray) -> HashMap<u32, u32> {
+fn parse_widths(w: &PDFArray) -> HashMap<u32, f64> {
     let mut widths = HashMap::new();
     let n = w.len();
     let mut i = 0;
@@ -21,14 +21,14 @@ fn parse_widths(w: &PDFArray) -> HashMap<u32, u32> {
             PDFObject::Arrray(arr) => {
                 let mut start = obj1;
                 for a in arr {
-                    let aw = a.as_i64().unwrap() as u32;
+                    let aw = a.as_f64().unwrap();
                     widths.insert(start, aw);
                     start += 1;
                 }
                 i += 2;
             }
             PDFObject::Number(n) => {
-                let aw = w.get(i + 2).unwrap().as_i64().unwrap() as u32;
+                let aw = w.get(i + 2).unwrap().as_f64().unwrap();
                 let end = n.as_i64() as u32;
                 for k in obj1..end {
                     widths.insert(k, aw);
@@ -49,15 +49,19 @@ pub fn create_composite_font<T: Seek + Read>(
     obj: &PDFObject,
     doc: &Document<T>,
 ) -> PDFResult<Font> {
+    let mut font = Font::default();
     let mut widths = HashMap::new();
-    let mut dw: u32 = 0;
+    let mut dw: f64 = 0.0;
 
     let mut face: Option<Face> = None;
     if let Some(descendant_fonts) = obj.get_value("DescendantFonts") {
         let descendant_fonts = doc.read_indirect(descendant_fonts)?;
         let df_ref = descendant_fonts.as_array()?.get(0).unwrap();
         let df_obj = doc.read_indirect(df_ref)?;
-        dw = df_obj.get_value("DW").unwrap().as_f64()? as u32;
+        dw = df_obj.get_value("DW").unwrap().as_f64()?;
+        let cid_to_gid_map = df_obj.get_value("CIDToGIDMap");
+        println!("cid_gid_map {:?}", cid_to_gid_map);
+
         if let Some(w_obj) = df_obj.get_value("W") {
             match w_obj {
                 PDFObject::Arrray(arr) => widths = parse_widths(arr),
@@ -82,6 +86,9 @@ pub fn create_composite_font<T: Seek + Read>(
         //let mut file = std::fs::File::create("type0.otf").unwrap();
         //file.write_all(font_file.bytes()?.as_slice()).unwrap();
     }
+    font.widths = widths;
+    font.dwidths = dw;
+    font.face = face;
 
     let mut encoding = CMap::default();
     if let Some(enc) = obj.get_value("Encoding") {
@@ -99,14 +106,14 @@ pub fn create_composite_font<T: Seek + Read>(
             _ => {}
         }
     }
-    // println!("encoding {:?}", encoding);
+    font.encoding = Some(encoding);
 
     let mut tounicode = CMap::default();
     if let Some(tu) = obj.get_value("ToUnicode") {
-        let to_unicode = doc.read_indirect(tu)?;
-        let bytes = to_unicode.bytes()?;
+        let tus = doc.read_indirect(tu)?;
+        let bytes = tus.bytes()?;
         tounicode = CMap::new_from_bytes(bytes.as_slice());
     }
-    //println!("Tounicode {:?}", tounicode.code_to_character_len());
-    unimplemented!()
+    font.to_unicode = tounicode;
+    Ok(font)
 }

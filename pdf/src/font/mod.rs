@@ -35,8 +35,7 @@ pub struct Font {
     //
     descriptor: FontDescriptor,
 
-    encoding: HashMap<u32, String>,
-    ttf_cmap: CMap,
+    encoding: Option<CMap>,
     cid_to_gid: HashMap<u32, u32>,
     to_unicode: CMap,
 
@@ -50,8 +49,14 @@ impl Font {
         match self.face {
             Some(ref f) => {
                 f.set_pixel_sizes(sx, sy).unwrap();
-                let gid = self.cid_to_gid.get(&code).unwrap();
-                f.load_glyph(gid.to_owned(), LoadFlag::RENDER).unwrap();
+                let gid = {
+                    if !self.cid_to_gid.is_empty() {
+                        self.cid_to_gid.get(&code).unwrap().to_owned()
+                    } else {
+                        code
+                    }
+                };
+                f.load_glyph(gid, LoadFlag::RENDER).unwrap();
                 let glyph = f.glyph();
                 Some(glyph.bitmap())
             }
@@ -62,16 +67,30 @@ impl Font {
     }
 
     // TODO impl this
-    pub fn code_to_cids(&self, bytes: &[u8]) -> Vec<u32> {
+    pub fn code_to_gids(&self, bytes: &[u8]) -> Vec<u32> {
         let mut res = Vec::new();
-        for code in bytes {
-            res.push(code.to_owned() as u32);
+        if let Some(enc) = &self.encoding {
+            res = enc.code_to_gid(bytes);
+        } else {
+            for code in bytes {
+                res.push(code.to_owned() as u32);
+            }
         }
         res
     }
 
     pub fn get_unicode(&self, content: &PDFString) -> String {
-        self.to_unicode.decode_string(content)
+        //let gids = self.code_to_gids(content.binary_bytes().as_slice());
+        if let Some(enc) = &self.encoding {
+            let cids = enc.code_to_gid(content.bytes());
+            self.to_unicode.decode_string(cids.as_slice())
+        } else {
+            let mut gids = Vec::new();
+            for code in content.binary_bytes() {
+                gids.push(code as u32);
+            }
+            self.to_unicode.decode_string(gids.as_slice())
+        }
     }
 
     pub fn get_width(&self, code: &u32) -> f64 {
