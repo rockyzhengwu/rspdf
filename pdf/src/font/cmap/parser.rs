@@ -168,7 +168,9 @@ impl<T: Seek + Read> CMapParser<T> {
 
     fn parse_cmp_command(&mut self) -> PDFResult<Vec<PDFObject>> {
         let mut command = Vec::new();
-        while !self.tokenizer.check_next_type(&Token::PDFOther(Vec::new()))?
+        while !self
+            .tokenizer
+            .check_next_type(&Token::PDFOther(Vec::new()))?
             && !self.tokenizer.check_next_type(&Token::PDFEof)?
         {
             let obj = self.parse_obj()?;

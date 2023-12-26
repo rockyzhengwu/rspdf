@@ -42,7 +42,7 @@ impl TextInfo {
         let cids = self.cids();
         for code in cids {
             let w = self.state.font().get_width(&code);
-            total += (w as f64 * 0.001) * self.state.font_size();
+            total += (w * 0.001) * self.state.font_size();
             if code == 32 {
                 total += self.state.word_spacing() * self.state.hscaling() * 0.01;
             }
@@ -57,7 +57,7 @@ impl TextInfo {
     pub fn cids(&self) -> Vec<u32> {
         self.state
             .font()
-            .code_to_gids(self.characters.binary_bytes().as_slice())
+            .code_to_cids(self.characters.binary_bytes().as_slice())
     }
 
     pub fn get_glyph(&mut self, code: u32, scale: f64) -> Option<Bitmap> {
@@ -70,7 +70,7 @@ impl TextInfo {
     }
 
     pub fn get_character_width(&self, code: u32) -> f64 {
-        (self.state.font().get_width(&code) as f64 / 1000.0) * self.state.font_size()
+        (self.state.font().get_width(&code) / 1000.0) * self.state.font_size()
             + self.state.char_spacing()
     }
 
@@ -84,6 +84,7 @@ impl TextInfo {
         let ty = self.text_matrix.v32;
         (tx, ty)
     }
+
     pub fn out_pos(&mut self, cid: u32, ctm: &Matrix) -> (u32, u32) {
         let x = self.text_matrix.v31;
         let y = self.text_matrix.v32;

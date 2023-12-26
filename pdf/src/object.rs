@@ -185,6 +185,20 @@ impl PDFNumber {
             PDFNumber::Integer(i) => i,
         }
     }
+
+    pub fn as_i32(&self) -> i32 {
+        match *self {
+            PDFNumber::Real(r) => r as i32,
+            PDFNumber::Integer(i) => i as i32,
+        }
+    }
+
+    pub fn as_f32(&self) -> f32 {
+        match *self {
+            PDFNumber::Real(r) => r as f32,
+            PDFNumber::Integer(i) => i as f32,
+        }
+    }
 }
 
 pub type PDFArray = Vec<PDFObject>;
@@ -223,6 +237,14 @@ impl PDFObject {
 
     pub fn get_value_as_f64(&self, key: &str) -> Option<PDFResult<f64>> {
         self.get_value(key).map(|obj| obj.as_f64())
+    }
+
+    pub fn get_value_as_i32(&self, key: &str) -> Option<PDFResult<i32>> {
+        self.get_value(key).map(|obj| obj.as_i32())
+    }
+
+    pub fn get_value_as_f32(&self, key: &str) -> Option<PDFResult<f32>> {
+        self.get_value(key).map(|obj| obj.as_f32())
     }
 
     pub fn as_string(&self) -> PDFResult<String> {
@@ -271,6 +293,23 @@ impl PDFObject {
     pub fn as_f64(&self) -> PDFResult<f64> {
         match self {
             PDFObject::Number(v) => Ok(v.as_f64()),
+            _ => Err(PDFError::ObjectConvertFailure(
+                "can't convert to number".to_string(),
+            )),
+        }
+    }
+    pub fn as_i32(&self) -> PDFResult<i32> {
+        match self {
+            PDFObject::Number(v) => Ok(v.as_i32()),
+            _ => Err(PDFError::ObjectConvertFailure(
+                "can't convert to number".to_string(),
+            )),
+        }
+    }
+
+    pub fn as_f32(&self) -> PDFResult<f32> {
+        match self {
+            PDFObject::Number(v) => Ok(v.as_f32()),
             _ => Err(PDFError::ObjectConvertFailure(
                 "can't convert to number".to_string(),
             )),

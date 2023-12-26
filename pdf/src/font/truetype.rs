@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::io::{Read, Seek};
 
 use freetype::{Bitmap, Face};
+use log::warn;
 
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
@@ -19,11 +20,11 @@ pub struct TrueType {
     tounicode: CMap,
     face: Option<Face>,
     program: Option<TrueTypeProgram>,
-    widths: HashMap<u32, u32>,
+    widths: HashMap<u32, f64>,
 }
 
 impl TrueType {
-    pub fn get_width(&self, code: &u32) -> u32 {
+    pub fn get_width(&self, code: &u32) -> f64 {
         self.widths.get(code).unwrap().to_owned()
     }
 
@@ -41,8 +42,9 @@ impl TrueType {
     }
 
     pub fn get_unicode(&self, content: &PDFString) -> String {
-        let bytes = content.binary_bytes();
-        let cids: Vec<u32> = bytes.iter().map(|v| v.to_owned() as u32).collect();
+        //let bytes = content.binary_bytes();
+        //let cids: Vec<u32> = bytes.iter().map(|v| v.to_owned() as u32).collect();
+        let cids = self.get_cids(content.binary_bytes().as_slice());
         let s = self.tounicode.cid_to_string(cids.as_slice());
         s
     }
@@ -71,14 +73,19 @@ pub fn create_truetype_font<T: Seek + Read>(
     let widths = parse_widhts(obj)?;
     let mut face: Option<Face> = None;
     let mut program = None;
+    println!("font: {:?}", obj);
 
     if let Some(descriptor) = obj.get_value("FontDescriptor") {
         let desc = doc.read_indirect(descriptor)?;
-        let font_file = desc.get_value("FontFile2").unwrap();
-        let font_stream = doc.read_indirect(font_file)?;
-        face = Some(load_face(font_stream.bytes()?)?);
-        //println!("font_stream:{:?}", desc);
-        program = Some(TrueTypeProgram::new(font_stream.bytes()?));
+        println!("desc {:?}", desc);
+        if let Some(font_file) = desc.get_value("FontFile2") {
+            let font_stream = doc.read_indirect(font_file)?;
+            face = Some(load_face(font_stream.bytes()?)?);
+            program = Some(TrueTypeProgram::new(font_stream.bytes()?));
+        } else {
+            // TODO not embedding fontfile
+            warn!("TrueType dosen't contain Fontfile");
+        }
     }
 
     // TODO encoding
@@ -92,7 +99,9 @@ pub fn create_truetype_font<T: Seek + Read>(
 
         match enc_obj {
             PDFObject::Name(name) => encoding = predefine_encoding(name.to_string().as_str()),
-            PDFObject::Dictionary(_) => {}
+            PDFObject::Dictionary(_) => {
+                warn!("did'nt pase Differences")
+            }
             _ => {
                 return Err(PDFError::FontEncoding(format!(
                     "truetype encoding invalid expected Name, DIcition got:{:?}",
@@ -100,8 +109,6 @@ pub fn create_truetype_font<T: Seek + Read>(
                 )))
             }
         }
-        // TODO use diffs;
-        //let _diffs = enc.get_value("Differences").unwrap();
     } else {
         encoding = predefine_encoding("WinAnsiEncoding")
     }

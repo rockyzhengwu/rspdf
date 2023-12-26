@@ -147,6 +147,7 @@ impl CMap {
             } else {
                 // some cmap is not exist , so pdf can copy but got invalid string
                 warn!("cid not found {:?}", c);
+                //panic!("cid not found");
             }
         }
         res

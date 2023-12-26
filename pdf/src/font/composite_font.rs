@@ -7,55 +7,9 @@ use freetype::{Bitmap, Face};
 use crate::document::Document;
 use crate::errors::PDFResult;
 use crate::font::cmap::predefined::get_predefine_cmap;
-use crate::font::{cmap::CMap, load_face};
-use crate::object::{PDFArray, PDFObject, PDFString};
+use crate::font::{cmap::CMap, load_face, Font};
+use crate::object::{PDFArray, PDFObject};
 
-#[allow(dead_code)]
-#[derive(Debug, Clone, Default)]
-pub struct CompositeFont {
-    name: String,
-    encoding: CMap,
-    tounicode: CMap,
-    face: Option<Face>,
-    widths: HashMap<u32, u32>,
-    dw: u32,
-}
-
-impl CompositeFont {
-    pub fn get_width(&self, code: &u32) -> u32 {
-        match self.widths.get(code) {
-            Some(w) => w.to_owned(),
-            None => self.dw,
-        }
-    }
-
-    pub fn get_unicode(&self, content: &PDFString) -> String {
-        // bytes -> cid ;
-        let bytes = content.binary_bytes();
-        let cids = self.encoding.code_to_cid(bytes.as_slice());
-        let s = self.tounicode.cid_to_string(cids.as_slice());
-        s
-    }
-
-    pub fn decode_to_glyph(&self, code: u32, sx: u32, sy: u32) -> Bitmap {
-        match self.face {
-            Some(ref f) => {
-                f.set_pixel_sizes(sx, sy).unwrap();
-                f.load_glyph(code, freetype::face::LoadFlag::RENDER)
-                    .unwrap();
-                let glyph = f.glyph();
-                glyph.bitmap()
-            }
-            None => {
-                panic!("face is None in font");
-            }
-        }
-    }
-
-    pub fn get_cids(&self, bytes: &[u8]) -> Vec<u32> {
-        self.encoding.code_to_cid(bytes)
-    }
-}
 fn parse_widths(w: &PDFArray) -> HashMap<u32, u32> {
     let mut widths = HashMap::new();
     let n = w.len();
@@ -94,7 +48,7 @@ pub fn create_composite_font<T: Seek + Read>(
     fontname: &str,
     obj: &PDFObject,
     doc: &Document<T>,
-) -> PDFResult<CompositeFont> {
+) -> PDFResult<Font> {
     let mut widths = HashMap::new();
     let mut dw: u32 = 0;
 
@@ -154,13 +108,5 @@ pub fn create_composite_font<T: Seek + Read>(
         tounicode = CMap::new_from_bytes(bytes.as_slice());
     }
     //println!("Tounicode {:?}", tounicode.code_to_character_len());
-
-    Ok(CompositeFont {
-        name: fontname.to_string(),
-        encoding,
-        tounicode,
-        face,
-        widths,
-        dw,
-    })
+    unimplemented!()
 }
