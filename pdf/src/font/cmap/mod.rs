@@ -63,6 +63,14 @@ impl CMap {
         }
     }
 
+    pub fn cmap_type(&self) -> Option<u8> {
+        self.cmap_type
+    }
+
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
     pub fn add_character(&mut self, code: u32, ch: u32) {
         self.code_to_character.insert(code, ch);
     }

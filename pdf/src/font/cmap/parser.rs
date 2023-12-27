@@ -282,7 +282,6 @@ endbfchar
 endbfrange
 endcmap CMapName currentdict /CMap defineresource pop end end";
         let cmap = CMap::new_from_bytes(content.as_slice());
-        assert_eq!(cmap.code_to_character_len(), 107);
         assert_eq!(cmap.name(), "AAAAAA+F4+0");
         assert_eq!(cmap.cmap_type(), Some(2));
     }

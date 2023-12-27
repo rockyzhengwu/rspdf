@@ -73,7 +73,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
             };
             content_buffer.extend(stream.bytes()?);
         }
-        //println!("{:?}", String::from_utf8_lossy(content_buffer.as_slice()));
+        // println!("{:?}", String::from_utf8_lossy(content_buffer.as_slice()));
         let mut f = std::fs::File::create("content.bin").unwrap();
         f.write_all(content_buffer.as_slice()).unwrap();
 
@@ -81,7 +81,6 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         let tokenizer = Tokenizer::new(cursor);
         let mut parser = CanvasParser::new(tokenizer);
         while let Ok(operation) = parser.parse_op() {
-            //println!("{:?}", operation);
             self.invoke_operation(operation)?;
         }
         self.text_matrix = Matrix::default();
@@ -157,8 +156,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
     }
     // EI
     fn end_image(&mut self, operation: Operation) -> PDFResult<()> {
-        let image = operation.operand(0);
-        println!("end image {:?}", image);
+        let _image = operation.operand(0);
         Ok(())
     }
 

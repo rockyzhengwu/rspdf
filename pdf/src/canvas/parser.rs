@@ -47,7 +47,7 @@ impl<T: Seek + Read> CanvasParser<T> {
             objs.push(obj);
         }
         let _id = self.tokenizer.next_token()?;
-        let image_buffer = self.tokenizer.read_unitil(b"EI")?;
+        let image_buffer = self.tokenizer.read_unitil(b"\nEI")?;
         objs.push(PDFObject::String(PDFString::Literial(image_buffer)));
         Ok(Operation::new("EI".to_string(), objs))
     }
@@ -130,6 +130,17 @@ mod tests {
     #[test]
     fn test_inline_image() {
         let filename = peek_filename("content_with_inline_image.bin");
+        let file = File::open(filename).unwrap();
+        let tokenizer = Tokenizer::new(file);
+        let mut parser = CanvasParser::new(tokenizer);
+        // TODO assert
+        while let Ok(op) = parser.parse_op() {
+            println!("{:?}", op);
+        }
+    }
+    #[test]
+    fn test_tmp() {
+        let filename = "/home/zhengwu/workspace/private/rspdf/content.bin";
         let file = File::open(filename).unwrap();
         let tokenizer = Tokenizer::new(file);
         let mut parser = CanvasParser::new(tokenizer);

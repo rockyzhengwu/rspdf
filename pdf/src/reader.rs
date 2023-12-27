@@ -351,6 +351,7 @@ impl<T: Seek + Read> Reader<T> {
         let mut buffer = vec![0; length];
         self.tokenizer.peek_buffer(&mut buffer)?;
         Ok(buffer)
+
     }
 
     pub fn read_stream_content_unitl_end(&mut self, stream: &PDFStream) -> PDFResult<Vec<u8>> {
