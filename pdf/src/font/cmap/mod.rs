@@ -2,11 +2,8 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use std::u8;
 
-use log::warn;
-
 use crate::font::cmap::predefined::get_predefine_cmap_ref;
 use crate::lexer::Tokenizer;
-use crate::object::PDFString;
 
 pub mod parser;
 pub mod predefined;
@@ -121,19 +118,5 @@ impl CMap {
             }
         }
         cids
-    }
-
-    pub fn cid_to_string(&self, cids: &[u32]) -> String {
-        let mut res = String::new();
-        for c in cids {
-            if let Some(ch) = self.code_to_character.get(c) {
-                res.push(char::from_u32(ch.to_owned()).unwrap());
-            } else {
-                // some cmap is not exist , so pdf can copy but got invalid string
-                warn!("cid not found {:?}", c);
-                //panic!("cid not found");
-            }
-        }
-        res
     }
 }

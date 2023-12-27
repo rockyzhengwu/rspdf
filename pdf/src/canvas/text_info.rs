@@ -4,8 +4,6 @@ use crate::canvas::graphics_state::GraphicsState;
 use crate::canvas::matrix::Matrix;
 use crate::object::PDFString;
 
-// TODO charactor glyph cache
-
 pub struct TextInfo {
     characters: PDFString,
     state: GraphicsState,
@@ -21,8 +19,9 @@ impl TextInfo {
         }
     }
     pub fn get_unicode(&self) -> String {
-        //println!("{:?}",self.characters.bytes());
-        self.state.font().get_unicode(&self.characters)
+        self.state
+            .font()
+            .get_unicode(self.characters.binary_bytes().as_slice())
     }
 
     pub fn content_bytes(&self) -> &[u8] {
@@ -57,7 +56,7 @@ impl TextInfo {
     pub fn cids(&self) -> Vec<u32> {
         self.state
             .font()
-            .code_to_gids(self.characters.binary_bytes().as_slice())
+            .code_to_cids(self.characters.binary_bytes().as_slice())
     }
 
     pub fn get_glyph(&mut self, code: u32, scale: f64) -> Option<Bitmap> {

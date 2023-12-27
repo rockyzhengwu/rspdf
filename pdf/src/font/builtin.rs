@@ -1,13 +1,14 @@
-#![allow(dead_code)]
-
-use lazy_static::lazy_static;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use crate::errors::PDFResult;
+use freetype::face::Face;
+use freetype::Library;
+use lazy_static::lazy_static;
+
+use crate::errors::{PDFError, PDFResult};
 
 lazy_static! {
-    static ref BUILTINF_FONTS: HashMap<&'static str, &'static str> = {
+    static ref BUILTINF_FONTS_NAME: HashMap<&'static str, &'static str> = {
         let mut name_map = HashMap::new();
         name_map.insert("Arial", "Helvetica");
         name_map.insert("Arial,Bold", "Helvetica-Bold");
@@ -77,8 +78,36 @@ lazy_static! {
         name_map
     };
 }
+lazy_static! {
+    static ref SYS_FONTS_FILE: HashMap<&'static str, &'static str> = {
+        let mut name_map = HashMap::new();
+        name_map.insert("Courier", "n022003l.pfb");
+        name_map.insert("Courier-Bold", "n022004l.pfb");
+        name_map.insert("Courier-BoldOblique", "n022024l.pfb");
+        name_map.insert("Courier-Oblique", "n022023l.pfb");
+        name_map.insert("Helvetica", "n019003l.pfb");
+        name_map.insert("Helvetica-Bold", "n019004l.pfb");
+        name_map.insert("Helvetica-BoldOblique", "n019024l.pfb");
+        name_map.insert("Helvetica-Oblique", "n019023l.pfb");
+        name_map.insert("Symbol", "s050000l.pfb");
+        name_map.insert("Times-Bold", "n021004l.pfb");
+        name_map.insert("Times-BoldItalic", "n021024l.pfb");
+        name_map.insert("Times-Italic", "n021023l.pfb");
+        name_map.insert("Times-Roman", "n021003l.pfb");
+        name_map.insert("ZapfDingbats", "d050000l.pfb");
+        name_map
+    };
+}
 
-fn load_system_font(name: &str) -> PDFResult<()> {
+fn load_face(path: PathBuf) -> PDFResult<Face> {
+    let lib = Library::init().unwrap();
+    match lib.new_face(path, 0) {
+        Ok(face) => Ok(face),
+        Err(e) => Err(PDFError::FontFreeType(format!("Load face error{:?}", e))),
+    }
+}
+
+fn load_system_font(name: &str) -> PDFResult<Face> {
     let dirs = vec![
         "/usr/share/ghostscript/fonts",
         "/usr/local/share/ghostscript/fonts",
@@ -86,22 +115,21 @@ fn load_system_font(name: &str) -> PDFResult<()> {
         "/usr/share/fonts/default/ghostscript",
         "/usr/share/fonts/type1/gsfonts",
     ];
-    for d in dirs {
-        let path = Path::new(d).join("n021003l.pfb");
-        if path.exists() {
-            println!("{:?}", path);
+    if let Some(fname) = SYS_FONTS_FILE.get(name) {
+        for d in dirs {
+            let path = Path::new(d).join(fname);
+            if path.exists() {
+                let face = load_face(path)?;
+                return Ok(face);
+            }
         }
+    } else {
+        // TODO support other system, just linux now
+        panic!("Built in fonts not  found");
     }
-
-    Ok(())
+    panic!("built in fonts not found");
 }
 
-pub fn load_builitin_font(name: &str) -> PDFResult<()> {
-    if let Some(normal_name) = BUILTINF_FONTS.get(name) {
-        // TODO
-    } else {
-        unimplemented!()
-    }
-
-    Ok(())
+pub fn load_builitin_font(name: &str) -> PDFResult<Face> {
+    load_system_font(BUILTINF_FONTS_NAME.get(name).unwrap())
 }

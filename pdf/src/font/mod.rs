@@ -6,7 +6,7 @@ use freetype::{face::LoadFlag, Bitmap, Face, Library};
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::font::cmap::CMap;
-use crate::object::{PDFObject, PDFString};
+use crate::object::PDFObject;
 
 pub(crate) mod builtin;
 pub(crate) mod cmap;
@@ -66,8 +66,7 @@ impl Font {
         }
     }
 
-    // TODO impl this
-    pub fn code_to_gids(&self, bytes: &[u8]) -> Vec<u32> {
+    pub fn code_to_cids(&self, bytes: &[u8]) -> Vec<u32> {
         let mut res = Vec::new();
         if let Some(enc) = &self.encoding {
             res = enc.code_to_gid(bytes);
@@ -79,15 +78,15 @@ impl Font {
         res
     }
 
-    pub fn get_unicode(&self, content: &PDFString) -> String {
+    pub fn get_unicode(&self, content: &[u8]) -> String {
         //let gids = self.code_to_gids(content.binary_bytes().as_slice());
         if let Some(enc) = &self.encoding {
-            let cids = enc.code_to_gid(content.bytes());
+            let cids = enc.code_to_gid(content);
             self.to_unicode.decode_string(cids.as_slice())
         } else {
             let mut gids = Vec::new();
-            for code in content.binary_bytes() {
-                gids.push(code as u32);
+            for code in content {
+                gids.push(code.to_owned() as u32);
             }
             self.to_unicode.decode_string(gids.as_slice())
         }

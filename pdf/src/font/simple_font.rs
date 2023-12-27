@@ -35,7 +35,7 @@ fn create_font_descriptor(desc: &PDFObject, _basefont: &str) -> PDFResult<FontDe
 }
 
 pub fn create_simple_font<T: Seek + Read>(
-    _fontname: &str,
+    fontname: &str,
     obj: &PDFObject,
     doc: &Document<T>,
 ) -> PDFResult<Font> {
@@ -43,6 +43,7 @@ pub fn create_simple_font<T: Seek + Read>(
     let subtype = obj.get_value_as_string("Subtype").unwrap()?;
 
     let basefont = obj.get_value_as_string("BaseFont").unwrap()?;
+    font.name = fontname.to_owned();
 
     font.widths = parse_widhts(obj)?;
     let mut face = None;
@@ -59,10 +60,13 @@ pub fn create_simple_font<T: Seek + Read>(
             let program = doc.read_indirect(emb)?;
             face = Some(load_face(program.bytes()?)?);
         } else {
+            println!("loas built font");
+            face = Some(load_builitin_font(&basefont)?);
             // TODO load load_builitin_font
         }
     } else {
-        load_builitin_font(&basefont)?;
+        println!("loas built font");
+        face = Some(load_builitin_font(&basefont)?);
     }
 
     // TODO FIX set cmap for face
@@ -78,7 +82,6 @@ pub fn create_simple_font<T: Seek + Read>(
         _ => {}
     }
 
-    // TODO encoding
     let mut encoding = HashMap::new();
     if let Some(enc) = obj.get_value("Encoding") {
         let enc_obj = if enc.is_indirect() {
@@ -133,7 +136,6 @@ pub fn create_simple_font<T: Seek + Read>(
         };
     }
 
-    println!("{:?},{:?}", encoding, font.widths);
     for (code, name) in &encoding {
         if let Some(gid) = face.as_ref().unwrap().get_name_index(name) {
             font.cid_to_gid.insert(code.to_owned(), gid);

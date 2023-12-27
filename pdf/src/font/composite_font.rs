@@ -86,6 +86,7 @@ pub fn create_composite_font<T: Seek + Read>(
         //let mut file = std::fs::File::create("type0.otf").unwrap();
         //file.write_all(font_file.bytes()?.as_slice()).unwrap();
     }
+    font.name = fontname.to_string();
     font.widths = widths;
     font.dwidths = dw;
     font.face = face;
