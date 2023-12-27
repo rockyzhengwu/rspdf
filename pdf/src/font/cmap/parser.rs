@@ -69,6 +69,10 @@ impl<T: Seek + Read> CMapParser<T> {
                                 let val = command[1].to_owned().as_i64().unwrap() as u8;
                                 cmap.set_type(Some(val));
                             }
+                            "WMode" => {
+                                let val = command[1].to_owned().as_i32().unwrap() as u8;
+                                cmap.wmode = Some(val);
+                            }
                             _ => {
                                 //
                             }

@@ -107,7 +107,7 @@ fn load_face(path: PathBuf) -> PDFResult<Face> {
     }
 }
 
-fn load_system_font(name: &str) -> PDFResult<Face> {
+fn load_system_font(name: &str) -> PDFResult<Option<Face>> {
     let dirs = vec![
         "/usr/share/ghostscript/fonts",
         "/usr/local/share/ghostscript/fonts",
@@ -120,16 +120,19 @@ fn load_system_font(name: &str) -> PDFResult<Face> {
             let path = Path::new(d).join(fname);
             if path.exists() {
                 let face = load_face(path)?;
-                return Ok(face);
+                return Ok(Some(face));
             }
         }
     } else {
         // TODO support other system, just linux now
-        panic!("Built in fonts not  found");
+        panic!("Built in fonts not  found:{:?}", name);
     }
-    panic!("built in fonts not found");
+    panic!("built in fonts not found:{:?}", name);
 }
 
-pub fn load_builitin_font(name: &str) -> PDFResult<Face> {
-    load_system_font(BUILTINF_FONTS_NAME.get(name).unwrap())
+pub fn load_builitin_font(name: &str) -> PDFResult<Option<Face>> {
+    match BUILTINF_FONTS_NAME.get(name) {
+        Some(n) => load_system_font(n),
+        None => Ok(None),
+    }
 }

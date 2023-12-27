@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::fs::File;
-use std::io::Write;
+use std::io::{Read, Seek, Write};
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -19,7 +19,12 @@ pub struct Config {
     pub(crate) output: Option<PathBuf>,
 }
 
-pub fn command(doc: Document<File>, start: u32, end: u32, cfg: Config) -> PDFResult<()> {
+pub fn command<T: Seek + Read>(
+    doc: Document<T>,
+    start: u32,
+    end: u32,
+    cfg: Config,
+) -> PDFResult<()> {
     let device = Rc::new(RefCell::new(TextDevice::new()));
     let mut processor = Processor::new(&doc, device.clone());
     for p in start..end {

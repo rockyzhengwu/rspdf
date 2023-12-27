@@ -22,7 +22,6 @@ impl CodeSpaceRange {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Default, Clone, Debug)]
 pub struct CMap {
     name: String,
@@ -77,6 +76,11 @@ impl CMap {
         let tokenizer = Tokenizer::new(cursor);
         let mut parser = parser::CMapParser::new(tokenizer);
         parser.parse().unwrap()
+    }
+
+    #[allow(dead_code)]
+    pub fn wmode(&self) -> Option<u8> {
+        self.wmode
     }
 
     pub fn decode_string(&self, gids: &[u32]) -> String {

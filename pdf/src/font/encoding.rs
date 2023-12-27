@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-static MAC_ROMAN_ENCODING: [&'static str; 256] = [
+static MAC_ROMAN_ENCODING: [&str; 256] = [
     "",
     "",
     "",
@@ -263,7 +263,7 @@ static MAC_ROMAN_ENCODING: [&'static str; 256] = [
     "caron",
 ];
 
-static ZAPFDINGBATS_ENCODING: [&'static str; 256] = [
+static ZAPFDINGBATS_ENCODING: [&str; 256] = [
     "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
     "", "", "", "", "", "", "", "", "space", "a1", "a2", "a202", "a3", "a4", "a5", "a119", "a118",
     "a117", "a11", "a12", "a13", "a14", "a15", "a16", "a105", "a17", "a18", "a19", "a20", "a21",
@@ -284,7 +284,7 @@ static ZAPFDINGBATS_ENCODING: [&'static str; 256] = [
     "a185", "a194", "a198", "a186", "a195", "a187", "a188", "a189", "a190", "a191", "",
 ];
 
-static SYMBOL_ENCODING: [&'static str; 256] = [
+static SYMBOL_ENCODING: [&str; 256] = [
     "",
     "",
     "",
@@ -543,7 +543,7 @@ static SYMBOL_ENCODING: [&'static str; 256] = [
     "",
 ];
 
-static MAC_EXPERT_ENCODING: [&'static str; 256] = [
+static MAC_EXPERT_ENCODING: [&str; 256] = [
     "",
     "",
     "",
@@ -802,7 +802,7 @@ static MAC_EXPERT_ENCODING: [&'static str; 256] = [
     "Ydieresissmall",
 ];
 
-static STANDARD_ENCODIING: [&'static str; 256] = [
+static STANDARD_ENCODIING: [&str; 256] = [
     "",
     "",
     "",
@@ -1061,7 +1061,7 @@ static STANDARD_ENCODIING: [&'static str; 256] = [
     "",
 ];
 
-static WIN_ANSI_ENCODING: [&'static str; 256] = [
+static WIN_ANSI_ENCODING: [&str; 256] = [
     "",
     "",
     "",
@@ -1327,6 +1327,8 @@ pub fn get_encoding(name: &str) -> HashMap<u32, String> {
             "StandardEncoding" => STANDARD_ENCODIING,
             "MacExpertEncoding" => MAC_EXPERT_ENCODING,
             "MacRomanEncoding" => MAC_ROMAN_ENCODING,
+            "ZapfDingbats" => ZAPFDINGBATS_ENCODING,
+            "Symal" => SYMBOL_ENCODING,
             _ => panic!("{:?} encoding not exists", name),
         }
     };

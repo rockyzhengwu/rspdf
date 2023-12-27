@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::io::{Read, Seek};
 
+use log::warn;
+
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::font::builtin::load_builitin_font;
@@ -44,8 +46,9 @@ pub fn create_simple_font<T: Seek + Read>(
 
     let basefont = obj.get_value_as_string("BaseFont").unwrap()?;
     font.name = fontname.to_owned();
-
     font.widths = parse_widhts(obj)?;
+
+    #[allow(unused_assignments)]
     let mut face = None;
 
     if let Some(descriptor) = obj.get_value("FontDescriptor") {
@@ -60,13 +63,17 @@ pub fn create_simple_font<T: Seek + Read>(
             let program = doc.read_indirect(emb)?;
             face = Some(load_face(program.bytes()?)?);
         } else {
-            println!("loas built font");
-            face = Some(load_builitin_font(&basefont)?);
+            face = load_builitin_font(&basefont)?;
             // TODO load load_builitin_font
         }
     } else {
-        println!("loas built font");
-        face = Some(load_builitin_font(&basefont)?);
+        face = load_builitin_font(&basefont)?;
+    }
+    // TODO fix, just load Helvetica as defalt
+    // lookup font from system if not found math a smimilary defalut
+    if face.is_none() {
+        warn!("font not fount:{:?}", basefont);
+        face = load_builitin_font("Helvetica")?;
     }
 
     // TODO FIX set cmap for face

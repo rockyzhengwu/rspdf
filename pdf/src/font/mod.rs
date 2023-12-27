@@ -79,16 +79,15 @@ impl Font {
     }
 
     pub fn get_unicode(&self, content: &[u8]) -> String {
-        //let gids = self.code_to_gids(content.binary_bytes().as_slice());
         if let Some(enc) = &self.encoding {
             let cids = enc.code_to_gid(content);
             self.to_unicode.decode_string(cids.as_slice())
         } else {
-            let mut gids = Vec::new();
+            let mut cids = Vec::new();
             for code in content {
-                gids.push(code.to_owned() as u32);
+                cids.push(code.to_owned() as u32);
             }
-            self.to_unicode.decode_string(gids.as_slice())
+            self.to_unicode.decode_string(cids.as_slice())
         }
     }
 

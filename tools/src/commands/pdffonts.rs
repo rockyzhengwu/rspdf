@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::fs::File;
+use std::io::{Read, Seek};
 
 use clap::Parser;
 use log::info;
@@ -19,7 +19,12 @@ struct FontInfo {
     encoding: String,
 }
 
-pub fn command(doc: Document<File>, start: u32, end: u32, _cfg: Config) -> PDFResult<()> {
+pub fn command<T: Seek + Read>(
+    doc: Document<T>,
+    start: u32,
+    end: u32,
+    _cfg: Config,
+) -> PDFResult<()> {
     let mut allfonts: HashMap<String, FontInfo> = HashMap::new();
     for p in start..end {
         info!("processing page:{}", p);

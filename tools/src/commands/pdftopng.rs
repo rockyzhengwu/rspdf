@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::fs::File;
+use std::io::{Read, Seek};
 use std::rc::Rc;
 
 use clap::Parser;
@@ -16,7 +16,12 @@ pub struct Config {
     resulotion: f64,
 }
 
-pub fn command(doc: Document<File>, start: u32, end: u32, cfg: Config) -> PDFResult<()> {
+pub fn command<T: Seek + Read>(
+    doc: Document<T>,
+    start: u32,
+    end: u32,
+    cfg: Config,
+) -> PDFResult<()> {
     let device = Rc::new(RefCell::new(ImageDevice::new(
         cfg.resulotion,
         cfg.resulotion,

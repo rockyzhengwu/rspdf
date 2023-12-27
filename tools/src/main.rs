@@ -1,4 +1,5 @@
 use std::fs::File;
+use std::io::{Cursor, Read};
 use std::path::PathBuf;
 
 use clap::Parser;
@@ -36,8 +37,12 @@ fn main() {
     let command = cli.command;
 
     let start = cli.start.unwrap_or(0);
-    let file = File::open(filename.as_path()).unwrap();
-    let doc = Document::open(file).unwrap();
+    let mut file = File::open(filename.as_path()).unwrap();
+    // load all to memory or just use file
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer).unwrap();
+    let cursor = Cursor::new(buffer);
+    let doc = Document::open(cursor).unwrap();
     let end = cli.end.unwrap_or(doc.page_count() as u32);
     info!(
         "Process {:?} for page:{} to page {}",
