@@ -53,14 +53,12 @@ impl Path {
     //  ( x + width ) ( y + height ) l
     //  x ( y + height ) l
     pub fn rectangle(&mut self, rect: Rectangle) {
-        self.move_to(rect.lower_left());
+        self.move_to(rect.lower_left().to_owned());
         // lower_right;
-        self.line_to(Point::new(rect.x() + rect.width(), rect.y()));
-        self.line_to(Point::new(
-            rect.x() + rect.width(),
-            rect.y() + rect.height(),
-        ));
-        self.line_to(Point::new(rect.x(), rect.y() + rect.height()));
+        self.line_to(Point::new(rect.lx(), rect.uy()));
+        self.line_to(Point::new(rect.ux(), rect.uy()));
+        self.line_to(Point::new(rect.ux(), rect.ly()));
+        self.line_to(Point::new(rect.lx(), rect.ly()));
         self.close_last_subpath();
     }
 

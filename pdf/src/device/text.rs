@@ -4,6 +4,23 @@ use crate::errors::PDFResult;
 use crate::geom::rectangle::Rectangle;
 
 #[derive(Default, Clone)]
+struct TextItem{
+    font: String,
+    font_size: f64,
+    char_spacing: f64,
+    word_spacing: f64,
+    unicode: String,
+    binary: Vec<u8>,
+    bbox: Rectangle,
+}
+
+impl TextItem {
+    pub fn merge(&mut self, other: TextItem) {
+        unimplemented!()
+    }
+}
+
+#[derive(Default, Clone)]
 pub struct TextDevice {
     current: String,
     results: Vec<String>,
@@ -31,14 +48,14 @@ impl Device for TextDevice {
             format!(
                 "<page={} mediabox=\"{},{},{},{}\" cropbox=\"{},{},{},{}\">",
                 page_num,
-                media.x(),
-                media.y(),
-                media.width(),
-                media.height(),
-                crop.x(),
-                crop.y(),
-                crop.width(),
-                crop.height(),
+                media.lx(),
+                media.ly(),
+                media.ux(),
+                media.uy(),
+                crop.lx(),
+                crop.ly(),
+                crop.ux(),
+                crop.uy(),
             )
             .as_str(),
         );

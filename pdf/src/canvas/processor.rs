@@ -74,8 +74,6 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
             content_buffer.extend(stream.bytes()?);
         }
         // println!("{:?}", String::from_utf8_lossy(content_buffer.as_slice()));
-        let mut f = std::fs::File::create("content.bin").unwrap();
-        f.write_all(content_buffer.as_slice()).unwrap();
 
         let cursor = Cursor::new(content_buffer);
         let tokenizer = Tokenizer::new(cursor);

@@ -56,12 +56,12 @@ impl Device for ImageDevice {
             0.0,
             0.0,
             -1.0 * sy,
-            -1.0 * sx * media.x(),
-            sy * media.height(),
+            -1.0 * sx * media.lx(),
+            sy * media.uy(),
         );
         self.ctm = ctm;
-        let width = (sx * (media.width() - media.x() + 0.5)) as u32;
-        let height = (sy * (media.height() - media.y() + 0.5)) as u32;
+        let width = (sx * (media.width() + 0.5)) as u32;
+        let height = (sy * (media.height() + 0.5)) as u32;
 
         self.image = RgbImage::from_fn(width, height, |_, _| image::Rgb([255, 255, 255]));
     }

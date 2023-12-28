@@ -11,6 +11,7 @@ impl Point {
     pub fn x(&self) -> f64 {
         self.x
     }
+
     pub fn y(&self) -> f64 {
         self.y
     }

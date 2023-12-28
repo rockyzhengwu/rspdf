@@ -59,8 +59,8 @@ pub fn create_composite_font<T: Seek + Read>(
         let df_ref = descendant_fonts.as_array()?.get(0).unwrap();
         let df_obj = doc.read_indirect(df_ref)?;
         dw = df_obj.get_value("DW").unwrap().as_f64()?;
-        let cid_to_gid_map = df_obj.get_value("CIDToGIDMap");
-        println!("cid_gid_map {:?}", cid_to_gid_map);
+        // TODO cidtogid embeded
+        let _cid_to_gid_map = df_obj.get_value("CIDToGIDMap");
 
         if let Some(w_obj) = df_obj.get_value("W") {
             match w_obj {

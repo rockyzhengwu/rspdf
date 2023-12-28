@@ -2,6 +2,7 @@ use freetype::Bitmap;
 
 use crate::canvas::graphics_state::GraphicsState;
 use crate::canvas::matrix::Matrix;
+use crate::geom::rectangle::Rectangle;
 use crate::object::PDFString;
 
 pub struct TextInfo {
@@ -18,6 +19,11 @@ impl TextInfo {
             text_matrix,
         }
     }
+
+    pub fn bbox(&self) -> Rectangle {
+        unimplemented!()
+    }
+
     pub fn get_unicode(&self) -> String {
         self.state
             .font()
