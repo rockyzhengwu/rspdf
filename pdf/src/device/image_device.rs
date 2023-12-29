@@ -1,10 +1,9 @@
 use freetype::Bitmap;
-use image::{Rgb, RgbImage};
-
-use crate::canvas::matrix::Matrix;
+use image::{Rgba, RgbaImage};
 
 use log::warn;
 
+use crate::canvas::matrix::Matrix;
 use crate::canvas::path_info::PathInfo;
 use crate::canvas::text_info::TextInfo;
 use crate::device::Device;
@@ -14,13 +13,13 @@ use crate::geom::rectangle::Rectangle;
 pub struct ImageDevice {
     x_res: f64,
     y_res: f64,
-    image: RgbImage,
+    image: RgbaImage,
     ctm: Matrix,
 }
 
 impl ImageDevice {
     pub fn new(x_res: f64, y_res: f64) -> Self {
-        let image = RgbImage::new(1, 1);
+        let image = RgbaImage::new(1, 1);
         ImageDevice {
             x_res,
             y_res,
@@ -40,7 +39,7 @@ impl ImageDevice {
                 if pixel == 0 {
                     continue;
                 }
-                let rgb = Rgb([0, 0, 0]);
+                let rgb = Rgba([0, 0, 0, pixel]);
                 self.image.put_pixel(x + j, y + i, rgb);
             }
         }
@@ -63,7 +62,7 @@ impl Device for ImageDevice {
         let width = (sx * (media.width() + 0.5)) as u32;
         let height = (sy * (media.height() + 0.5)) as u32;
 
-        self.image = RgbImage::from_fn(width, height, |_, _| image::Rgb([255, 255, 255]));
+        self.image = RgbaImage::from_fn(width, height, |_, _| image::Rgba([255, 255, 255, 255]));
     }
 
     fn end_page(&mut self, page_num: u32) {
