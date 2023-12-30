@@ -69,9 +69,10 @@ impl Device for ImageDevice {
         self.image.save(format!("page-{}.png", page_num)).unwrap()
     }
 
-    fn show_text(&mut self, mut textinfo: TextInfo) -> PDFResult<()> {
+    fn show_text(&mut self, textinfo:&mut TextInfo) -> PDFResult<()> {
         // TODO implement render
-        let unicode = textinfo.get_unicode();
+        let cids = textinfo.cids();
+        let unicode = textinfo.get_unicode(cids.as_slice());
 
         let (x, y) = textinfo.position();
         // some text position is negative , just ignore
@@ -86,15 +87,14 @@ impl Device for ImageDevice {
         let sy = self.y_res / 72.0;
         // TODO calc font size
         let scale = f64::sqrt((sx * sx + sy * sy) * 0.5);
-        let cids = textinfo.cids();
         let ctm = textinfo.get_ctm().mutiply(&self.ctm);
         for cid in cids {
-            let (tx, ty) = textinfo.out_pos(cid, &ctm);
-            match textinfo.get_glyph(cid, scale) {
+            let (tx, ty) = textinfo.out_pos(&cid, &ctm);
+            match textinfo.get_glyph(&cid, &scale) {
                 Some(glyph) => {
                     let bitmap = glyph.bitmap();
                     let ux = (tx as i32 + glyph.bitmap_left()) as u32;
-                    let uy = ty - glyph.bitmap_top() as u32;
+                    let uy = ty as u32 - glyph.bitmap_top() as u32;
                     self.draw_char(ux, uy, &bitmap);
                 }
                 None => {

@@ -46,15 +46,15 @@ pub struct Font {
 }
 
 impl Font {
-    pub fn decode_to_glyph(&self, code: u32, sx: u32, sy: u32) -> Option<GlyphSlot> {
+    pub fn decode_to_glyph(&self, code: &u32, sx: &u32, sy: &u32) -> Option<GlyphSlot> {
         match self.face {
             Some(ref f) => {
-                f.set_pixel_sizes(sx, sy).unwrap();
+                f.set_pixel_sizes(sx.to_owned(), sy.to_owned()).unwrap();
                 let gid = {
                     if !self.cid_to_gid.is_empty() {
-                        self.cid_to_gid.get(&code).unwrap().to_owned()
+                        self.cid_to_gid.get(code).unwrap().to_owned()
                     } else {
-                        code
+                        code.to_owned()
                     }
                 };
                 f.load_glyph(gid, LoadFlag::RENDER).unwrap();
@@ -79,17 +79,8 @@ impl Font {
         res
     }
 
-    pub fn get_unicode(&self, content: &[u8]) -> String {
-        if let Some(enc) = &self.encoding {
-            let cids = enc.code_to_gid(content);
-            self.to_unicode.decode_string(cids.as_slice())
-        } else {
-            let mut cids = Vec::new();
-            for code in content {
-                cids.push(code.to_owned() as u32);
-            }
-            self.to_unicode.decode_string(cids.as_slice())
-        }
+    pub fn get_unicode(&self, cids: &[u32]) -> String {
+        self.to_unicode.decode_string(cids)
     }
 
     pub fn get_width(&self, code: &u32) -> f64 {
@@ -97,6 +88,10 @@ impl Font {
             Some(w) => w.to_owned(),
             None => self.dwidths,
         }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 }
 

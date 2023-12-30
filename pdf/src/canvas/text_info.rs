@@ -1,8 +1,7 @@
-use freetype::{Bitmap, GlyphSlot};
+use freetype::GlyphSlot;
 
 use crate::canvas::graphics_state::GraphicsState;
 use crate::canvas::matrix::Matrix;
-use crate::geom::rectangle::Rectangle;
 use crate::object::PDFString;
 
 pub struct TextInfo {
@@ -20,34 +19,24 @@ impl TextInfo {
         }
     }
 
-    pub fn bbox(&self) -> Rectangle {
-        unimplemented!()
+    pub fn get_unicode(&self, cids: &[u32]) -> String {
+        self.state.font().get_unicode(cids)
     }
 
-    pub fn get_unicode(&self) -> String {
-        self.state
-            .font()
-            .get_unicode(self.characters.binary_bytes().as_slice())
+    pub fn matrix(&self) -> Matrix {
+        self.text_matrix.clone()
     }
 
     pub fn content_bytes(&self) -> &[u8] {
         self.characters.bytes()
     }
 
-    pub fn decoded_character(&self) -> Vec<u32> {
-        let mut chs = Vec::new();
-        for c in self.characters.bytes() {
-            chs.push(c.to_owned() as u32);
-        }
-        chs
-    }
-
     pub fn get_content_width(&self) -> f64 {
         let mut total = 0.0;
         let cids = self.cids();
         for code in cids {
-            let w = self.state.font().get_width(&code);
-            total += (w * 0.001) * self.state.font_size();
+            let w = self.get_character_width(&code);
+            total += w;
             if code == 32 {
                 total += self.state.word_spacing() * self.state.hscaling() * 0.01;
             }
@@ -65,21 +54,19 @@ impl TextInfo {
             .code_to_cids(self.characters.binary_bytes().as_slice())
     }
 
-    pub fn get_glyph(&mut self, code: u32, scale: f64) -> Option<GlyphSlot> {
+    pub fn get_glyph(&mut self, code: &u32, scale: &f64) -> Option<GlyphSlot> {
         let font_size = self.state.font_size();
-        let sx = self.text_matrix.v11.abs() * font_size * scale;
-        let sy = self.text_matrix.v22.abs() * font_size * scale;
-        self.state
-            .font()
-            .decode_to_glyph(code, sx as u32, sy as u32)
+        let sx = (self.text_matrix.v11.abs() * font_size * scale) as u32;
+        let sy = (self.text_matrix.v22.abs() * font_size * scale) as u32;
+        self.state.font().decode_to_glyph(code, &sx, &sy)
     }
 
-    pub fn get_character_width(&self, code: u32) -> f64 {
-        (self.state.font().get_width(&code) / 1000.0) * self.state.font_size()
+    pub fn get_character_width(&self, code: &u32) -> f64 {
+        (self.state.font().get_width(code) * 0.001) * self.state.font_size()
             + self.state.char_spacing()
     }
 
-    pub fn adjust_tmx(&mut self, tx: f64) {
+    pub fn shift(&mut self, tx: f64) {
         let mat = Matrix::new_translation_matrix(tx, 0.0);
         self.text_matrix = mat.mutiply(&self.text_matrix);
     }
@@ -90,13 +77,21 @@ impl TextInfo {
         (tx, ty)
     }
 
-    pub fn out_pos(&mut self, cid: u32, ctm: &Matrix) -> (u32, u32) {
+    pub fn out_pos(&mut self, cid: &u32, ctm: &Matrix) -> (f64, f64) {
         let x = self.text_matrix.v31;
         let y = self.text_matrix.v32;
-        let ox: u32 = (x * ctm.v11 + y * ctm.v21 + ctm.v31) as u32;
-        let oy: u32 = (x * ctm.v12 + y * ctm.v22 + ctm.v32) as u32;
+        let ox = x * ctm.v11 + y * ctm.v21 + ctm.v31;
+        let oy = x * ctm.v12 + y * ctm.v22 + ctm.v32;
         let w = self.get_character_width(cid);
-        self.adjust_tmx(w);
+        self.shift(w);
         (ox, oy)
+    }
+
+    pub fn font(&self) -> &str {
+        self.state.font().name()
+    }
+
+    pub fn font_size(&self) -> f64 {
+        self.state.font_size()
     }
 }

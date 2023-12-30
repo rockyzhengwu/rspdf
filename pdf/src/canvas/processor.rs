@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::io::{Cursor, Read, Seek, Write};
+use std::io::{Cursor, Read, Seek};
 use std::rc::Rc;
 
 use log::warn;
@@ -79,6 +79,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         let tokenizer = Tokenizer::new(cursor);
         let mut parser = CanvasParser::new(tokenizer);
         while let Ok(operation) = parser.parse_op() {
+            // println!("{:?}", operation);
             self.invoke_operation(operation)?;
         }
         self.text_matrix = Matrix::default();
@@ -338,11 +339,10 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
 
         match content {
             PDFObject::String(s) => {
-                let textinfo = TextInfo::new(s.clone(), state.clone(), self.text_matrix.clone());
-
-                let mat = Matrix::new_translation_matrix(textinfo.get_content_width(), 0.0);
-                self.text_matrix = mat.mutiply(&self.text_matrix);
-                self.device.borrow_mut().show_text(textinfo)?;
+                let mut textinfo =
+                    TextInfo::new(s.clone(), state.clone(), self.text_matrix.clone());
+                self.device.borrow_mut().show_text(&mut textinfo)?;
+                self.text_matrix = textinfo.matrix();
                 Ok(())
             }
             _ => Err(PDFError::ContentInterpret(format!(
