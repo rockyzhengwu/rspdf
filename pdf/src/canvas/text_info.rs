@@ -1,4 +1,4 @@
-use freetype::Bitmap;
+use freetype::{Bitmap, GlyphSlot};
 
 use crate::canvas::graphics_state::GraphicsState;
 use crate::canvas::matrix::Matrix;
@@ -65,7 +65,7 @@ impl TextInfo {
             .code_to_cids(self.characters.binary_bytes().as_slice())
     }
 
-    pub fn get_glyph(&mut self, code: u32, scale: f64) -> Option<Bitmap> {
+    pub fn get_glyph(&mut self, code: u32, scale: f64) -> Option<GlyphSlot> {
         let font_size = self.state.font_size();
         let sx = self.text_matrix.v11.abs() * font_size * scale;
         let sy = self.text_matrix.v22.abs() * font_size * scale;

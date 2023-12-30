@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::{Read, Seek};
 
+use freetype::GlyphSlot;
 use freetype::{face::LoadFlag, Bitmap, Face, Library};
 
 use crate::document::Document;
@@ -45,7 +46,7 @@ pub struct Font {
 }
 
 impl Font {
-    pub fn decode_to_glyph(&self, code: u32, sx: u32, sy: u32) -> Option<Bitmap> {
+    pub fn decode_to_glyph(&self, code: u32, sx: u32, sy: u32) -> Option<GlyphSlot> {
         match self.face {
             Some(ref f) => {
                 f.set_pixel_sizes(sx, sy).unwrap();
@@ -58,7 +59,7 @@ impl Font {
                 };
                 f.load_glyph(gid, LoadFlag::RENDER).unwrap();
                 let glyph = f.glyph();
-                Some(glyph.bitmap())
+                Some(glyph.to_owned())
             }
             None => {
                 panic!("face is None in font");

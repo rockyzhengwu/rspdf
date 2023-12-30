@@ -85,17 +85,22 @@ impl Device for ImageDevice {
         let sx = self.x_res / 72.0;
         let sy = self.y_res / 72.0;
         // TODO calc font size
-        let scale = f64::sqrt((sx * sx + sy * sy) / 4.0);
+        let scale = f64::sqrt((sx * sx + sy * sy) * 0.5);
         let cids = textinfo.cids();
         let ctm = textinfo.get_ctm().mutiply(&self.ctm);
         for cid in cids {
-            let (ox, oy) = textinfo.out_pos(cid, &ctm);
-            let bitmap = textinfo.get_glyph(cid, scale);
-            if bitmap.is_none() {
-                panic!("bitmap is NOne");
+            let (tx, ty) = textinfo.out_pos(cid, &ctm);
+            match textinfo.get_glyph(cid, scale) {
+                Some(glyph) => {
+                    let bitmap = glyph.bitmap();
+                    let ux = (tx as i32 + glyph.bitmap_left()) as u32;
+                    let uy = ty - glyph.bitmap_top() as u32;
+                    self.draw_char(ux, uy, &bitmap);
+                }
+                None => {
+                    panic!("bitmap is NOne");
+                }
             }
-            let bitmap = bitmap.unwrap();
-            self.draw_char(ox, oy - bitmap.rows() as u32, &bitmap);
         }
         Ok(())
     }
