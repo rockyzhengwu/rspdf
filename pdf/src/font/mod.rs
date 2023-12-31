@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::{Read, Seek};
 
 use freetype::GlyphSlot;
-use freetype::{face::LoadFlag, Bitmap, Face, Library};
+use freetype::{face::LoadFlag, Face, Library};
 
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};

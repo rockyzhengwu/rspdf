@@ -69,7 +69,7 @@ impl Device for ImageDevice {
         self.image.save(format!("page-{}.png", page_num)).unwrap()
     }
 
-    fn show_text(&mut self, textinfo:&mut TextInfo) -> PDFResult<()> {
+    fn show_text(&mut self, textinfo: &mut TextInfo) -> PDFResult<()> {
         // TODO implement render
         let cids = textinfo.cids();
         let unicode = textinfo.get_unicode(cids.as_slice());

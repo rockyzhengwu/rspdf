@@ -2,7 +2,7 @@
 
 <img src="./doc/images/rspdf.png" alt="rspdf" style="width:40%;" />
 
-A PDF library written in Rust work in progress. Focus on extract content and render ant now.
+A PDF library written in Rust work in progress. Focus on extract content and render at now.
 
 # Motivation
 Write a PDF processiong library in pure Rust.
