@@ -115,16 +115,16 @@ impl Device for TextDevice {
         let cids = textinfo.cids();
         let content = textinfo.get_unicode(cids.as_slice());
         let cids = textinfo.cids();
-        let scale = 1.0;
+        let scale = 1;
         let mut chars = content.chars();
         let ctm = Matrix::default();
         for cid in &cids {
-            match textinfo.get_glyph(cid, &scale) {
+            match textinfo.font().get_glyph(cid, &scale) {
                 Some(glyph) => {
                     let (x, y) = textinfo.out_pos(cid, &ctm);
                     let mut item = TextItem::default();
                     let bitmap = glyph.bitmap();
-                    let font = textinfo.font().to_string();
+                    let font = textinfo.font().name().to_string();
                     let font_size = textinfo.font_size();
                     item.font = font;
                     item.font_size = font_size;

@@ -1,7 +1,6 @@
-use freetype::GlyphSlot;
-
 use crate::canvas::graphics_state::GraphicsState;
 use crate::canvas::matrix::Matrix;
+use crate::font::Font;
 use crate::object::PDFString;
 
 pub struct TextInfo {
@@ -54,11 +53,8 @@ impl TextInfo {
             .code_to_cids(self.characters.binary_bytes().as_slice())
     }
 
-    pub fn get_glyph(&mut self, code: &u32, scale: &f64) -> Option<GlyphSlot> {
-        let font_size = self.state.font_size();
-        let sx = (self.text_matrix.v11.abs() * font_size * scale) as u32;
-        let sy = (self.text_matrix.v22.abs() * font_size * scale) as u32;
-        self.state.font().decode_to_glyph(code, &sx, &sy)
+    pub fn font(&self) -> &Font {
+        self.state.font()
     }
 
     pub fn get_character_width(&self, code: &u32) -> f64 {
@@ -69,6 +65,10 @@ impl TextInfo {
     pub fn shift(&mut self, tx: f64) {
         let mat = Matrix::new_translation_matrix(tx, 0.0);
         self.text_matrix = mat.mutiply(&self.text_matrix);
+    }
+
+    pub fn text_matrix(&self) -> &Matrix {
+        &self.text_matrix
     }
 
     pub fn position(&self) -> (f64, f64) {
@@ -85,10 +85,6 @@ impl TextInfo {
         let w = self.get_character_width(cid);
         self.shift(w);
         (ox, oy)
-    }
-
-    pub fn font(&self) -> &str {
-        self.state.font().name()
     }
 
     pub fn font_size(&self) -> f64 {

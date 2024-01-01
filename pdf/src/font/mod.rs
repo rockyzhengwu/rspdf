@@ -46,10 +46,11 @@ pub struct Font {
 }
 
 impl Font {
-    pub fn decode_to_glyph(&self, code: &u32, sx: &u32, sy: &u32) -> Option<GlyphSlot> {
+    pub fn get_glyph(&self, code: &u32, scale: &u32) -> Option<GlyphSlot> {
         match self.face {
             Some(ref f) => {
-                f.set_pixel_sizes(sx.to_owned(), sy.to_owned()).unwrap();
+                f.set_pixel_sizes(scale.to_owned(), scale.to_owned())
+                    .unwrap();
                 let gid = {
                     if !self.cid_to_gid.is_empty() {
                         self.cid_to_gid.get(code).unwrap().to_owned()
