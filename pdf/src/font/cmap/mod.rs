@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use std::u8;
 
+use log::warn;
+
 use crate::font::cmap::predefined::get_predefine_cmap_ref;
 use crate::lexer::Tokenizer;
 
@@ -63,10 +65,12 @@ impl CMap {
         }
     }
 
+    #[allow(dead_code)]
     pub fn cmap_type(&self) -> Option<u8> {
         self.cmap_type
     }
 
+    #[allow(dead_code)]
     pub fn name(&self) -> &str {
         self.name.as_str()
     }
@@ -96,6 +100,9 @@ impl CMap {
         for code in gids {
             if let Some(c) = self.code_to_character.get(code) {
                 res.push(char::from_u32(c.to_owned()).unwrap());
+            } else {
+                res.push(' ');
+                warn!("{:?}, not found", code);
             }
         }
         res

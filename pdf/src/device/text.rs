@@ -118,6 +118,7 @@ impl Device for TextDevice {
         let scale = 1;
         let mut chars = content.chars();
         let ctm = Matrix::default();
+        println!("{:?},{:?}", content, cids);
         for cid in &cids {
             match textinfo.font().get_glyph(cid, &scale) {
                 Some(glyph) => {

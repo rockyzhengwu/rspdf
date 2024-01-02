@@ -71,7 +71,7 @@ impl Device for ImageDevice {
     }
 
     fn show_text(&mut self, textinfo: &mut TextInfo) -> PDFResult<()> {
-        // TODO implement render
+        // TODO wmode
         //
         let cids = textinfo.cids();
         let unicode = textinfo.get_unicode(cids.as_slice());

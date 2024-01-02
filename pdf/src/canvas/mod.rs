@@ -7,3 +7,4 @@ mod path;
 pub mod path_info;
 pub mod processor;
 pub mod text_info;
+pub mod image_info;

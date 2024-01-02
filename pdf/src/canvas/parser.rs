@@ -20,7 +20,7 @@ impl<T: Seek + Read> CanvasParser<T> {
         // BI
         if self
             .tokenizer
-            .check_next_value(&Token::PDFOther(vec![66, 73]))?
+            .check_next_value(&Token::PDFOther(vec![b'B', b'I']))?
         {
             return self.parse_inline_image();
         }
@@ -41,12 +41,14 @@ impl<T: Seek + Read> CanvasParser<T> {
         let mut objs = Vec::new();
         while !self
             .tokenizer
-            .check_next_value(&Token::PDFOther(vec![73, 68]))?
+            .check_next_value(&Token::PDFOther(vec![b'I', b'D']))?
         {
             let obj = self.read_object()?;
             objs.push(obj);
         }
-        let _id = self.tokenizer.next_token()?;
+        let id = self.tokenizer.next_token()?;
+        assert_eq!(id, Token::PDFOther(vec![b'I', b'D']));
+        self.tokenizer.skip_white()?;
         let image_buffer = self.tokenizer.read_unitil(b"\nEI")?;
         objs.push(PDFObject::String(PDFString::Literial(image_buffer)));
         Ok(Operation::new("EI".to_string(), objs))

@@ -154,8 +154,7 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         }
     }
     // EI
-    fn end_image(&mut self, operation: Operation) -> PDFResult<()> {
-        let _image = operation.operand(0);
+    fn end_image(&mut self, _operation: Operation) -> PDFResult<()> {
         Ok(())
     }
 

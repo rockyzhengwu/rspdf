@@ -53,7 +53,6 @@ pub fn create_simple_font<T: Seek + Read>(
 
     if let Some(descriptor) = obj.get_value("FontDescriptor") {
         let desc = doc.read_indirect(descriptor)?;
-        // println!("{:?}", desc);
         font.descriptor = create_font_descriptor(&desc, &basefont)?;
         let ff = desc.get_value("FontFile");
         let ff2 = desc.get_value("FontFile2");
@@ -65,7 +64,6 @@ pub fn create_simple_font<T: Seek + Read>(
             face = Some(load_face(program.bytes()?)?);
         } else {
             face = load_builitin_font(&basefont)?;
-            // TODO load load_builitin_font
         }
     } else {
         face = load_builitin_font(&basefont)?;

@@ -25,4 +25,5 @@ impl Operation {
                 self.op, self.operands
             )))
     }
+
 }
