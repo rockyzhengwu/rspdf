@@ -7,14 +7,21 @@ use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::font::builtin::load_builitin_font;
 use crate::font::encoding::get_encoding;
+use crate::font::glyph_name::name_to_unicode;
 use crate::font::{cmap::CMap, load_face, parse_widhts, Font, FontDescriptor};
 use crate::object::PDFObject;
 
-fn create_font_descriptor(desc: &PDFObject, _basefont: &str) -> PDFResult<FontDescriptor> {
+fn create_font_descriptor<T: Seek + Read>(
+    desc: &PDFObject,
+    basefont: &str,
+    font: &mut Font,
+    doc: &Document<T>,
+) -> PDFResult<()> {
     let mut d = FontDescriptor::default();
-    if let Some(flags) = desc.get_value_as_i32("Flags") {
+    if let Some(flags) = desc.get_value_as_u32("Flags") {
         d.flgs = flags?;
     }
+
     if let Some(ascent) = desc.get_value_as_f64("Ascent") {
         d.ascent = ascent?;
     }
@@ -33,61 +40,97 @@ fn create_font_descriptor(desc: &PDFObject, _basefont: &str) -> PDFResult<FontDe
     if let Some(italic_angle) = desc.get_value_as_f64("ItalicAngle") {
         d.italic_angle = italic_angle?;
     }
-    Ok(d)
-}
 
-pub fn create_simple_font<T: Seek + Read>(
-    fontname: &str,
-    obj: &PDFObject,
-    doc: &Document<T>,
-) -> PDFResult<Font> {
-    let mut font = Font::default();
-    let subtype = obj.get_value_as_string("Subtype").unwrap()?;
-
-    let basefont = obj.get_value_as_string("BaseFont").unwrap()?;
-    font.name = fontname.to_owned();
-    font.widths = parse_widhts(obj)?;
-
-    #[allow(unused_assignments)]
-    let mut face = None;
-
-    if let Some(descriptor) = obj.get_value("FontDescriptor") {
-        let desc = doc.read_indirect(descriptor)?;
-        font.descriptor = create_font_descriptor(&desc, &basefont)?;
-        let ff = desc.get_value("FontFile");
-        let ff2 = desc.get_value("FontFile2");
-        let ff3 = desc.get_value("FontFile3");
-        let program = ff.or(ff2).or(ff3);
-
+    font.descriptor = d;
+    let ff = desc.get_value("FontFile");
+    let ff2 = desc.get_value("FontFile2");
+    let ff3 = desc.get_value("FontFile3");
+    let program = ff.or(ff2).or(ff3);
+    let face = {
         if let Some(emb) = program {
             let program = doc.read_indirect(emb)?;
-            face = Some(load_face(program.bytes()?)?);
+            Some(load_face(program.bytes()?)?)
         } else {
-            face = load_builitin_font(&basefont)?;
+            load_builitin_font(basefont)?
         }
+    };
+    font.face = face;
+    Ok(())
+}
+fn parse_basefont(name: String) -> String {
+    if name.len() > 7 && name.chars().nth(6) == Some('+') {
+        let (_, last) = name.split_at(7);
+        last.to_string()
     } else {
-        face = load_builitin_font(&basefont)?;
+        name
     }
-    // TODO fix, just load Helvetica as defalt
-    // lookup font from system if not found math a smimilary defalut
-    if face.is_none() {
-        warn!("font not fount:{:?}", basefont);
-        face = load_builitin_font("Helvetica")?;
-    }
+}
 
-    // TODO FIX set cmap for face
-    match subtype.as_str() {
+pub fn set_charmap(font: &mut Font, subtype: &str) {
+    match subtype {
         "TrueType" => {
-            let num_charmap = face.as_ref().unwrap().num_charmaps();
-            for i in 0..num_charmap {
-                let charmap = face.as_ref().unwrap().get_charmap(i as isize);
-                face.as_ref().unwrap().set_charmap(&charmap).unwrap();
+            let mut setted = false;
+            let num_charmap = font.face.as_ref().unwrap().num_charmaps();
+            if font.is_symbolic() {
+                for i in 0..num_charmap {
+                    let charmap = font.face().get_charmap(i as isize);
+                    if charmap.platform_id() == 3 && charmap.encoding_id() == 0 {
+                        setted = true;
+                        font.face().set_charmap(&charmap).unwrap();
+                    }
+                }
+            }
+            if !setted {
+                for i in 0..num_charmap {
+                    let charmap = font.face().get_charmap(i as isize);
+                    if charmap.platform_id() == 3 && charmap.encoding_id() == 1 {
+                        setted = true;
+                        font.face().set_charmap(&charmap).unwrap();
+                    }
+                }
+            }
+            if !setted {
+                for i in 0..num_charmap {
+                    let charmap = font.face().get_charmap(i as isize);
+                    if charmap.platform_id() == 1 && charmap.encoding_id() == 0 {
+                        setted = true;
+                        font.face().set_charmap(&charmap).unwrap();
+                    }
+                }
+            }
+            if !setted && num_charmap > 0 {
+                font.face()
+                    .set_charmap(&font.face().get_charmap(0))
+                    .unwrap();
             }
         }
-        "Type1" => {}
+        "Type1" => {
+            let num_charmap = font.face.as_ref().unwrap().num_charmaps();
+            let mut founded = false;
+            for i in 0..num_charmap {
+                let charmap = font.face().get_charmap(i as isize);
+                if charmap.platform_id() == 7 {
+                    founded = true;
+                    font.face().set_charmap(&charmap).unwrap();
+                }
+            }
+
+            if !founded && num_charmap > 0 {
+                font.face()
+                    .set_charmap(&font.face().get_charmap(0))
+                    .unwrap();
+            }
+        }
         _ => {}
     }
+}
 
+fn create_encoding<T: Seek + Read>(
+    font: &mut Font,
+    subtype: &str,
+    obj: &PDFObject,
+    doc: &Document<T>,
+) -> PDFResult<()> {
     let mut encoding = HashMap::new();
     if let Some(enc) = obj.get_value("Encoding") {
         let enc_obj = if enc.is_indirect() {
@@ -135,27 +178,17 @@ pub fn create_simple_font<T: Seek + Read>(
             }
         }
     }
+
     if encoding.is_empty() {
-        match obj.get_value_as_string("Subtype").unwrap()?.as_str() {
+        match subtype {
             "TrueType" => encoding = get_encoding("WinAnsiEncoding"),
             _ => panic!("not set default encoding"),
         };
     }
 
     for (code, name) in &encoding {
-        if let Some(gid) = face.as_ref().unwrap().get_name_index(name) {
+        if let Some(gid) = font.face().get_name_index(name) {
             font.cid_to_gid.insert(code.to_owned(), gid);
-        }
-    }
-
-    let is_empty = font.cid_to_gid.is_empty();
-    if is_empty {
-        for i in 1..=256 {
-            if let Some(gid) = face.as_ref().unwrap().get_char_index(i) {
-                font.cid_to_gid.insert(i as u32, gid);
-            } else if let Some(gd) = face.as_ref().unwrap().get_char_index(0xf000 + i) {
-                font.cid_to_gid.insert(i as u32, gd);
-            }
         }
     }
 
@@ -164,8 +197,64 @@ pub fn create_simple_font<T: Seek + Read>(
         let to_unicode = doc.read_indirect(tu)?;
         let bytes = to_unicode.bytes()?;
         cmap = CMap::new_from_bytes(bytes.as_slice());
+    } else {
+        for (code, name) in &encoding {
+            if name.is_empty() {
+                continue;
+            }
+            let u = name_to_unicode(name).unwrap();
+            cmap.add_character(code.to_owned(), u);
+        }
     }
-    font.face = face;
+
     font.to_unicode = cmap;
+
+    Ok(())
+}
+
+pub fn create_simple_font<T: Seek + Read>(
+    fontname: &str,
+    obj: &PDFObject,
+    doc: &Document<T>,
+) -> PDFResult<Font> {
+    let mut font = Font::default();
+    let subtype = obj.get_value_as_string("Subtype").unwrap()?;
+
+    let basefont = match obj.get_value_as_string("BaseFont") {
+        Some(name) => parse_basefont(name?),
+        _ => "".to_string(),
+    };
+
+    font.name = fontname.to_owned();
+    font.widths = parse_widhts(obj)?;
+
+    if let Some(descriptor) = obj.get_value("FontDescriptor") {
+        let desc = doc.read_indirect(descriptor)?;
+        create_font_descriptor(&desc, &basefont, &mut font, doc)?;
+    } else {
+        font.face = load_builitin_font(&basefont)?;
+    }
+    // TODO fix, just load Helvetica as defalt
+    // lookup font from system if not found math a smimilary defalut
+    if font.face.is_none() {
+        warn!("font not fount:{:?}", basefont);
+        font.face = load_builitin_font("Helvetica")?;
+    }
+
+    set_charmap(&mut font, subtype.as_str());
+    create_encoding(&mut font, subtype.as_str(), obj, doc)?;
+
+    // TODO FIX set cmap for face
+    let is_empty = font.cid_to_gid.is_empty();
+    if is_empty {
+        for i in 1..=256 {
+            if let Some(gid) = font.face().get_char_index(i) {
+                font.cid_to_gid.insert(i as u32, gid);
+            } else if let Some(gd) = font.face().get_char_index(0xf000 + i) {
+                font.cid_to_gid.insert(i as u32, gd);
+            }
+        }
+    }
+
     Ok(font)
 }

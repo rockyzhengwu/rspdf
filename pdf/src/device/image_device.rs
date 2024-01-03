@@ -90,6 +90,14 @@ impl Device for ImageDevice {
             if ox < 0.0 || oy < 0.0 {
                 warn!("invalid position for {:?}, ", unicode);
             }
+            //println!(
+            //    "{},{},{},{},{}",
+            //    cid,
+            //    ox,
+            //    oy,
+            //    unicode,
+            //    textinfo.font().name()
+            //);
             match textinfo.font().get_glyph(&cid, &scale) {
                 Some(glyph) => {
                     let bitmap = glyph.bitmap();

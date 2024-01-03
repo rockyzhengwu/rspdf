@@ -13,6 +13,7 @@ pub(crate) mod builtin;
 pub(crate) mod cmap;
 pub(crate) mod composite_font;
 pub(crate) mod encoding;
+pub(crate) mod glyph_name;
 pub(crate) mod simple_font;
 pub(crate) mod truetype_program;
 
@@ -21,13 +22,19 @@ use simple_font::create_simple_font;
 
 #[derive(Clone, Debug, Default)]
 pub struct FontDescriptor {
-    flgs: i32,
+    flgs: u32,
     italic_angle: f64,
     ascent: f64,
     descent: f64,
     cap_height: f64,
     x_height: f64,
     missing_width: f64,
+}
+
+impl FontDescriptor {
+    pub fn is_symbolic(&self) -> bool {
+        self.flgs & 4 == 0
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -46,6 +53,18 @@ pub struct Font {
 }
 
 impl Font {
+    pub fn face(&self) -> &Face {
+        self.face.as_ref().unwrap()
+    }
+
+    pub fn is_symbolic(&self) -> bool {
+        self.descriptor.is_symbolic()
+    }
+
+    pub fn set_face(&mut self, face: Option<Face>) {
+        self.face = face;
+    }
+
     pub fn get_glyph(&self, code: &u32, scale: &u32) -> Option<GlyphSlot> {
         match self.face {
             Some(ref f) => {
