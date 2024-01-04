@@ -15,7 +15,6 @@ pub(crate) mod composite_font;
 pub(crate) mod encoding;
 pub(crate) mod glyph_name;
 pub(crate) mod simple_font;
-pub(crate) mod truetype_program;
 
 use composite_font::create_composite_font;
 use simple_font::create_simple_font;

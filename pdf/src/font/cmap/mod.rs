@@ -102,7 +102,7 @@ impl CMap {
                 res.push(char::from_u32(c.to_owned()).unwrap());
             } else {
                 res.push(' ');
-                panic!("{:?}, not found", code);
+                warn!("{:?}, not found", code);
             }
         }
         res

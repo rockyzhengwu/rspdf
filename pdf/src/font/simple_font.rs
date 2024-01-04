@@ -69,6 +69,7 @@ fn parse_basefont(name: String) -> String {
 pub fn set_charmap(font: &mut Font, subtype: &str) {
     match subtype {
         "TrueType" => {
+            // ISO3200 9.6.6.4
             let mut setted = false;
             let num_charmap = font.face.as_ref().unwrap().num_charmaps();
             if font.is_symbolic() {
