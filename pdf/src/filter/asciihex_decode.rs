@@ -8,8 +8,8 @@ pub struct ASCIIHexDecode {}
 fn hex_to_decimal(c: &u8) -> PDFResult<i32> {
     match c {
         b'0'..=b'9' => Ok((c - b'0') as i32),
-        b'a'..=b'z' => Ok((c - b'a') as i32 + 10),
-        b'A'..=b'Z' => Ok((c - b'A') as i32 + 10),
+        b'a'..=b'f' => Ok((c - b'a') as i32 + 10),
+        b'A'..=b'F' => Ok((c - b'A') as i32 + 10),
         _ => Err(PDFError::Filter(format!(
             "Got unexpected character in hex decode:{:?}",
             c

@@ -6,6 +6,9 @@ pub enum PDFError {
     #[error("IO:{msg}")]
     IO { source: io::Error, msg: String },
 
+    #[error("Eof:{msg}")]
+    Eof { msg: String },
+
     #[error("Invalid PDF FileStructure: `{0}` ")]
     InvalidFileStructure(String),
 

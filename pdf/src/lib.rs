@@ -11,3 +11,4 @@ pub mod page;
 pub mod reader;
 pub mod token;
 pub mod xref;
+pub mod parser;
