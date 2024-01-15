@@ -3,8 +3,7 @@ use std::io::{Read, Seek, SeekFrom};
 
 use crate::errors::{PDFError, PDFResult};
 use crate::lexer::{buf_to_number, buf_to_real};
-use crate::object::{PDFArray, PDFName, PDFObject, PDFStream};
-use crate::object::{PDFIndirect, PDFNumber, PDFString};
+use crate::object::{PDFIndirect, PDFName, PDFNumber, PDFObject, PDFStream, PDFString};
 use crate::parser::character_set::{
     hex_to_u8, is_delimiter, is_end_of_line, is_number, is_regular, is_whitespace, is_xdigit,
 };
@@ -22,22 +21,64 @@ pub struct SyntaxParser<T: Seek + Read> {
     size: u64,
 }
 
-#[derive(Debug, Default)]
-pub struct Word {
-    bytes: Vec<u8>,
-    is_number: bool,
+#[derive(Debug, PartialEq)]
+enum Token {
+    Other(Vec<u8>),
+    Number(Vec<u8>),
+    Name(Vec<u8>),
+    StartHexString,
+    EndHexString,
+    StartLiteralString,
+    EndLiteralString,
+    StartArray,
+    EndArray,
+    StartDict,
+    EndDict,
+    Eof,
 }
 
-impl Word {
-    pub fn value_to_string(&self) -> PDFResult<String> {
-        if self.bytes.is_empty() {
-            return Ok("".to_string());
+impl Token {
+    pub fn is_number(&self) -> bool {
+        matches!(self, Token::Number(_))
+    }
+
+    pub fn to_f64(&self) -> PDFResult<f64> {
+        match self {
+            Token::Number(bytes) => Ok(buf_to_real(bytes)),
+            _ => Err(PDFError::TokenConvertFailure(format!(
+                "{:?} not a number",
+                self
+            ))),
         }
-        let mut s = String::from_utf8(self.bytes.clone()).map_err(|e| {
-            PDFError::InvalidSyntax(format!("faild convert name to string:{:?}", e))
-        })?;
-        s.remove(0);
-        Ok(s)
+    }
+
+    pub fn to_i64(&self) -> PDFResult<i64> {
+        match self {
+            Token::Number(bytes) => Ok(buf_to_number(bytes)),
+            _ => Err(PDFError::TokenConvertFailure(format!(
+                "{:?} not a number",
+                self
+            ))),
+        }
+    }
+
+    pub fn is_other_value(&self, expected: &[u8]) -> bool {
+        match self {
+            Token::Other(bytes) => bytes == expected,
+            _ => false,
+        }
+    }
+
+    pub fn to_string(&self) -> PDFResult<String> {
+        match self {
+            Token::Name(bytes) => String::from_utf8(bytes.clone()).map_err(|e| {
+                PDFError::TokenConvertFailure(format!("{:?} token faild convert to string", e))
+            }),
+            _ => Err(PDFError::TokenConvertFailure(format!(
+                "{:?} not Name token",
+                self
+            ))),
+        }
     }
 }
 
@@ -71,6 +112,7 @@ impl<T: Seek + Read> SyntaxParser<T> {
         }
         Ok(())
     }
+
     fn read_hex_string(&mut self) -> PDFResult<PDFString> {
         let mut ch = self.read_next_char()?;
         let mut code: u8 = 0;
@@ -171,75 +213,150 @@ impl<T: Seek + Read> SyntaxParser<T> {
         }
     }
 
-    fn read_object(&mut self) -> PDFResult<PDFObject> {
-        let word = self.next_word()?;
-        if word.is_number {
-            let pos = self.current_position()?;
-            let word_2 = self.next_word()?;
-            if !word_2.is_number {
-                self.seek_to(pos)?;
-                return Ok(PDFObject::Number(PDFNumber::Real(buf_to_real(&word.bytes))));
+    pub fn read_object(&mut self) -> PDFResult<PDFObject> {
+        let token = self.next_token()?;
+
+        match token {
+            Token::Number(_) => {
+                let pos = self.current_position()?;
+                let token_2 = self.next_token()?;
+                if !token_2.is_number() {
+                    self.seek_to(pos)?;
+                    return Ok(PDFObject::Number(PDFNumber::Real(token.to_f64()?)));
+                }
+                let token_3 = self.next_token()?;
+                if token_3.is_other_value(b"R") {
+                    Ok(PDFObject::Indirect(PDFIndirect::new(
+                        token.to_i64()?,
+                        token_2.to_i64()?,
+                    )))
+                } else {
+                    self.seek_to(pos)?;
+                    Ok(PDFObject::Number(PDFNumber::Real(token.to_f64()?)))
+                }
             }
-            let word_3 = self.next_word()?;
-            if word_3.bytes != b"R" {
-                self.seek_to(pos)?;
-                return Ok(PDFObject::Number(PDFNumber::Real(buf_to_real(&word.bytes))));
-            }
-            return Ok(PDFObject::Indirect(PDFIndirect::new(
-                buf_to_number(&word.bytes),
-                buf_to_number(&word_2.bytes),
-            )));
-        }
-        match word.bytes.as_slice() {
-            b"true" => Ok(PDFObject::Bool(true)),
-            b"false" => Ok(PDFObject::Bool(false)),
-            b"<" => {
+            Token::StartHexString => {
                 let hex = self.read_hex_string()?;
                 Ok(PDFObject::String(hex))
             }
-            b"(" => {
+            Token::StartLiteralString => {
                 let s = self.read_literal_string()?;
                 Ok(PDFObject::String(s))
             }
-            b"[" => {
+            Token::StartArray => {
                 let mut objs = Vec::new();
-                while !self.check_next_word(b"]")? {
+                while !self.check_next_token(&Token::EndArray)? {
                     let obj = self.read_object()?;
                     objs.push(obj);
                 }
                 Ok(PDFObject::Arrray(objs))
             }
-            b"<<" => {
+            Token::StartDict => {
                 let mut dict = HashMap::new();
-                while !self.check_next_word(b">>")? {
-                    let keyword = self.next_word()?;
+                while !self.check_next_token(&Token::EndDict)? {
+                    let keyword = self.next_token()?;
                     let obj = self.read_object()?;
-                    dict.insert(PDFName::new(&keyword.value_to_string()?), obj);
+                    dict.insert(PDFName::new(&keyword.to_string()?), obj);
                 }
-                if self.check_next_word(b"stream")? {
-                    let st = self.read_stream()?;
+                if self.check_next_token(&Token::Other(b"stream".to_vec()))? {
+                    let st = self.read_stream(dict)?;
                     return Ok(PDFObject::Stream(st));
                 }
                 Ok(PDFObject::Dictionary(dict))
             }
-            _ => {
-                if let Some(fc) = word.bytes.first() {
-                    if fc == &b'/' {
-                        let mut s = String::from_utf8(word.bytes).map_err(|e| {
-                            PDFError::InvalidSyntax(format!("faild parse PDFname object:{:?}", e))
-                        })?;
-                        s.remove(0);
-                        return Ok(PDFObject::Name(PDFName::new(&s)));
-                    }
-                }
-
-                Err(PDFError::InvalidSyntax(format!("invalid word:{:?}", word)))
+            Token::Name(_) => Ok(PDFObject::Name(PDFName::new(&token.to_string()?))),
+            Token::Other(bytes) => match bytes.as_slice() {
+                b"true" => Ok(PDFObject::Bool(true)),
+                b"false" => Ok(PDFObject::Bool(false)),
+                b"null" => Ok(PDFObject::Null),
+                _ => Err(PDFError::InvalidSyntax(format!(
+                    "invalid other token:{:?}",
+                    bytes
+                ))),
+            },
+            Token::Eof => {
+                // TODO
+                Ok(PDFObject::Null)
             }
+            _ => Err(PDFError::InvalidSyntax(format!(
+                "invalid token:{:?}",
+                token
+            ))),
         }
     }
 
-    fn read_stream(&mut self) -> PDFResult<PDFStream> {
-        unimplemented!();
+    fn read_fixlen_block(&mut self, len: usize) -> PDFResult<Vec<u8>> {
+        let mut buf = vec![0; len];
+        self.stream.read(&mut buf).map_err(|e| PDFError::IO {
+            source: e,
+            msg: "read fixlen faild".to_string(),
+        })?;
+        Ok(buf)
+    }
+
+    fn read_stream(&mut self, dict: HashMap<PDFName, PDFObject>) -> PDFResult<PDFStream> {
+        self.move_next_line()?;
+        let pos = self.current_position()?;
+        let buf = if let Some(length) = dict.get(&PDFName::new("Length")) {
+            let len = length.as_u32()?;
+            self.read_fixlen_block(len as usize)?
+        } else {
+            let end_pos = self.find_tag(b"endstream")?;
+            let len = end_pos - pos;
+            self.read_fixlen_block(len as usize)?
+        };
+        let mut stream = PDFStream::new(pos, dict);
+        stream.set_buffer(buf);
+        Ok(stream)
+    }
+
+    fn find_tag(&mut self, tag: &[u8]) -> PDFResult<u64> {
+        let pos = self.current_position()?;
+        let mut cur = 0;
+        loop {
+            let ch = self.read_next_char()?;
+            if ch == tag[cur] {
+                if cur == tag.len() - 1 {
+                    break;
+                } else {
+                    cur += 1;
+                }
+            } else if ch == tag[0] {
+                cur = 1;
+            } else {
+                cur = 0;
+            }
+        }
+        let end_tag_pos = self.current_position()? - tag.len() as u64;
+        let line_marker = self.find_end_of_line_marker(end_tag_pos - 2)?;
+        let end = pos - line_marker;
+        self.seek_to(pos)?;
+        Ok(end)
+    }
+
+    fn find_end_of_line_marker(&mut self, start: u64) -> PDFResult<u64> {
+        self.seek_to(start)?;
+        match self.read_end_of_line_marker()? {
+            2 => Ok(2),
+            _ => self.find_end_of_line_marker(start + 1),
+        }
+    }
+
+    fn read_end_of_line_marker(&mut self) -> PDFResult<u64> {
+        match self.read_next_char()? {
+            b'\r' => match self.read_next_char()? {
+                b'\n' => Ok(2),
+                _ => {
+                    self.step_back()?;
+                    Ok(1)
+                }
+            },
+            b'\n' => Ok(1),
+            _ => {
+                self.step_back()?;
+                Ok(0)
+            }
+        }
     }
 
     fn seek_to(&mut self, pos: u64) -> PDFResult<()> {
@@ -283,71 +400,94 @@ impl<T: Seek + Read> SyntaxParser<T> {
         Ok(())
     }
 
-    fn check_next_word(&mut self, value: &[u8]) -> PDFResult<bool> {
+    fn check_next_token(&mut self, expected: &Token) -> PDFResult<bool> {
         let pos = self.current_position()?;
-        let word = self.next_word()?;
-        if word.bytes == value {
+        let token = self.next_token()?;
+        if &token == expected {
             return Ok(true);
         }
         self.seek_to(pos)?;
         Ok(false)
     }
 
-    fn next_word(&mut self) -> PDFResult<Word> {
+    fn next_token(&mut self) -> PDFResult<Token> {
         self.move_next_word()?;
+        if !self.is_eof()? {
+            return Ok(Token::Eof);
+        }
         let mut ch = self.read_next_char()?;
-        let mut word = Word {
-            bytes: Vec::new(),
-            is_number: false,
-        };
-        word.bytes.push(ch);
+        let mut bytes = Vec::new();
         if is_delimiter(ch) {
             match ch {
                 b'/' => {
                     ch = self.read_next_char()?;
                     while is_number(ch) || is_regular(ch) {
-                        word.bytes.push(ch);
+                        bytes.push(ch);
                         ch = self.read_next_char()?;
                     }
                     self.step_back()?;
-                    return Ok(word);
+                    return Ok(Token::Name(bytes));
                 }
                 b'<' => {
                     ch = self.read_next_char()?;
-                    if ch == b'<' {
-                        word.bytes.push(ch);
-                    } else {
-                        self.step_back()?;
+                    match ch {
+                        b'<' => {
+                            return Ok(Token::StartDict);
+                        }
+                        _ => {
+                            self.step_back()?;
+                            return Ok(Token::StartHexString);
+                        }
                     }
-                    return Ok(word);
                 }
                 b'>' => {
                     ch = self.read_next_char()?;
-                    if ch == b'>' {
-                        word.bytes.push(ch);
-                    } else {
-                        self.step_back()?;
+                    match ch {
+                        b'>' => {
+                            return Ok(Token::EndDict);
+                        }
+                        _ => {
+                            self.step_back()?;
+                            return Ok(Token::EndHexString);
+                        }
                     }
-                    return Ok(word);
+                }
+                b'(' => {
+                    return Ok(Token::StartLiteralString);
+                }
+                b')' => {
+                    return Ok(Token::EndLiteralString);
+                }
+                b'[' => {
+                    return Ok(Token::StartArray);
+                }
+                b']' => {
+                    return Ok(Token::EndArray);
                 }
                 _ => {
-                    return Ok(word);
+                    bytes.push(ch);
+                    return Ok(Token::Other(bytes));
                 }
             }
         }
-        word.is_number = is_number(ch);
+        let mut number = is_number(ch);
+        bytes.push(ch);
         loop {
             ch = self.read_next_char()?;
             if is_whitespace(ch) || is_delimiter(ch) {
                 break;
             }
             if !is_number(ch) {
-                word.is_number = false;
+                number = false;
             }
-            word.bytes.push(ch);
+            bytes.push(ch);
         }
         self.step_back()?;
-        Ok(word)
+        if number {
+            Ok(Token::Number(bytes))
+        } else {
+            Ok(Token::Other(bytes))
+        }
     }
 
     fn read_next_char(&mut self) -> PDFResult<u8> {
@@ -362,16 +502,6 @@ impl<T: Seek + Read> SyntaxParser<T> {
             msg: "Faild peek byte".to_string(),
         })?;
         Ok(buf[0])
-    }
-
-    fn check_next_char(&mut self, c: u8) -> PDFResult<bool> {
-        let pos = self.current_position()?;
-        let ch = self.read_next_char()?;
-        if ch == c {
-            return Ok(true);
-        }
-        self.seek_to(pos)?;
-        Ok(false)
     }
 
     fn is_eof(&mut self) -> PDFResult<bool> {
@@ -400,8 +530,8 @@ mod tests {
     fn test_read_real() {
         let content = "-80 ";
         let mut parser = new_parser(content);
-        let word = parser.next_word().unwrap();
-        assert!(word.is_number);
+        let token = parser.next_token().unwrap();
+        assert!(token.is_number());
     }
 
     #[test]
@@ -411,8 +541,8 @@ mod tests {
         assert_eq!(parser.size, 9);
         assert_eq!(parser.current_position().unwrap(), 0);
         parser.move_next_line().unwrap();
-        let word = parser.next_word().unwrap();
-        assert_eq!(word.bytes, [b'd', b'e', b'f']);
+        let word = parser.next_token().unwrap();
+        assert_eq!(word, Token::Other(vec![b'd', b'e', b'f']));
     }
 
     #[test]
@@ -434,7 +564,7 @@ are the same.) "#;
     fn test_read_name_word() {
         let content = "/Name ";
         let mut parser = new_parser(content);
-        let word = parser.next_word().unwrap();
+        let word = parser.next_token().unwrap();
         println!("{:?}", word);
     }
 
@@ -454,8 +584,9 @@ are the same.) "#;
            /Annots [ 23 0 R
            24 0 R
            ]
-           >> end "#;
+           >> endobj "#;
         let mut parser = new_parser(content);
-        let _dict = parser.read_object().unwrap();
+        let dict = parser.read_object().unwrap();
+        println!("{:?}", dict);
     }
 }

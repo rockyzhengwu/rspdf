@@ -37,7 +37,7 @@ pub fn is_regular(ch: u8) -> bool {
     PDF_CHARACTER_SET[ch as usize] == 'R'
 }
 pub fn is_xdigit(ch: u8) -> bool {
-    (ch < 10) || (ch >= b'a' && ch <= b'f') || (ch >= b'A' && ch <= b'F')
+    (ch < 10) || (b'a'..=b'f').contains(&ch) || (b'A'..=b'F').contains(&ch)
 }
 
 pub fn hex_to_u8(ch: u8) -> u8 {
