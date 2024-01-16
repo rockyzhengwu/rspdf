@@ -7,20 +7,20 @@ use crate::filter::{new_filter, Filter};
 
 #[derive(Clone, Debug)]
 pub struct PDFIndirect {
-    number: i64,
-    gen: i64,
+    number: u32,
+    gen: u16,
 }
 
 impl PDFIndirect {
-    pub fn new(number: i64, gen: i64) -> Self {
+    pub fn new(number: u32, gen: u16) -> Self {
         PDFIndirect { number, gen }
     }
 
-    pub fn number(&self) -> i64 {
+    pub fn number(&self) -> u32 {
         self.number
     }
 
-    pub fn gen(&self) -> i64 {
+    pub fn gen(&self) -> u16 {
         self.gen
     }
 }
@@ -185,6 +185,13 @@ impl PDFNumber {
             PDFNumber::Integer(i) => i,
         }
     }
+    pub fn as_u64(&self) -> u64 {
+        match *self {
+            PDFNumber::Real(r) => r as u64,
+            PDFNumber::Integer(i) => i as u64,
+        }
+    }
+
     pub fn as_u32(&self) -> u32 {
         match *self {
             PDFNumber::Real(r) => r as u32,
@@ -302,6 +309,14 @@ impl PDFObject {
     pub fn as_u32(&self) -> PDFResult<u32> {
         match self {
             PDFObject::Number(v) => Ok(v.as_u32()),
+            _ => Err(PDFError::ObjectConvertFailure(
+                "can't convert to number".to_string(),
+            )),
+        }
+    }
+    pub fn as_u64(&self) -> PDFResult<u64> {
+        match self {
+            PDFObject::Number(v) => Ok(v.as_u64()),
             _ => Err(PDFError::ObjectConvertFailure(
                 "can't convert to number".to_string(),
             )),

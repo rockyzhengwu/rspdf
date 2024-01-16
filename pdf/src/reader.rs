@@ -273,8 +273,8 @@ impl<T: Seek + Read> Reader<T> {
             Token::PDFReal(v) => Ok(PDFObject::Number(PDFNumber::Real(v))),
             Token::PDFNull => Ok(PDFObject::Null),
             Token::PDFIndirect(num, gen) => Ok(PDFObject::Indirect(PDFIndirect::new(
-                num.to_owned(),
-                gen.to_owned(),
+                num.to_owned() as u32,
+                gen.to_owned() as u16,
             ))),
             _ => Err(PDFError::InvalidSyntax(format!(
                 "Token {:?} not a invalid PDFObject starter",
@@ -351,7 +351,6 @@ impl<T: Seek + Read> Reader<T> {
         let mut buffer = vec![0; length];
         self.tokenizer.peek_buffer(&mut buffer)?;
         Ok(buffer)
-
     }
 
     pub fn read_stream_content_unitl_end(&mut self, stream: &PDFStream) -> PDFResult<Vec<u8>> {

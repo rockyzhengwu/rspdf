@@ -98,7 +98,10 @@ impl<T: Seek + Read> XRef<T> {
     pub fn indirect_entry(&self, indirect: &PDFObject) -> PDFResult<&XRefEntry> {
         match indirect {
             PDFObject::Indirect(ref obj) => {
-                let mut entry = self.entries.get(&(obj.number(), obj.gen())).unwrap();
+                let mut entry = self
+                    .entries
+                    .get(&(obj.number() as i64, obj.gen() as i64))
+                    .unwrap();
                 while entry.stream_offset != 0 {
                     entry = self.entries.get(&(entry.stream_offset, 0)).unwrap();
                 }

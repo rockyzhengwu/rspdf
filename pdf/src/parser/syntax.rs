@@ -22,7 +22,7 @@ pub struct SyntaxParser<T: Seek + Read> {
 }
 
 #[derive(Debug, PartialEq)]
-enum Token {
+pub enum Token {
     Other(Vec<u8>),
     Number(Vec<u8>),
     Name(Vec<u8>),
@@ -46,7 +46,7 @@ impl Token {
         match self {
             Token::Number(bytes) => Ok(buf_to_real(bytes)),
             _ => Err(PDFError::TokenConvertFailure(format!(
-                "{:?} not a number",
+                "{:?} faild covnert to f64",
                 self
             ))),
         }
@@ -56,7 +56,27 @@ impl Token {
         match self {
             Token::Number(bytes) => Ok(buf_to_number(bytes)),
             _ => Err(PDFError::TokenConvertFailure(format!(
-                "{:?} not a number",
+                "{:?} faild convert to i64",
+                self
+            ))),
+        }
+    }
+
+    pub fn to_u32(&self) -> PDFResult<u32> {
+        match self {
+            Token::Number(bytes) => Ok(buf_to_number(bytes) as u32),
+            _ => Err(PDFError::TokenConvertFailure(format!(
+                "{:?} faild convert to u32",
+                self
+            ))),
+        }
+    }
+
+    pub fn to_u16(&self) -> PDFResult<u16> {
+        match self {
+            Token::Number(bytes) => Ok(buf_to_number(bytes) as u16),
+            _ => Err(PDFError::TokenConvertFailure(format!(
+                "{:?} faild convert to u16",
                 self
             ))),
         }
@@ -94,7 +114,11 @@ impl<T: Seek + Read> SyntaxParser<T> {
         Ok(SyntaxParser { stream, size })
     }
 
-    fn move_next_line(&mut self) -> PDFResult<()> {
+    pub fn size(&self) -> u64 {
+        self.size
+    }
+
+    pub fn move_next_line(&mut self) -> PDFResult<()> {
         let mut ch = self.read_next_char()?;
         loop {
             if ch == b'\n' {
@@ -119,10 +143,10 @@ impl<T: Seek + Read> SyntaxParser<T> {
         let mut bytes = Vec::new();
         let mut first = true;
         loop {
+            if ch == b'>' {
+                break;
+            }
             if is_xdigit(ch) {
-                if ch == b'>' {
-                    break;
-                }
                 let val = hex_to_u8(ch);
                 if first {
                     code = val * 16;
@@ -131,6 +155,8 @@ impl<T: Seek + Read> SyntaxParser<T> {
                     bytes.push(code);
                 }
                 first = !first
+            } else {
+                // TODO this get an error?
             }
             ch = self.read_next_char()?;
         }
@@ -170,15 +196,34 @@ impl<T: Seek + Read> SyntaxParser<T> {
                             esc_octal = ch
                         }
                         b'\r' => status = StringStatus::CarriageReturn,
-                        b'n' => bytes.push(b'\n'),
-                        b'r' => bytes.push(b'\r'),
-                        b't' => bytes.push(b'\t'),
-                        b'b' => bytes.push(8),
-                        b'f' => bytes.push(12),
-                        b'\n' => {} //donothing
-                        _ => bytes.push(ch),
+                        b'n' => {
+                            status = StringStatus::Normal;
+                            bytes.push(b'\n')
+                        }
+                        b'r' => {
+                            status = StringStatus::Normal;
+                            bytes.push(b'\r')
+                        }
+                        b't' => {
+                            status = StringStatus::Normal;
+                            bytes.push(b'\t')
+                        }
+                        b'b' => {
+                            status = StringStatus::Normal;
+                            bytes.push(8)
+                        }
+                        b'f' => {
+                            status = StringStatus::Normal;
+                            bytes.push(12)
+                        }
+                        b'\n' => {
+                            status = StringStatus::Normal;
+                        } //donothing
+                        _ => {
+                            status = StringStatus::Normal;
+                            bytes.push(ch)
+                        }
                     }
-                    status = StringStatus::Normal;
                 }
                 StringStatus::Octal => match ch {
                     0..=7 => {
@@ -215,7 +260,6 @@ impl<T: Seek + Read> SyntaxParser<T> {
 
     pub fn read_object(&mut self) -> PDFResult<PDFObject> {
         let token = self.next_token()?;
-
         match token {
             Token::Number(_) => {
                 let pos = self.current_position()?;
@@ -227,8 +271,8 @@ impl<T: Seek + Read> SyntaxParser<T> {
                 let token_3 = self.next_token()?;
                 if token_3.is_other_value(b"R") {
                     Ok(PDFObject::Indirect(PDFIndirect::new(
-                        token.to_i64()?,
-                        token_2.to_i64()?,
+                        token.to_u32()?,
+                        token_2.to_u16()?,
                     )))
                 } else {
                     self.seek_to(pos)?;
@@ -285,7 +329,7 @@ impl<T: Seek + Read> SyntaxParser<T> {
         }
     }
 
-    fn read_fixlen_block(&mut self, len: usize) -> PDFResult<Vec<u8>> {
+    pub fn read_fixlen_block(&mut self, len: usize) -> PDFResult<Vec<u8>> {
         let mut buf = vec![0; len];
         self.stream.read(&mut buf).map_err(|e| PDFError::IO {
             source: e,
@@ -301,7 +345,7 @@ impl<T: Seek + Read> SyntaxParser<T> {
             let len = length.as_u32()?;
             self.read_fixlen_block(len as usize)?
         } else {
-            let end_pos = self.find_tag(b"endstream")?;
+            let end_pos = self.find_end_stream_content()?;
             let len = end_pos - pos;
             self.read_fixlen_block(len as usize)?
         };
@@ -310,7 +354,16 @@ impl<T: Seek + Read> SyntaxParser<T> {
         Ok(stream)
     }
 
-    fn find_tag(&mut self, tag: &[u8]) -> PDFResult<u64> {
+    // search stream body end position not move current position
+    fn find_end_stream_content(&mut self) -> PDFResult<u64> {
+        let end_pos = self.find_tag(b"endstream")?;
+        let line_marker = self.find_end_of_line_marker(end_pos - 2)?;
+        let end = end_pos - line_marker;
+        Ok(end)
+    }
+
+    // search a word , and return word start postion
+    pub fn find_tag(&mut self, tag: &[u8]) -> PDFResult<u64> {
         let pos = self.current_position()?;
         let mut cur = 0;
         loop {
@@ -327,11 +380,9 @@ impl<T: Seek + Read> SyntaxParser<T> {
                 cur = 0;
             }
         }
-        let end_tag_pos = self.current_position()? - tag.len() as u64;
-        let line_marker = self.find_end_of_line_marker(end_tag_pos - 2)?;
-        let end = pos - line_marker;
+        let start_tag_pos = self.current_position()? - tag.len() as u64;
         self.seek_to(pos)?;
-        Ok(end)
+        Ok(start_tag_pos)
     }
 
     fn find_end_of_line_marker(&mut self, start: u64) -> PDFResult<u64> {
@@ -359,7 +410,7 @@ impl<T: Seek + Read> SyntaxParser<T> {
         }
     }
 
-    fn seek_to(&mut self, pos: u64) -> PDFResult<()> {
+    pub fn seek_to(&mut self, pos: u64) -> PDFResult<()> {
         self.stream
             .seek(SeekFrom::Start(pos))
             .map_err(|e| PDFError::IO {
@@ -369,7 +420,7 @@ impl<T: Seek + Read> SyntaxParser<T> {
         Ok(())
     }
 
-    fn move_next_word(&mut self) -> PDFResult<()> {
+    fn move_next_token(&mut self) -> PDFResult<()> {
         let mut ch = self.read_next_char()?;
         loop {
             if is_whitespace(ch) {
@@ -400,7 +451,7 @@ impl<T: Seek + Read> SyntaxParser<T> {
         Ok(())
     }
 
-    fn check_next_token(&mut self, expected: &Token) -> PDFResult<bool> {
+    pub fn check_next_token(&mut self, expected: &Token) -> PDFResult<bool> {
         let pos = self.current_position()?;
         let token = self.next_token()?;
         if &token == expected {
@@ -410,8 +461,8 @@ impl<T: Seek + Read> SyntaxParser<T> {
         Ok(false)
     }
 
-    fn next_token(&mut self) -> PDFResult<Token> {
-        self.move_next_word()?;
+    pub fn next_token(&mut self) -> PDFResult<Token> {
+        self.move_next_token()?;
         if !self.is_eof()? {
             return Ok(Token::Eof);
         }
@@ -509,7 +560,7 @@ impl<T: Seek + Read> SyntaxParser<T> {
         Ok(pos < self.size)
     }
 
-    fn current_position(&mut self) -> PDFResult<u64> {
+    pub fn current_position(&mut self) -> PDFResult<u64> {
         self.stream.stream_position().map_err(|e| PDFError::IO {
             source: e,
             msg: "faild to get position".to_string(),

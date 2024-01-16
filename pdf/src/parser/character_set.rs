@@ -49,10 +49,6 @@ pub fn hex_to_u8(ch: u8) -> u8 {
     }
 }
 
-pub fn is_octal_digit(ch: u8) -> bool {
-    ch <= 7
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
