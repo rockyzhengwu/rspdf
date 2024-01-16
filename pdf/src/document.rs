@@ -1,41 +1,21 @@
-use std::cell::RefCell;
 use std::io::{Read, Seek};
 
-use log::debug;
-
-use crate::errors::{PDFError, PDFResult};
-use crate::object::PDFObject;
-use crate::page::{PageRef, PageTree};
-use crate::reader::Reader;
-use crate::xref::XRef;
+use crate::errors::PDFResult;
+use crate::object::{PDFDictionary, PDFObject};
+use crate::parser::document_parser::DocumentParser;
 
 #[allow(dead_code)]
 pub struct Document<T: Seek + Read> {
-    version: f32,
-    xref: XRef<T>,
-    page_tree: Option<PageTree>,
+    parser: DocumentParser<T>,
+    root: PDFDictionary,
 }
 
 impl<T: Seek + Read> Document<T> {
     pub fn open(input: T) -> PDFResult<Self> {
-        let mut reader = RefCell::new(Reader::new(input));
-        debug!("Read XRef");
-        let (trailer, entries) = reader.get_mut().read_xref()?;
-        println!("{:?}", entries.len());
-
-        let xref = XRef::try_new(reader, trailer, entries)?;
-        // xref, reader
-        // build page_tree
-
-        debug!("Create Page True");
-        let page_tree = PageTree::try_new(&xref)?;
-        let mut doc = Document {
-            version: 1.17,
-            xref,
-            page_tree: None,
-        };
-        doc.page_tree = page_tree;
-
+        let mut parser = DocumentParser::new(input)?;
+        parser.load_xref()?;
+        let root = parser.get_root_obj()?.try_into()?;
+        let doc = Document { parser, root };
         Ok(doc)
     }
 
@@ -43,37 +23,43 @@ impl<T: Seek + Read> Document<T> {
         unimplemented!()
     }
 
-    pub fn page_count(&self) -> i64 {
-        match self.page_tree {
-            Some(ref pt) => pt.page_count(),
-            None => 0,
-        }
-    }
-
-    pub fn page(&self, number: u32) -> PDFResult<PageRef> {
-        self.page_tree
-            .as_ref()
-            .unwrap()
-            .get_page(number)
-            .ok_or(PDFError::InvalidFileStructure(format!(
-                "page {:?}not exists",
-                number
-            )))
-    }
-
-    pub fn add_page(&self) -> PDFResult<()> {
-        unimplemented!()
-    }
-
-    pub fn create() -> PDFResult<Self> {
-        unimplemented!()
-    }
+    pub fn load_pages(&mut self) {}
 
     pub fn read_indirect(&self, indirect: &PDFObject) -> PDFResult<PDFObject> {
-        if indirect.is_indirect() {
-            self.xref.fetch_object(indirect)
-        } else {
-            Ok(indirect.to_owned())
-        }
+        unimplemented!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use std::fs::File;
+    use std::io::Cursor;
+    use std::path::PathBuf;
+
+    fn create_memory_reader(buffer: &[u8]) -> Cursor<&[u8]> {
+        Cursor::new(buffer)
+    }
+
+    fn read_file(path: PathBuf) -> Vec<u8> {
+        let mut file = File::open(path).unwrap();
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).unwrap();
+        buffer
+    }
+
+    fn peek_filename(name: &str) -> PathBuf {
+        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        d.push(format!("tests/resources/{}", name));
+        d
+    }
+
+    #[test]
+    fn test_document() {
+        let fname = peek_filename("hello_world.pdf");
+        let buffer = read_file(fname);
+        let cursor = create_memory_reader(buffer.as_slice());
+        let doc = Document::open(cursor).unwrap();
     }
 }

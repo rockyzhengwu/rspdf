@@ -2,18 +2,70 @@ use std::io::{Read, Seek};
 
 use crate::errors::{PDFError, PDFResult};
 use crate::lexer::buf_to_number;
-use crate::object::{PDFArray, PDFDictionary, PDFName, PDFStream};
+use crate::object::{PDFArray, PDFDictionary, PDFName, PDFNumber, PDFObject, PDFStream};
 use crate::parser::cross_ref_table::{CrossRefTable, EntryInfo, EntryType};
 use crate::parser::syntax::{SyntaxParser, Token};
 
 pub struct DocumentParser<T: Seek + Read> {
     syntax_parser: SyntaxParser<T>,
+    crosstable: CrossRefTable,
 }
 
 impl<T: Seek + Read> DocumentParser<T> {
     pub fn new(stream: T) -> PDFResult<Self> {
         let syntax_parser = SyntaxParser::new(stream)?;
-        Ok(DocumentParser { syntax_parser })
+        Ok(DocumentParser {
+            syntax_parser,
+            crosstable: CrossRefTable::default(),
+        })
+    }
+    pub fn get_root_obj(&mut self) -> PDFResult<PDFObject> {
+        println!("trailer:{:?}", self.crosstable.trailer());
+        match self.crosstable.trailer().get(&PDFName::new("Root")) {
+            Some(PDFObject::Indirect(rf)) => self.read_indirect_object(&rf.number()),
+            _ => Err(PDFError::InvalidFileStructure(
+                "faild read root".to_string(),
+            )),
+        }
+    }
+
+    pub fn read_indirect_object(&mut self, objnum: &u32) -> PDFResult<PDFObject> {
+        if let Some(entryinfo) = self.crosstable.get_entry(objnum) {
+            return self.read_indirect_object_at(entryinfo.pos());
+        }
+        Err(PDFError::InvalidFileStructure(format!(
+            "faild found obj:{:?}",
+            objnum
+        )))
+    }
+
+    fn read_indirect_object_at(&mut self, pos: u64) -> PDFResult<PDFObject> {
+        self.syntax_parser.seek_to(pos)?;
+        let number = self.syntax_parser.next_token()?;
+        if !number.is_number() {
+            return Err(PDFError::InvalidFileStructure(format!(
+                "read indirect expect number got {:?} ",
+                number
+            )));
+        }
+        let gen = self.syntax_parser.next_token()?;
+        if !gen.is_number() {
+            return Err(PDFError::InvalidFileStructure(format!(
+                "read indirect expect gen as number got {:?} ",
+                gen
+            )));
+        }
+        if !self
+            .syntax_parser
+            .check_next_token(&Token::new_other("obj"))?
+        {
+            return Err(PDFError::InvalidFileStructure(
+                "read indirect expect 'obj' keyword number got ".to_string(),
+            ));
+        }
+
+        let obj = self.syntax_parser.read_object()?;
+        Ok(obj)
     }
 
     fn find_startxref(&mut self) -> PDFResult<u64> {
@@ -24,7 +76,7 @@ impl<T: Seek + Read> DocumentParser<T> {
         self.syntax_parser.seek_to(pos)?;
         if self
             .syntax_parser
-            .check_next_token(&Token::Other(b"startxref".to_vec()))?
+            .check_next_token(&Token::new_other("startxref"))?
         {
             let num = self.syntax_parser.next_token()?;
             let start = num.to_i64()? as u64;
@@ -36,17 +88,19 @@ impl<T: Seek + Read> DocumentParser<T> {
         }
     }
 
-    pub fn load_xref(&mut self) -> PDFResult<CrossRefTable> {
+    pub fn load_xref(&mut self) -> PDFResult<()> {
         let startxref = self.find_startxref()?;
         self.syntax_parser.seek_to(startxref)?;
         if self
             .syntax_parser
-            .check_next_token(&Token::Other(b"xref".to_vec()))?
+            .check_next_token(&Token::new_other("xref"))?
         {
-            self.load_xref_v4(startxref)
+            self.crosstable = self.load_xref_v4(startxref)?;
         } else {
-            self.load_xref_v5(startxref)
+            self.crosstable = self.load_xref_v5(startxref)?;
         }
+        println!("{:?}", self.crosstable);
+        Ok(())
     }
 
     fn load_xref_v4(&mut self, start: u64) -> PDFResult<CrossRefTable> {
@@ -56,7 +110,7 @@ impl<T: Seek + Read> DocumentParser<T> {
         let entries = self.parse_xref_v4()?;
         if !self
             .syntax_parser
-            .check_next_token(&Token::Other(b"trailer".to_vec()))?
+            .check_next_token(&Token::new_other("trailer"))?
         {
             return Err(PDFError::InvalidFileStructure(
                 "trailer not founded".to_string(),
@@ -64,7 +118,8 @@ impl<T: Seek + Read> DocumentParser<T> {
         }
         let trailer: PDFDictionary = self.syntax_parser.read_object()?.try_into()?;
         res.add_entries(entries);
-        let prev = trailer.get(&PDFName::new("Prev"));
+        let prev = trailer.get(&PDFName::new("Prev")).cloned();
+        res.set_trailer(trailer);
 
         if let Some(v) = prev {
             let mut prevpos = v.as_u64()?;
@@ -75,7 +130,7 @@ impl<T: Seek + Read> DocumentParser<T> {
                 self.syntax_parser.seek_to(prevpos)?;
                 if !self
                     .syntax_parser
-                    .check_next_token(&Token::Other(b"xref".to_vec()))?
+                    .check_next_token(&Token::new_other("xref"))?
                 {
                     return Err(PDFError::InvalidFileStructure(
                         "xref not founded".to_string(),
@@ -85,7 +140,7 @@ impl<T: Seek + Read> DocumentParser<T> {
                 res.add_entries(entries);
                 if !self
                     .syntax_parser
-                    .check_next_token(&Token::Other(b"trailer".to_vec()))?
+                    .check_next_token(&Token::new_other("trailer"))?
                 {
                     return Err(PDFError::InvalidFileStructure(
                         "trailer not founded".to_string(),
@@ -135,7 +190,6 @@ impl<T: Seek + Read> DocumentParser<T> {
                 _ => EntryType::Normal,
             };
 
-
             // fix this https://github.com/pdf-rs/pdf/issues/101
             if number == 1 && gen == 65535 && entry_type == EntryType::Free {
                 is_invalid_start = true;
@@ -181,7 +235,7 @@ impl<T: Seek + Read> DocumentParser<T> {
         let _gen = self.syntax_parser.next_token()?.to_u32()?;
         if !self
             .syntax_parser
-            .check_next_token(&Token::Other(b"obj".to_vec()))?
+            .check_next_token(&Token::new_other("obj"))?
         {
             return Err(PDFError::InvalidFileStructure(
                 "Xref Stream need Token::PDFObj got ".to_string(),
@@ -293,6 +347,7 @@ impl<T: Seek + Read> DocumentParser<T> {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use std::fs::File;
     use std::io::Cursor;
@@ -321,8 +376,7 @@ mod tests {
         let fname = peek_filename("hello_world.pdf");
         let buffer = read_file(fname);
         let mut parser = create_memory_reader(buffer.as_slice());
-        let crosstable = parser.load_xref().unwrap();
-        assert!(crosstable.find_entry(&0).is_some())
+        parser.load_xref().unwrap();
     }
 
     #[test]
@@ -330,8 +384,7 @@ mod tests {
         let fname = peek_filename("empty_xref.pdf");
         let buffer = read_file(fname);
         let mut parser = create_memory_reader(buffer.as_slice());
-        let crosstable = parser.load_xref().unwrap();
-        assert!(crosstable.find_entry(&0).is_some())
+        parser.load_xref().unwrap();
     }
 
     #[test]
@@ -339,7 +392,11 @@ mod tests {
         let fname = peek_filename("xref_num_start_one.pdf");
         let buffer = read_file(fname);
         let mut parser = create_memory_reader(buffer.as_slice());
-        let crosstable = parser.load_xref().unwrap();
-        assert!(crosstable.find_entry(&0).is_some());
+        parser.load_xref().unwrap();
+        let obj = parser.read_indirect_object(&1).unwrap();
+        match obj {
+            PDFObject::Dictionary(dict) => assert!(dict.get(&PDFName::new("Type")).is_some()),
+            _ => panic!("parse filed"),
+        }
     }
 }

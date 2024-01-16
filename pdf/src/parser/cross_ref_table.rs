@@ -26,6 +26,10 @@ impl EntryInfo {
             entry_type,
         }
     }
+
+    pub fn pos(&self) -> u64 {
+        self.pos
+    }
 }
 
 #[derive(Default, Debug)]
@@ -61,7 +65,8 @@ impl CrossRefTable {
     pub fn trailer(&self) -> &PDFDictionary {
         &self.trailer
     }
-    pub fn find_entry(&self, objnum: &u32) -> Option<&EntryInfo> {
+
+    pub fn get_entry(&self, objnum: &u32) -> Option<&EntryInfo> {
         self.entries.get(objnum)
     }
 }

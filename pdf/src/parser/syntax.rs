@@ -38,6 +38,10 @@ pub enum Token {
 }
 
 impl Token {
+    pub fn new_other(content: &str) -> Token {
+        Token::Other(content.bytes().collect())
+    }
+
     pub fn is_number(&self) -> bool {
         matches!(self, Token::Number(_))
     }
