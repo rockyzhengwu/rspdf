@@ -80,7 +80,7 @@ impl<T: Seek + Read> CanvasParser<T> {
                 Token::PDFName(ref name) => {
                     let key = PDFName::new(name);
                     let val = self.read_object()?;
-                    dict.insert(key, val);
+                    dict.insert(key.to_string(), val);
                 }
                 _ => {
                     return Err(PDFError::InvalidContentSyntax(format!(

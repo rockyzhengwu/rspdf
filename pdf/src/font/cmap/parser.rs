@@ -222,7 +222,7 @@ impl<T: Seek + Read> CMapParser<T> {
         while !self.tokenizer.check_next_type(&Token::PDFCloseDict)? {
             let key: PDFName = self.parse_obj()?.try_into()?;
             let val = self.parse_obj()?;
-            dict.insert(key, val);
+            dict.insert(key.to_string(), val);
         }
         self.tokenizer.next_token()?;
         Ok(PDFObject::Dictionary(dict))

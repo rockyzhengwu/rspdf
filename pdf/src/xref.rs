@@ -5,7 +5,7 @@ use std::io::{Read, Seek};
 use log::warn;
 
 use crate::errors::{PDFError, PDFResult};
-use crate::object::{PDFDictionary, PDFName, PDFObject};
+use crate::object::{PDFDictionary, PDFObject};
 use crate::reader::Reader;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -82,17 +82,17 @@ impl<T: Seek + Read> XRef<T> {
     }
 
     pub fn info(&self) -> Option<&PDFObject> {
-        self.trailer.get(&PDFName::new("Info"))
+        self.trailer.get("Info")
     }
 
     pub fn root(&self) -> PDFResult<&PDFObject> {
         self.trailer
-            .get(&PDFName::new("Root"))
+            .get("Root")
             .ok_or(PDFError::InvalidSyntax("Root not in trailer".to_string()))
     }
 
     pub fn attribute(&self, name: &str) -> Option<&PDFObject> {
-        self.trailer.get(&PDFName::new(name))
+        self.trailer.get(name)
     }
 
     pub fn indirect_entry(&self, indirect: &PDFObject) -> PDFResult<&XRefEntry> {

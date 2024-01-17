@@ -3,7 +3,9 @@ use std::io::{Read, Seek, SeekFrom};
 
 use crate::errors::{PDFError, PDFResult};
 use crate::lexer::{buf_to_number, buf_to_real};
-use crate::object::{PDFIndirect, PDFName, PDFNumber, PDFObject, PDFStream, PDFString};
+use crate::object::{
+    PDFDictionary, PDFIndirect, PDFName, PDFNumber, PDFObject, PDFStream, PDFString,
+};
 use crate::parser::character_set::{
     hex_to_u8, is_delimiter, is_end_of_line, is_number, is_regular, is_whitespace, is_xdigit,
 };
@@ -304,7 +306,7 @@ impl<T: Seek + Read> SyntaxParser<T> {
                 while !self.check_next_token(&Token::EndDict)? {
                     let keyword = self.next_token()?;
                     let obj = self.read_object()?;
-                    dict.insert(PDFName::new(&keyword.to_string()?), obj);
+                    dict.insert(keyword.to_string()?, obj);
                 }
                 if self.check_next_token(&Token::Other(b"stream".to_vec()))? {
                     let st = self.read_stream(dict)?;
@@ -342,10 +344,10 @@ impl<T: Seek + Read> SyntaxParser<T> {
         Ok(buf)
     }
 
-    fn read_stream(&mut self, dict: HashMap<PDFName, PDFObject>) -> PDFResult<PDFStream> {
+    fn read_stream(&mut self, dict: PDFDictionary) -> PDFResult<PDFStream> {
         self.move_next_line()?;
         let pos = self.current_position()?;
-        let buf = if let Some(length) = dict.get(&PDFName::new("Length")) {
+        let buf = if let Some(length) = dict.get("Length") {
             let len = length.as_u32()?;
             self.read_fixlen_block(len as usize)?
         } else {
@@ -424,7 +426,7 @@ impl<T: Seek + Read> SyntaxParser<T> {
         Ok(())
     }
 
-    fn move_next_token(&mut self) -> PDFResult<()> {
+    pub fn move_next_token(&mut self) -> PDFResult<()> {
         let mut ch = self.read_next_char()?;
         loop {
             if is_whitespace(ch) {

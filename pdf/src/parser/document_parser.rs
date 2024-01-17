@@ -2,7 +2,7 @@ use std::io::{Read, Seek};
 
 use crate::errors::{PDFError, PDFResult};
 use crate::lexer::buf_to_number;
-use crate::object::{PDFArray, PDFDictionary, PDFName, PDFNumber, PDFObject, PDFStream};
+use crate::object::{PDFArray, PDFDictionary, PDFObject, PDFStream};
 use crate::parser::cross_ref_table::{CrossRefTable, EntryInfo, EntryType};
 use crate::parser::syntax::{SyntaxParser, Token};
 
@@ -20,8 +20,7 @@ impl<T: Seek + Read> DocumentParser<T> {
         })
     }
     pub fn get_root_obj(&mut self) -> PDFResult<PDFObject> {
-        println!("trailer:{:?}", self.crosstable.trailer());
-        match self.crosstable.trailer().get(&PDFName::new("Root")) {
+        match self.crosstable.trailer().get("Root") {
             Some(PDFObject::Indirect(rf)) => self.read_indirect_object(&rf.number()),
             _ => Err(PDFError::InvalidFileStructure(
                 "faild read root".to_string(),
@@ -99,7 +98,6 @@ impl<T: Seek + Read> DocumentParser<T> {
         } else {
             self.crosstable = self.load_xref_v5(startxref)?;
         }
-        println!("{:?}", self.crosstable);
         Ok(())
     }
 
@@ -118,7 +116,7 @@ impl<T: Seek + Read> DocumentParser<T> {
         }
         let trailer: PDFDictionary = self.syntax_parser.read_object()?.try_into()?;
         res.add_entries(entries);
-        let prev = trailer.get(&PDFName::new("Prev")).cloned();
+        let prev = trailer.get("Prev").cloned();
         res.set_trailer(trailer);
 
         if let Some(v) = prev {
@@ -147,7 +145,7 @@ impl<T: Seek + Read> DocumentParser<T> {
                     ));
                 }
                 let trailer: PDFDictionary = self.syntax_parser.read_object()?.try_into()?;
-                match trailer.get(&PDFName::new("Prev")) {
+                match trailer.get("Prev") {
                     Some(v) => {
                         prevpos = v.as_u64()?;
                         visited.push(prevpos);
@@ -170,7 +168,7 @@ impl<T: Seek + Read> DocumentParser<T> {
             }
             let start = start_token.to_u32()?;
             let count = self.syntax_parser.next_token()?.to_u32()?;
-            self.syntax_parser.move_next_line()?;
+            self.syntax_parser.move_next_token()?;
             let subentries = self.parse_xref_subsection_v4(start, count)?;
             entries.extend(subentries);
         }
@@ -209,7 +207,7 @@ impl<T: Seek + Read> DocumentParser<T> {
         let mut res = CrossRefTable::default();
         let sub = self.parse_xref_v5(start)?;
         res.merge(sub);
-        if let Some(p) = res.trailer().get(&PDFName::new("Prev")) {
+        if let Some(p) = res.trailer().get("Prev") {
             let mut pos = p.as_u64()?;
             loop {
                 if visited.contains(&pos) {
@@ -217,7 +215,7 @@ impl<T: Seek + Read> DocumentParser<T> {
                 }
                 visited.push(pos);
                 let sub = self.parse_xref_v5(pos)?;
-                if let Some(sp) = sub.trailer().get(&PDFName::new("Prev")) {
+                if let Some(sp) = sub.trailer().get("Prev") {
                     pos = sp.as_u64()?;
                     res.merge(sub);
                 } else {
@@ -395,7 +393,7 @@ mod tests {
         parser.load_xref().unwrap();
         let obj = parser.read_indirect_object(&1).unwrap();
         match obj {
-            PDFObject::Dictionary(dict) => assert!(dict.get(&PDFName::new("Type")).is_some()),
+            PDFObject::Dictionary(dict) => assert!(dict.get("Type").is_some()),
             _ => panic!("parse filed"),
         }
     }

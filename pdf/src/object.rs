@@ -47,7 +47,7 @@ impl ToString for PDFName {
     }
 }
 
-pub type PDFDictionary = HashMap<PDFName, PDFObject>;
+pub type PDFDictionary = HashMap<String, PDFObject>;
 
 #[derive(Clone)]
 pub enum PDFString {
@@ -131,11 +131,11 @@ impl PDFStream {
     }
 
     pub fn length(&self) -> Option<&PDFObject> {
-        self.dict.get(&PDFName::new("Length"))
+        self.dict.get("Length")
     }
 
     pub fn attribute(&self, name: &str) -> Option<&PDFObject> {
-        self.dict.get(&PDFName::new(name))
+        self.dict.get(name)
     }
 
     pub fn dict(&self) -> PDFDictionary {
@@ -232,9 +232,8 @@ pub enum PDFObject {
 
 impl PDFObject {
     pub fn get_value(&self, key: &str) -> Option<&PDFObject> {
-        let name = PDFName::new(key);
         match self {
-            PDFObject::Dictionary(d) => d.get(&name),
+            PDFObject::Dictionary(d) => d.get(key),
             PDFObject::Stream(s) => s.attribute(key),
             _ => None,
         }
@@ -368,6 +367,7 @@ impl TryFrom<PDFObject> for PDFString {
         }
     }
 }
+
 impl TryFrom<PDFObject> for PDFDictionary {
     type Error = PDFError;
     fn try_from(value: PDFObject) -> Result<Self, Self::Error> {

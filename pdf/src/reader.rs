@@ -294,7 +294,7 @@ impl<T: Seek + Read> Reader<T> {
                 }
                 Token::PDFName(key) => {
                     let val = self.parse_obj()?;
-                    dictionary.insert(PDFName::new(key.as_str()), val);
+                    dictionary.insert(key, val);
                 }
                 _ => {
                     return Err(PDFError::InvalidSyntax(format!(
