@@ -18,7 +18,6 @@ use crate::font::{create_font, Font};
 use crate::geom::{path::Path, point::Point, rectangle::Rectangle};
 use crate::lexer::Tokenizer;
 use crate::object::{PDFNumber, PDFObject};
-use crate::page::PageRef;
 
 pub struct Processor<'a, T: Seek + Read, D: Device> {
     doc: &'a Document<T>,
@@ -49,45 +48,8 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
         }
     }
 
-    pub fn process_page_content(&mut self, page: PageRef, page_num: u32) -> PDFResult<()> {
-        self.mediabox = page.borrow().media_box().unwrap();
-        self.cropbox = page.borrow().crop_box().unwrap();
-
-        let state = GraphicsState::default();
-
-        self.device
-            .borrow_mut()
-            .begain_page(page_num, &self.mediabox, &self.cropbox);
-        let resource = page.borrow().resources();
-        let resource_obj = self.doc.read_indirect(&resource)?;
-        self.resource_stack.push(resource_obj);
-        self.state_stack.push(state);
-
-        let contents = page.borrow().contents(self.doc)?;
-        let mut content_buffer = Vec::new();
-        for obj in contents {
-            let stream = if obj.is_indirect() {
-                self.doc.read_indirect(&obj)?
-            } else {
-                obj
-            };
-            content_buffer.extend(stream.bytes()?);
-        }
-        // println!("{:?}", String::from_utf8_lossy(content_buffer.as_slice()));
-
-        let cursor = Cursor::new(content_buffer);
-        let tokenizer = Tokenizer::new(cursor);
-        let mut parser = CanvasParser::new(tokenizer);
-        while let Ok(operation) = parser.parse_op() {
-            // println!("{:?}", operation);
-            self.invoke_operation(operation)?;
-        }
-        self.text_matrix = Matrix::default();
-        self.text_line_matrix = Matrix::default();
-
-        self.device.borrow_mut().end_page(page_num);
-        self.reset();
-        Ok(())
+    pub fn process_page_content(&mut self) -> PDFResult<()> {
+        unimplemented!()
     }
 
     fn invoke_operation(&mut self, operation: Operation) -> PDFResult<()> {

@@ -74,6 +74,7 @@ impl PageTree {
             let pages: PDFDictionary = doc.read_indirect(pagesref)?.try_into()?;
             let root = create_pagetree(pages, doc, None)?;
             let pages = create_pages(root.clone());
+
             Ok(PageTree { root, pages })
         } else {
             let root = Rc::new(RefCell::new(PageNode::default()));
@@ -85,6 +86,7 @@ impl PageTree {
     }
 
     pub fn get_page(&self, index: &u32) -> Option<&PageNodeRef> {
+        println!("{:?} get_page {:?}", index, self.pages.get(index));
         self.pages.get(index)
     }
 }
