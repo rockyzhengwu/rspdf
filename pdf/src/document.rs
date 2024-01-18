@@ -7,7 +7,7 @@ use crate::object::{PDFDictionary, PDFObject};
 use crate::page::Page;
 use crate::parser::document_parser::DocumentParser;
 
-#[allow(dead_code)]
+#[derive(Debug)]
 pub struct Document<T: Seek + Read> {
     parser: RefCell<DocumentParser<T>>,
     root: PDFDictionary,
@@ -48,10 +48,10 @@ impl<T: Seek + Read> Document<T> {
         }
     }
 
-    pub fn get_page(&self, i: &u32) -> PDFResult<Page> {
+    pub fn get_page(&self, i: &u32) -> PDFResult<Page<T>> {
         if let Some(noderef) = self.catalog.get_page(i) {
             let data = noderef.borrow().data().to_owned();
-            Page::try_new(&data, self)
+            Ok(Page::new(data, self))
         } else {
             Err(PDFError::InvalidFileStructure(format!(
                 "page {:?} not existed",
@@ -102,5 +102,6 @@ mod tests {
         let cursor = create_memory_reader(buffer.as_slice());
         let doc = Document::open(cursor).unwrap();
         let page = doc.get_page(&0).unwrap();
+        page.objects().unwrap();
     }
 }

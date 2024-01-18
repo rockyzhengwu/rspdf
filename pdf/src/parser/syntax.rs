@@ -18,6 +18,7 @@ enum StringStatus {
     CarriageReturn,
 }
 
+#[derive(Debug)]
 pub struct SyntaxParser<T: Seek + Read> {
     stream: T,
     size: u64,
@@ -109,7 +110,7 @@ impl Token {
 }
 
 impl<T: Seek + Read> SyntaxParser<T> {
-    pub fn new(mut stream: T) -> PDFResult<Self> {
+    pub fn try_new(mut stream: T) -> PDFResult<Self> {
         let size = stream.seek(SeekFrom::End(0)).map_err(|e| {
             PDFError::InvalidSyntax(format!("input stream not seek failed :{:?}", e))
         })?;
@@ -143,7 +144,7 @@ impl<T: Seek + Read> SyntaxParser<T> {
         Ok(())
     }
 
-    fn read_hex_string(&mut self) -> PDFResult<PDFString> {
+    pub fn read_hex_string(&mut self) -> PDFResult<PDFString> {
         let mut ch = self.read_next_char()?;
         let mut code: u8 = 0;
         let mut bytes = Vec::new();
@@ -172,7 +173,7 @@ impl<T: Seek + Read> SyntaxParser<T> {
         Ok(PDFString::HexString(bytes))
     }
 
-    fn read_literal_string(&mut self) -> PDFResult<PDFString> {
+    pub fn read_literal_string(&mut self) -> PDFResult<PDFString> {
         let mut nest_level: i32 = 0;
         let mut status: StringStatus = StringStatus::Normal;
         let mut ch = self.read_next_char()?;
@@ -580,7 +581,7 @@ mod tests {
     use std::io::Cursor;
     fn new_parser(content: &str) -> SyntaxParser<Cursor<&[u8]>> {
         let cursor = Cursor::new(content.as_bytes());
-        SyntaxParser::new(cursor).unwrap()
+        SyntaxParser::try_new(cursor).unwrap()
     }
 
     #[test]

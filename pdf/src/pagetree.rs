@@ -62,7 +62,7 @@ impl PageNode {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct PageTree {
     root: PageNodeRef,
     pages: HashMap<u32, PageNodeRef>,
@@ -86,7 +86,6 @@ impl PageTree {
     }
 
     pub fn get_page(&self, index: &u32) -> Option<&PageNodeRef> {
-        println!("{:?} get_page {:?}", index, self.pages.get(index));
         self.pages.get(index)
     }
 }

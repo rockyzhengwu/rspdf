@@ -6,6 +6,7 @@ use crate::object::{PDFArray, PDFDictionary, PDFObject, PDFStream};
 use crate::parser::cross_ref_table::{CrossRefTable, EntryInfo, EntryType};
 use crate::parser::syntax::{SyntaxParser, Token};
 
+#[derive(Debug)]
 pub struct DocumentParser<T: Seek + Read> {
     syntax_parser: SyntaxParser<T>,
     crosstable: CrossRefTable,
@@ -13,7 +14,7 @@ pub struct DocumentParser<T: Seek + Read> {
 
 impl<T: Seek + Read> DocumentParser<T> {
     pub fn new(stream: T) -> PDFResult<Self> {
-        let syntax_parser = SyntaxParser::new(stream)?;
+        let syntax_parser = SyntaxParser::try_new(stream)?;
         Ok(DocumentParser {
             syntax_parser,
             crosstable: CrossRefTable::default(),

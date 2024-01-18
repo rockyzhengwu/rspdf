@@ -5,7 +5,7 @@ use crate::errors::PDFResult;
 use crate::object::{PDFDictionary, PDFName};
 use crate::pagetree::{PageNodeRef, PageTree};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub enum PageLayout {
     #[default]
     SinglePage,
@@ -29,7 +29,7 @@ impl PageLayout {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Catalog {
     page_layout: PageLayout,
     outlines: Option<PDFDictionary>,
@@ -55,4 +55,3 @@ impl Catalog {
         self.page_tree.get_page(pageindex)
     }
 }
-
