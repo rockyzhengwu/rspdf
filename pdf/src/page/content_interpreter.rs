@@ -1,12 +1,13 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{Read, Seek};
+use std::rc::Rc;
 
 use log::warn;
 
 use crate::device::Device;
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
-use crate::font::create_font;
 use crate::font::Font;
 use crate::geom::matrix::Matrix;
 use crate::geom::path::Path;
@@ -16,11 +17,10 @@ use crate::object::{PDFNumber, PDFObject};
 use crate::page::content_parser::ContentParser;
 use crate::page::graphics_state::GraphicsState;
 use crate::page::operation::Operation;
-use crate::page::page_object::PageObject;
 use crate::page::text::{PageText, TextItem};
 use crate::page::Page;
 
-pub struct ContentInterpreter<'a, T: Seek + Read> {
+pub struct ContentInterpreter<'a, T: Seek + Read, D: Device> {
     doc: &'a Document<T>,
     page: &'a Page<'a, T>,
     parser: ContentParser,
@@ -31,14 +31,14 @@ pub struct ContentInterpreter<'a, T: Seek + Read> {
     text_matrix: Matrix,
     text_line_matrix: Matrix,
     font_cache: HashMap<String, Font>,
-    device: Box<dyn Device>,
+    device: Rc<RefCell<D>>,
 }
 
-impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
+impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
     pub fn try_new(
         page: &'a Page<'_, T>,
         doc: &'a Document<T>,
-        device: Box<dyn Device>,
+        device: Rc<RefCell<D>>,
     ) -> PDFResult<Self> {
         let contents = page.contents()?;
         let mut buffers = Vec::new();
@@ -332,11 +332,13 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
                         font.get_width(&cid) * 0.001 * state.font_size() + state.char_spacing();
                     let uc = font.cid_to_unicode(&cid);
                     println!("{:?},{:?},{:?}", uc, text_matrix.v31, text_matrix.v32);
-                    let text_item = TextItem::new(text_matrix.v31, text_matrix.v32, font);
+                    let text_item = TextItem::new(text_matrix.v31, text_matrix.v32, uc);
                     let mat = Matrix::new_translation_matrix(width, 0.0);
                     text_matrix = mat.mutiply(&text_matrix);
                     texts.push(text_item);
                 }
+                let textobj = PageText::new(texts, font);
+                self.device.borrow_mut().show_text(&textobj)?;
                 self.text_matrix = text_matrix;
                 Ok(())
             }

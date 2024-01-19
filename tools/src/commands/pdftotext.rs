@@ -8,7 +8,6 @@ use clap::Parser;
 
 use log::info;
 
-use pdf::canvas::processor::Processor;
 use pdf::device::text::TextDevice;
 use pdf::document::Document;
 use pdf::errors::PDFResult;
@@ -26,11 +25,10 @@ pub fn command<T: Seek + Read>(
     cfg: Config,
 ) -> PDFResult<()> {
     let device = Rc::new(RefCell::new(TextDevice::new()));
-    let mut processor = Processor::new(&doc, device.clone());
     for p in start..end {
         info!("process page:{}", p);
-        let page = doc.page(p).unwrap();
-        processor.process_page_content(page, p).unwrap();
+        let page = doc.get_page(&p).unwrap();
+        page.display(device.clone()).unwrap();
     }
     let outname = cfg.output.unwrap_or(PathBuf::from("pdftotxt.xml"));
     let mut file = File::create(outname).unwrap();

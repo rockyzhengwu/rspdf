@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{Read, Seek};
+use std::rc::Rc;
 
 use crate::device::Device;
 use crate::document::Document;
@@ -49,7 +50,6 @@ impl<'a, T: Seek + Read> Page<'a, T> {
                 fonts.insert(key.to_owned(), font);
             }
         }
-
         Ok(Page {
             data,
             doc,
@@ -68,7 +68,7 @@ impl<'a, T: Seek + Read> Page<'a, T> {
         )))
     }
 
-    pub fn display(&self, device: Box<dyn Device>) -> PDFResult<()> {
+    pub fn display<D: Device>(&self, device: Rc<RefCell<D>>) -> PDFResult<()> {
         let mut interpreter = ContentInterpreter::try_new(self, self.doc, device)?;
         interpreter.run()?;
         Ok(())
@@ -99,10 +99,18 @@ impl<'a, T: Seek + Read> Page<'a, T> {
         Ok(content_streams)
     }
 
-    fn resources(&self) -> PDFResult<PDFObject> {
-        let resource_ref = self.data.get("Resources").unwrap();
-        let resource_obj = self.doc.read_indirect(resource_ref)?;
-        Ok(resource_obj)
+    pub fn resources(&self) -> PDFResult<PDFObject> {
+        match self.data.get("Resources") {
+            Some(obj) => match obj {
+                PDFObject::Dictionary(_) => Ok(obj.to_owned()),
+                PDFObject::Indirect(_) => self.doc.read_indirect(obj),
+                _ => Err(PDFError::InvalidSyntax(format!(
+                    "resource obj type error:{:?}",
+                    obj
+                ))),
+            },
+            None => Ok(PDFObject::Dictionary(HashMap::new())),
+        }
     }
 
     pub fn media_bbox(&self) -> PDFResult<Option<Rectangle>> {

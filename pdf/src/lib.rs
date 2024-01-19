@@ -1,4 +1,3 @@
-pub mod canvas;
 pub mod catalog;
 pub mod device;
 pub mod document;

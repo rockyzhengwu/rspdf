@@ -3,12 +3,12 @@ use image::{Rgba, RgbaImage};
 
 use log::warn;
 
-use crate::canvas::matrix::Matrix;
-use crate::canvas::path_info::PathInfo;
-use crate::canvas::text_info::TextInfo;
 use crate::device::Device;
 use crate::errors::PDFResult;
+use crate::geom::matrix::Matrix;
+use crate::geom::path::Path;
 use crate::geom::rectangle::Rectangle;
+use crate::page::text::PageText;
 
 pub struct ImageDevice {
     x_res: f64,
@@ -70,50 +70,12 @@ impl Device for ImageDevice {
         self.image.save(format!("page-{}.png", page_num)).unwrap()
     }
 
-    fn show_text(&mut self, textinfo: &mut TextInfo) -> PDFResult<()> {
+    fn show_text(&mut self, textinfo: &PageText) -> PDFResult<()> {
         // TODO wmode
-        //
-        let cids = textinfo.cids();
-        let unicode = textinfo.get_unicode(cids.as_slice());
-        let text_matrix = textinfo.text_matrix();
-
-        // Convert user space to device space
-        let ctm = textinfo.get_ctm().mutiply(&self.ctm);
-
-        // font space to device space
-        let scale = (f64::sqrt((ctm.v11 * ctm.v11 + ctm.v22 * ctm.v22) * 0.5)
-            * textinfo.font_size()
-            * text_matrix.v11) as u32;
-
-        for cid in cids {
-            let (ox, oy) = textinfo.out_pos(&cid, &ctm);
-            if ox < 0.0 || oy < 0.0 {
-                warn!("invalid position for {:?}, ", unicode);
-            }
-            //println!(
-            //    "{},{},{},{},{}",
-            //    cid,
-            //    ox,
-            //    oy,
-            //    unicode,
-            //    textinfo.font().name()
-            //);
-            match textinfo.font().get_glyph(&cid, &scale) {
-                Some(glyph) => {
-                    let bitmap = glyph.bitmap();
-                    let dx = ox as u32;
-                    let dy = oy as u32 - glyph.bitmap_top() as u32;
-                    self.draw_char(dx, dy, &bitmap);
-                }
-                None => {
-                    panic!("bitmap is NOne");
-                }
-            }
-        }
         Ok(())
     }
 
-    fn paint_path(&mut self, _pathinfo: PathInfo) -> PDFResult<()> {
+    fn paint_path(&mut self, _pathinfo: &Path) -> PDFResult<()> {
         Ok(())
     }
 }

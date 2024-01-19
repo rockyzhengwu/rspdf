@@ -1,8 +1,8 @@
-use crate::canvas::matrix::Matrix;
-use crate::canvas::{path_info::PathInfo, text_info::TextInfo};
 use crate::device::Device;
 use crate::errors::PDFResult;
+use crate::geom::path::Path;
 use crate::geom::rectangle::Rectangle;
+use crate::page::text::PageText;
 
 #[allow(dead_code)]
 #[derive(Default, Clone, Debug)]
@@ -111,40 +111,13 @@ impl Device for TextDevice {
         self.results.push("</page>".to_string());
     }
 
-    fn show_text(&mut self, textinfo: &mut TextInfo) -> PDFResult<()> {
-        let cids = textinfo.cids();
-        let content = textinfo.get_unicode(cids.as_slice());
-        let cids = textinfo.cids();
-        let scale = 1;
-        let mut chars = content.chars();
-        let ctm = Matrix::default();
-        for cid in &cids {
-            match textinfo.font().get_glyph(cid, &scale) {
-                Some(glyph) => {
-                    let (x, y) = textinfo.out_pos(cid, &ctm);
-                    let mut item = TextItem::default();
-                    let bitmap = glyph.bitmap();
-                    let font = textinfo.font().name().to_string();
-                    let font_size = textinfo.font_size();
-                    item.font = font;
-                    item.font_size = font_size;
-                    item.unicode = chars.next().unwrap();
-                    item.bbox =
-                        Rectangle::new(x, y, x + bitmap.width() as f64, y + bitmap.rows() as f64);
-                    let mut ch = String::new();
-                    ch.push(item.unicode);
-                    self.add_text_item(item);
-                }
-                None => {
-                    panic!("bitmap is NOne");
-                }
-            }
-        }
+    fn show_text(&mut self, textobj: &PageText) -> PDFResult<()> {
+        println!("{:?}", textobj);
 
         Ok(())
     }
 
-    fn paint_path(&mut self, _pathinfo: PathInfo) -> PDFResult<()> {
+    fn paint_path(&mut self, _pathinfo: &Path) -> PDFResult<()> {
         Ok(())
     }
 }

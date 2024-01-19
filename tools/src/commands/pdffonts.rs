@@ -27,11 +27,10 @@ pub fn command<T: Seek + Read>(
 ) -> PDFResult<()> {
     let mut allfonts: HashMap<String, FontInfo> = HashMap::new();
     for p in start..end {
-        info!("processing page:{}", p);
-        let page = doc.page(p).unwrap();
-        let resource = page.borrow().resources();
-        let resobj = doc.read_indirect(&resource).unwrap();
-        let fontref = resobj.get_value("Font");
+        info!("process page :{:?}", p);
+        let page = doc.get_page(&p).unwrap();
+        let resources = page.resources()?;
+        let fontref = resources.get_value("Font");
         if fontref.is_none() {
             continue;
         }
@@ -50,12 +49,12 @@ pub fn command<T: Seek + Read>(
             let base_font = font_obj.get_value("BaseFont").unwrap().as_string().unwrap();
             let _tounicode = font_obj.get_value("ToUnicode");
             let name = key.to_string();
+            println!("font: {:?},{:?}", name, base_font);
             let finfo = FontInfo {
                 base_font,
                 font_type,
                 encoding,
             };
-            println!("{:?},{:?}", name, obj);
             allfonts.entry(name).or_insert(finfo);
         }
     }

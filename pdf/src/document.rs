@@ -32,6 +32,10 @@ impl<T: Seek + Read> Document<T> {
         unimplemented!()
     }
 
+    pub fn page_count(&self) -> PDFResult<u32> {
+        self.catalog.page_count()
+    }
+
     fn load_catalog(&mut self) -> PDFResult<()> {
         let root: PDFDictionary = self.parser.borrow_mut().get_root_obj()?.try_into()?;
         self.catalog = Catalog::try_new(root, self)?;
@@ -68,6 +72,7 @@ mod tests {
     use std::fs::File;
     use std::io::Cursor;
     use std::path::{Path, PathBuf};
+    use std::rc::Rc;
 
     fn create_memory_reader(buffer: &[u8]) -> Cursor<&[u8]> {
         Cursor::new(buffer)
@@ -102,7 +107,7 @@ mod tests {
         let cursor = create_memory_reader(buffer.as_slice());
         let doc = Document::open(cursor).unwrap();
         let page = doc.get_page(&0).unwrap();
-        let textdevice = Box::new(TextDevice::new());
+        let textdevice = Rc::new(RefCell::new(TextDevice::new()));
         page.display(textdevice).unwrap();
     }
 }

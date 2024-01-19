@@ -5,7 +5,6 @@ use std::rc::Rc;
 use clap::Parser;
 
 use log::info;
-use pdf::canvas::processor::Processor;
 use pdf::device::image_device::ImageDevice;
 use pdf::document::Document;
 use pdf::errors::PDFResult;
@@ -26,11 +25,10 @@ pub fn command<T: Seek + Read>(
         cfg.resulotion,
         cfg.resulotion,
     )));
-    let mut processor = Processor::new(&doc, device);
     for p in start..end {
         info!("Process page: {}", p);
-        let page = doc.page(p).unwrap();
-        processor.process_page_content(page, p).unwrap();
+        let page = doc.get_page(&p).unwrap();
+        page.display(device.clone()).unwrap();
     }
     Ok(())
 }

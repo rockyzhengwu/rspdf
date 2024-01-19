@@ -2,29 +2,31 @@ use crate::font::Font;
 use crate::geom::rectangle::Rectangle;
 
 #[derive(Debug)]
-pub struct TextItem<'a> {
+pub struct TextItem {
     bbox: Rectangle,
-    font: &'a Font,
+    ch: char,
 }
 
-impl<'a> TextItem<'a> {
-    pub fn new(lx: f64, ly: f64, font: &'a Font) -> Self {
+impl TextItem {
+    pub fn new(lx: f64, ly: f64, ch: char) -> Self {
         let bbox = Rectangle::new(lx, ly, 0.0, 0.0);
-        TextItem { bbox, font }
+        TextItem { bbox, ch }
     }
 }
 
 #[derive(Debug)]
 pub struct PageText<'a> {
     bbox: Rectangle,
-    items: Vec<TextItem<'a>>,
+    items: Vec<TextItem>,
+    font: &'a Font,
 }
 
 impl<'a> PageText<'a> {
-    pub fn new(items: Vec<TextItem<'a>>) -> Self {
+    pub fn new(items: Vec<TextItem>, font: &'a Font) -> Self {
         PageText {
             bbox: Rectangle::default(),
             items,
+            font,
         }
     }
 }

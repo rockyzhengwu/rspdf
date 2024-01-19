@@ -43,7 +43,7 @@ fn main() {
     file.read_to_end(&mut buffer).unwrap();
     let cursor = Cursor::new(buffer);
     let doc = Document::open(cursor).unwrap();
-    let end = cli.end.unwrap_or(doc.page_count() as u32);
+    let end = cli.end.unwrap_or(doc.page_count().unwrap());
     info!(
         "Process {:?} for page:{} to page {}",
         filename.display(),

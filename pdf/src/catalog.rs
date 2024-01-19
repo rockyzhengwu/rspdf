@@ -54,4 +54,8 @@ impl Catalog {
     pub fn get_page(&self, pageindex: &u32) -> Option<&PageNodeRef> {
         self.page_tree.get_page(pageindex)
     }
+
+    pub fn page_count(&self) -> PDFResult<u32> {
+        self.page_tree.count()
+    }
 }

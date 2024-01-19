@@ -62,10 +62,17 @@ impl PageNode {
 
     pub fn resources<T: Seek + Read>(&self, doc: &Document<T>) -> PDFResult<PDFDictionary> {
         match self.data().get("Resources") {
-            Some(res) => {
-                let obj: PDFDictionary = doc.read_indirect(&res)?.try_into()?;
-                Ok(obj)
-            }
+            Some(res) => match res {
+                PDFObject::Indirect(_) => {
+                    let obj: PDFDictionary = doc.read_indirect(res)?.try_into()?;
+                    Ok(obj)
+                }
+                PDFObject::Dictionary(obj) => Ok(obj.to_owned()),
+                _ => Err(PDFError::InvalidSyntax(format!(
+                    "resource not a Dictionary obj:{:?}",
+                    res
+                ))),
+            },
             None => match self.parent {
                 Some(ref p) => p.upgrade().unwrap().borrow().resources(doc),
                 None => Ok(PDFDictionary::default()),
@@ -99,6 +106,11 @@ impl PageTree {
 
     pub fn get_page(&self, index: &u32) -> Option<&PageNodeRef> {
         self.pages.get(index)
+    }
+
+    pub fn count(&self) -> PDFResult<u32> {
+        let count = self.root.borrow().data().get("Count").unwrap().as_u32()?;
+        Ok(count)
     }
 }
 

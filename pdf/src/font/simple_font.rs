@@ -203,8 +203,11 @@ fn create_encoding<T: Seek + Read>(
             if name.is_empty() {
                 continue;
             }
-            let u = name_to_unicode(name).unwrap();
-            cmap.add_character(code.to_owned(), u);
+            if let Some(u) = name_to_unicode(name) {
+                cmap.add_character(code.to_owned(), u);
+            } else {
+                warn!("not found character:{:?},{:?}", code, name);
+            }
         }
     }
 
