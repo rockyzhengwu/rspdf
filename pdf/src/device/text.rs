@@ -112,8 +112,6 @@ impl Device for TextDevice {
     }
 
     fn show_text(&mut self, textobj: &PageText) -> PDFResult<()> {
-        println!("{:?}", textobj);
-
         Ok(())
     }
 

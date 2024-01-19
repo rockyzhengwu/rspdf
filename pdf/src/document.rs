@@ -1,8 +1,11 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::io::{Read, Seek};
+use std::rc::Rc;
 
 use crate::catalog::Catalog;
 use crate::errors::{PDFError, PDFResult};
+use crate::font::Font;
 use crate::object::{PDFDictionary, PDFObject};
 use crate::page::Page;
 use crate::parser::document_parser::DocumentParser;
@@ -12,6 +15,7 @@ pub struct Document<T: Seek + Read> {
     parser: RefCell<DocumentParser<T>>,
     root: PDFDictionary,
     catalog: Catalog,
+    fonts: RefCell<HashMap<String, Rc<Font>>>,
 }
 
 impl<T: Seek + Read> Document<T> {
@@ -23,6 +27,7 @@ impl<T: Seek + Read> Document<T> {
             parser: RefCell::new(parser),
             catalog: Catalog::default(),
             root,
+            fonts: RefCell::new(HashMap::new()),
         };
         doc.load_catalog()?;
         Ok(doc)
@@ -30,6 +35,14 @@ impl<T: Seek + Read> Document<T> {
 
     pub fn info(&self) -> PDFResult<()> {
         unimplemented!()
+    }
+
+    pub fn get_font(&self, name: &str) -> Option<Rc<Font>> {
+        self.fonts.borrow().get(name).cloned()
+    }
+
+    pub fn add_font(&self, name: &str, font: Rc<Font>) {
+        self.fonts.borrow_mut().insert(name.to_string(), font);
     }
 
     pub fn page_count(&self) -> PDFResult<u32> {

@@ -25,43 +25,50 @@ pub mod text;
 pub struct Page<'a, T: Seek + Read> {
     data: PDFDictionary,
     doc: &'a Document<T>,
-    fonts: HashMap<String, Font>,
     resources: PDFDictionary,
 }
 
 impl<'a, T: Seek + Read> Page<'a, T> {
     pub fn try_new(node: PageNodeRef, doc: &'a Document<T>) -> PDFResult<Self> {
         let data = node.borrow().data().clone();
-        // TODO create a page resource struct ?
         let resources = node.borrow().resources(doc)?;
-        let mut fonts: HashMap<String, Font> = HashMap::new();
-        if let Some(fd) = resources.get("Font") {
+        // TODO create a page resource struct ?
+        Ok(Page {
+            data,
+            doc,
+            resources,
+        })
+    }
+
+    pub fn get_font(&self, tag: &str) -> PDFResult<Rc<Font>> {
+        if let Some(font) = self.doc.get_font(tag) {
+            return Ok(font);
+        }
+        if let Some(fd) = self.resources.get("Font") {
             let fontinfo = match fd {
                 PDFObject::Indirect(_) => {
-                    let font_dict: PDFDictionary = doc.read_indirect(fd)?.try_into()?;
+                    let font_dict: PDFDictionary = self.doc.read_indirect(fd)?.try_into()?;
                     font_dict
                 }
                 PDFObject::Dictionary(font_dict) => font_dict.to_owned(),
                 _ => HashMap::new(),
             };
-            for (key, v) in &fontinfo {
-                let fontobj = doc.read_indirect(v)?;
-                let font = create_font(key, &fontobj, doc)?;
-                fonts.insert(key.to_owned(), font);
+            match fontinfo.get(tag) {
+                Some(vv) => {
+                    let fontobj = self.doc.read_indirect(vv)?;
+                    let font = Rc::new(create_font(tag, &fontobj, self.doc)?);
+                    self.doc.add_font(tag, font.clone());
+                    return Ok(font);
+                }
+                None => {
+                    return Err(PDFError::InvalidSyntax(format!(
+                        "get fonts {:?} not exist in resources",
+                        self.resources
+                    )));
+                }
             }
         }
-        Ok(Page {
-            data,
-            doc,
-            fonts,
-            resources,
-        })
-    }
 
-    pub fn get_font(&self, tag: &str) -> PDFResult<&Font> {
-        if let Some(font) = self.fonts.get(tag) {
-            return Ok(font);
-        }
         Err(PDFError::InvalidSyntax(format!(
             "get fonts {:?} not exist in resources",
             self.resources

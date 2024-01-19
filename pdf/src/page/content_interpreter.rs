@@ -337,7 +337,7 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
                     text_matrix = mat.mutiply(&text_matrix);
                     texts.push(text_item);
                 }
-                let textobj = PageText::new(texts, font);
+                let textobj = PageText::new(texts, &font);
                 self.device.borrow_mut().show_text(&textobj)?;
                 self.text_matrix = text_matrix;
                 Ok(())
