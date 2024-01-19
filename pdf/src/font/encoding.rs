@@ -1328,7 +1328,7 @@ pub fn get_encoding(name: &str) -> HashMap<u32, String> {
             "MacExpertEncoding" => MAC_EXPERT_ENCODING,
             "MacRomanEncoding" => MAC_ROMAN_ENCODING,
             "ZapfDingbats" => ZAPFDINGBATS_ENCODING,
-            "Symal" => SYMBOL_ENCODING,
+            "Symbol" => SYMBOL_ENCODING,
             _ => panic!("{:?} encoding not exists", name),
         }
     };

@@ -9,6 +9,7 @@ use crate::font::builtin::load_builitin_font;
 use crate::font::encoding::get_encoding;
 use crate::font::glyph_name::name_to_unicode;
 use crate::font::{cmap::CMap, load_face, parse_widhts, Font, FontDescriptor};
+use crate::geom::rectangle::Rectangle;
 use crate::object::PDFObject;
 
 fn create_font_descriptor<T: Seek + Read>(
@@ -40,6 +41,17 @@ fn create_font_descriptor<T: Seek + Read>(
     if let Some(italic_angle) = desc.get_value_as_f64("ItalicAngle") {
         d.italic_angle = italic_angle?;
     }
+    if let Some(stem_v) = desc.get_value_as_f64("StemV") {
+        d.stem_v = stem_v?;
+    }
+    if let Some(PDFObject::Arrray(values)) = desc.get_value("FontBBox") {
+        let lx = values[0].as_f64()?;
+        let ly = values[1].as_f64()?;
+        let ux = values[2].as_f64()?;
+        let uy = values[3].as_f64()?;
+        let rectangle = Rectangle::new(lx, ly, ux, uy);
+        d.bbox = rectangle;
+    }
 
     font.descriptor = d;
     let ff = desc.get_value("FontFile");
@@ -57,6 +69,7 @@ fn create_font_descriptor<T: Seek + Read>(
     font.face = face;
     Ok(())
 }
+
 fn parse_basefont(name: String) -> String {
     if name.len() > 7 && name.chars().nth(6) == Some('+') {
         let (_, last) = name.split_at(7);
@@ -128,63 +141,64 @@ pub fn set_charmap(font: &mut Font, subtype: &str) {
 
 fn create_encoding<T: Seek + Read>(
     font: &mut Font,
-    subtype: &str,
     obj: &PDFObject,
     doc: &Document<T>,
 ) -> PDFResult<()> {
     let mut encoding = HashMap::new();
-    if let Some(enc) = obj.get_value("Encoding") {
-        let enc_obj = if enc.is_indirect() {
-            doc.read_indirect(enc)?
-        } else {
-            enc.to_owned()
-        };
-        // TODO is default encoding is None, select default encoding
-        match enc_obj {
-            PDFObject::Name(_) => {
-                let name = enc_obj.as_string().unwrap();
-                encoding = get_encoding(&name);
-            }
-            PDFObject::Dictionary(_) => {
-                if let Some(base_enc) = enc_obj.get_value("BaseEncoding") {
-                    let base_name = base_enc.as_string()?;
-                    encoding = get_encoding(&base_name);
+    match obj.get_value("Encoding") {
+        Some(enc) => {
+            let enc_obj = if enc.is_indirect() {
+                doc.read_indirect(enc)?
+            } else {
+                enc.to_owned()
+            };
+
+            match enc_obj {
+                PDFObject::Name(_) => {
+                    let name = enc_obj.as_string().unwrap();
+                    encoding = get_encoding(&name);
                 }
-                let difference = enc_obj.get_value("Differences").unwrap().as_array()?;
-                let mut code: u32 = 0;
-                for df in difference {
-                    match df {
-                        PDFObject::Number(n) => {
-                            code = n.as_i64() as u32;
-                        }
-                        PDFObject::Name(_) => {
-                            let name = df.as_string()?;
-                            encoding.insert(code, name);
-                            code += 1;
-                        }
-                        _ => {
-                            return Err(PDFError::FontEncoding(format!(
-                                "encoding Differences need Name, or Number, got:{:?}",
-                                enc_obj
-                            )));
+                PDFObject::Dictionary(_) => {
+                    if let Some(base_enc) = enc_obj.get_value("BaseEncoding") {
+                        let base_name = base_enc.as_string()?;
+                        encoding = get_encoding(&base_name);
+                    }
+                    let difference = enc_obj.get_value("Differences").unwrap().as_array()?;
+                    let mut code: u32 = 0;
+                    for df in difference {
+                        match df {
+                            PDFObject::Number(n) => {
+                                code = n.as_i64() as u32;
+                            }
+                            PDFObject::Name(_) => {
+                                let name = df.as_string()?;
+                                encoding.insert(code, name);
+                                code += 1;
+                            }
+                            _ => {
+                                return Err(PDFError::FontEncoding(format!(
+                                    "encoding Differences need Name, or Number, got:{:?}",
+                                    enc_obj
+                                )));
+                            }
                         }
                     }
                 }
-            }
-            _ => {
-                return Err(PDFError::FontEncoding(format!(
-                    "encoding not a Name, or a Dictionary, got:{:?}",
-                    enc_obj
-                )));
+                _ => {
+                    return Err(PDFError::FontEncoding(format!(
+                        "encoding not a Name, or a Dictionary, got:{:?}",
+                        enc_obj
+                    )));
+                }
             }
         }
-    }
-
-    if encoding.is_empty() {
-        match subtype {
-            "TrueType" => encoding = get_encoding("WinAnsiEncoding"),
-            _ => panic!("not set default encoding"),
-        };
+        None => {
+            if font.base_name == "Symbol" || font.is_symbolic() {
+                encoding = get_encoding("Symbol");
+            } else {
+                encoding = get_encoding("WinAnsiEncoding");
+            }
+        }
     }
 
     for (code, name) in &encoding {
@@ -223,6 +237,7 @@ pub fn create_simple_font<T: Seek + Read>(
 ) -> PDFResult<Font> {
     let mut font = Font::default();
     let subtype = obj.get_value_as_string("Subtype").unwrap()?;
+    font.subtype = subtype.to_string();
 
     let basefont = match obj.get_value_as_string("BaseFont") {
         Some(name) => parse_basefont(name?),
@@ -231,6 +246,7 @@ pub fn create_simple_font<T: Seek + Read>(
 
     font.name = fontname.to_owned();
     font.widths = parse_widhts(obj)?;
+    font.base_name = basefont.clone();
 
     if let Some(descriptor) = obj.get_value("FontDescriptor") {
         let desc = doc.read_indirect(descriptor)?;
@@ -246,7 +262,7 @@ pub fn create_simple_font<T: Seek + Read>(
     }
 
     set_charmap(&mut font, subtype.as_str());
-    create_encoding(&mut font, subtype.as_str(), obj, doc)?;
+    create_encoding(&mut font, obj, doc)?;
 
     // TODO FIX set cmap for face
     let is_empty = font.cid_to_gid.is_empty();

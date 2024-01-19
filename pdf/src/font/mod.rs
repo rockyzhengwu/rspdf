@@ -7,6 +7,7 @@ use freetype::{face::LoadFlag, Face, Library};
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::font::cmap::CMap;
+use crate::geom::rectangle::Rectangle;
 use crate::object::PDFObject;
 
 pub(crate) mod builtin;
@@ -28,6 +29,8 @@ pub struct FontDescriptor {
     cap_height: f64,
     x_height: f64,
     missing_width: f64,
+    stem_v: f64,
+    bbox: Rectangle,
 }
 
 impl FontDescriptor {
@@ -39,6 +42,8 @@ impl FontDescriptor {
 #[derive(Clone, Debug, Default)]
 pub struct Font {
     name: String,
+    base_name:String,
+    subtype: String,
     //
     descriptor: FontDescriptor,
 
@@ -58,6 +63,10 @@ impl Font {
 
     pub fn is_symbolic(&self) -> bool {
         self.descriptor.is_symbolic()
+    }
+
+    pub fn is_truetype(&self) -> bool {
+        self.subtype == "TrueType"
     }
 
     pub fn set_face(&mut self, face: Option<Face>) {
