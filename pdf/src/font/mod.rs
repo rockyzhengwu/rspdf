@@ -42,7 +42,7 @@ impl FontDescriptor {
 #[derive(Clone, Debug, Default)]
 pub struct Font {
     name: String,
-    base_name:String,
+    base_name: String,
     subtype: String,
     //
     descriptor: FontDescriptor,
