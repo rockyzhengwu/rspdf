@@ -1,41 +1,76 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::io::{Read, Seek};
 
+use crate::device::Device;
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
+use crate::font::{create_font, Font};
 use crate::geom::rectangle::Rectangle;
 use crate::object::{PDFDictionary, PDFObject, PDFStream};
-use crate::page::content_parser::ContentParser;
+use crate::page::content_interpreter::ContentInterpreter;
+use crate::pagetree::PageNodeRef;
+
+pub mod content_interpreter;
+pub mod content_parser;
+pub mod context;
+pub mod graphics_state;
+pub mod image;
+pub mod operation;
+pub mod page_object;
+pub mod text;
 
 #[derive(Debug)]
 pub struct Page<'a, T: Seek + Read> {
     data: PDFDictionary,
     doc: &'a Document<T>,
+    fonts: HashMap<String, Font>,
+    resources: PDFDictionary,
 }
 
-pub mod content_interpreter;
-pub mod content_parser;
-pub mod operation;
-
 impl<'a, T: Seek + Read> Page<'a, T> {
-    pub fn new(pagedict: PDFDictionary, doc: &'a Document<T>) -> Self {
-        Page {
-            data: pagedict,
-            doc,
+    pub fn try_new(node: PageNodeRef, doc: &'a Document<T>) -> PDFResult<Self> {
+        let data = node.borrow().data().clone();
+        // TODO create a page resource struct ?
+        let resources = node.borrow().resources(doc)?;
+        let mut fonts: HashMap<String, Font> = HashMap::new();
+        if let Some(fd) = resources.get("Font") {
+            let fontinfo = match fd {
+                PDFObject::Indirect(_) => {
+                    let font_dict: PDFDictionary = doc.read_indirect(fd)?.try_into()?;
+                    font_dict
+                }
+                PDFObject::Dictionary(font_dict) => font_dict.to_owned(),
+                _ => HashMap::new(),
+            };
+            for (key, v) in &fontinfo {
+                let fontobj = doc.read_indirect(v)?;
+                let font = create_font(key, &fontobj, doc)?;
+                fonts.insert(key.to_owned(), font);
+            }
         }
+
+        Ok(Page {
+            data,
+            doc,
+            fonts,
+            resources,
+        })
     }
 
-    pub fn objects(&self) -> PDFResult<()> {
-        let contents = self.contents()?;
-        let mut buffers = Vec::new();
-        for content in contents {
-            buffers.extend(content.bytes());
+    pub fn get_font(&self, tag: &str) -> PDFResult<&Font> {
+        if let Some(font) = self.fonts.get(tag) {
+            return Ok(font);
         }
-        let mut parser = ContentParser::try_new(buffers)?;
-        loop {
-            let op = parser.parse_operation().unwrap();
-            println!("{:?}", op);
-        }
+        Err(PDFError::InvalidSyntax(format!(
+            "get fonts {:?} not exist in resources",
+            self.resources
+        )))
+    }
 
+    pub fn display(&self, device: Box<dyn Device>) -> PDFResult<()> {
+        let mut interpreter = ContentInterpreter::try_new(self, self.doc, device)?;
+        interpreter.run()?;
         Ok(())
     }
 
@@ -64,10 +99,10 @@ impl<'a, T: Seek + Read> Page<'a, T> {
         Ok(content_streams)
     }
 
-    fn resources(&self) {
+    fn resources(&self) -> PDFResult<PDFObject> {
         let resource_ref = self.data.get("Resources").unwrap();
-        let resource_obj = self.doc.read_indirect(resource_ref);
-        println!("{:?}", resource_obj);
+        let resource_obj = self.doc.read_indirect(resource_ref)?;
+        Ok(resource_obj)
     }
 
     pub fn media_bbox(&self) -> PDFResult<Option<Rectangle>> {

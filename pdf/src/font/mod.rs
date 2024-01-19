@@ -102,6 +102,10 @@ impl Font {
         self.to_unicode.decode_string(cids)
     }
 
+    pub fn cid_to_unicode(&self, cid: &u32) -> char {
+        self.to_unicode.cid_to_unicode(cid)
+    }
+
     pub fn get_width(&self, code: &u32) -> f64 {
         match self.widths.get(code) {
             Some(w) => w.to_owned(),

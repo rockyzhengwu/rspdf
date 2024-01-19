@@ -1,6 +1,7 @@
-pub(crate) mod bezier;
-pub(crate) mod line;
-pub(crate) mod path;
-pub(crate) mod point;
-pub(crate) mod rectangle;
-pub(crate) mod subpath;
+pub mod bezier;
+pub mod line;
+pub mod path;
+pub mod point;
+pub mod rectangle;
+pub mod subpath;
+pub mod matrix;

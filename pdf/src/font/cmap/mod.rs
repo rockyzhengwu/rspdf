@@ -108,6 +108,14 @@ impl CMap {
         res
     }
 
+    pub fn cid_to_unicode(&self, gid: &u32) -> char {
+        if let Some(c) = self.code_to_character.get(gid) {
+            char::from_u32(c.to_owned()).unwrap()
+        } else {
+            ' '
+        }
+    }
+
     pub fn code_to_gid(&self, bytes: &[u8]) -> Vec<u32> {
         let mut cids: Vec<u32> = Vec::new();
         if matches!(self.name.as_str(), "Identity-H" | "Identity-V") {

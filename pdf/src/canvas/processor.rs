@@ -49,7 +49,10 @@ impl<'a, T: Seek + Read, D: Device> Processor<'a, T, D> {
     }
 
     pub fn process_page_content(&mut self) -> PDFResult<()> {
-        unimplemented!()
+        let state = GraphicsState::default();
+
+        self.reset();
+        Ok(())
     }
 
     fn invoke_operation(&mut self, operation: Operation) -> PDFResult<()> {

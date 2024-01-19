@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{Read, Seek};
@@ -59,6 +58,19 @@ impl PageNode {
 
     pub fn kids(&self) -> &[PageNodeRef] {
         self.kids.as_slice()
+    }
+
+    pub fn resources<T: Seek + Read>(&self, doc: &Document<T>) -> PDFResult<PDFDictionary> {
+        match self.data().get("Resources") {
+            Some(res) => {
+                let obj: PDFDictionary = doc.read_indirect(&res)?.try_into()?;
+                Ok(obj)
+            }
+            None => match self.parent {
+                Some(ref p) => p.upgrade().unwrap().borrow().resources(doc),
+                None => Ok(PDFDictionary::default()),
+            },
+        }
     }
 }
 

@@ -50,8 +50,7 @@ impl<T: Seek + Read> Document<T> {
 
     pub fn get_page(&self, i: &u32) -> PDFResult<Page<T>> {
         if let Some(noderef) = self.catalog.get_page(i) {
-            let data = noderef.borrow().data().to_owned();
-            Ok(Page::new(data, self))
+            Page::try_new(noderef.clone(), self)
         } else {
             Err(PDFError::InvalidFileStructure(format!(
                 "page {:?} not existed",
@@ -65,6 +64,7 @@ impl<T: Seek + Read> Document<T> {
 mod tests {
 
     use super::*;
+    use crate::device::text::TextDevice;
     use std::fs::File;
     use std::io::Cursor;
     use std::path::{Path, PathBuf};
@@ -102,6 +102,7 @@ mod tests {
         let cursor = create_memory_reader(buffer.as_slice());
         let doc = Document::open(cursor).unwrap();
         let page = doc.get_page(&0).unwrap();
-        page.objects().unwrap();
+        let textdevice = Box::new(TextDevice::new());
+        page.display(textdevice).unwrap();
     }
 }
