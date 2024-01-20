@@ -8,17 +8,17 @@ use crate::parser::syntax::{SyntaxParser, Token};
 
 pub struct ContentParser {
     syntax_parser: SyntaxParser<Cursor<Vec<u8>>>,
+    is_other: bool,
 }
 
 impl ContentParser {
     pub fn try_new(content: Vec<u8>) -> PDFResult<Self> {
-        //println!(
-        //    "{:#?}",
-        //    String::from_utf8_lossy(content.as_slice()).to_string()
-        //);
         let cursor = Cursor::new(content);
         let syntax_parser = SyntaxParser::try_new(cursor)?;
-        Ok(ContentParser { syntax_parser })
+        Ok(ContentParser {
+            syntax_parser,
+            is_other: false,
+        })
     }
 
     pub fn parse_operation(&mut self) -> PDFResult<Operation> {
@@ -27,12 +27,14 @@ impl ContentParser {
             let obj = self.read_object()?;
             match obj {
                 PDFObject::String(ref s) => {
-                    if let Some(cmd) = to_command(s.bytes()) {
-                        let op = Operation::new(cmd, params);
-                        return Ok(op);
-                    } else {
-                        params.push(obj);
+                    if self.is_other {
+                        if let Some(cmd) = to_command(s.bytes()) {
+                            let op = Operation::new(cmd, params);
+                            self.is_other = false;
+                            return Ok(op);
+                        }
                     }
+                    params.push(obj);
                 }
                 _ => {
                     params.push(obj);
@@ -72,7 +74,10 @@ impl ContentParser {
                 Ok(PDFObject::Dictionary(dict))
             }
             Token::Name(_) => Ok(PDFObject::Name(PDFName::new(&token.to_string()?))),
-            Token::Other(bytes) => Ok(PDFObject::String(PDFString::Literial(bytes))),
+            Token::Other(bytes) => {
+                self.is_other = true;
+                Ok(PDFObject::String(PDFString::Literial(bytes)))
+            }
             Token::Eof => {
                 // TODO
                 Ok(PDFObject::Null)

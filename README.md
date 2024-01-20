@@ -1,6 +1,5 @@
 # rspdf
 
-*NOTE:* i'm refactoring, may crash right now
 
 <img src="./doc/images/rspdf.png" alt="rspdf" style="width:40%;" />
 
@@ -32,8 +31,8 @@ cargo run -- --filename pdffonts
 
 ## TODO
 - [ ] fonts
-  - [ ] refactor font, just two font Struct Simple Font and Type0 Font.
-  - [ ] default built in font, encoding, tounicode
+  - [x] refactor font, just two font Struct Simple Font and Type0 Font.
+  - [x] default built in font, encoding, tounicode
   - [ ] face optional , because face will never used when just extract text
 
 - [ ] text

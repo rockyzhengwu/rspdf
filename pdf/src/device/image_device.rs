@@ -19,7 +19,9 @@ pub struct ImageDevice {
 
 impl ImageDevice {
     pub fn new(x_res: f64, y_res: f64) -> Self {
-        let image = RgbaImage::new(1, 1);
+        let w = (x_res * 72.0) as u32;
+        let h = (x_res * 72.0) as u32;
+        let image = RgbaImage::new(w, h);
         ImageDevice {
             x_res,
             y_res,
@@ -47,7 +49,7 @@ impl ImageDevice {
 }
 
 impl Device for ImageDevice {
-    fn begain_page(&mut self, _page_num: u32, media: &Rectangle, _crop: &Rectangle) {
+    fn begain_page(&mut self, _page_num: &u32, media: &Rectangle, _crop: &Rectangle) {
         let sx = self.x_res / 72.0;
         let sy = self.y_res / 72.0;
         // user cpace -> device
@@ -66,14 +68,35 @@ impl Device for ImageDevice {
         self.image = RgbaImage::from_fn(width, height, |_, _| image::Rgba([255, 255, 255, 255]));
     }
 
-    fn end_page(&mut self, page_num: u32) {
+    fn end_page(&mut self, page_num: &u32) {
         self.image.save(format!("page-{}.png", page_num)).unwrap()
     }
 
-    fn show_text(&mut self, textinfo: &PageText) -> PDFResult<()> {
-        // TODO wmode
+    fn start_text(&mut self) {}
+
+    fn show_text(&mut self, textobj: &PageText) -> PDFResult<()> {
+        let ctm = textobj.ctm().mutiply(&self.ctm);
+        let font = textobj.font();
+        let font_size = textobj.font_size();
+        for item in textobj.items() {
+            let scale = (self.y_res / 72.0 * font_size * item.tm().v11) as u32;
+            let code = item.code();
+            let bbox = item.bbox();
+            let lx = bbox.lx();
+            let ly = bbox.ly();
+
+            let x = lx * ctm.v11 + ly * ctm.v21 + ctm.v31;
+            let y = lx * ctm.v12 + ly * ctm.v22 + ctm.v32;
+
+            let glyph = font.get_glyph(code, &scale).unwrap();
+            let bitmap = glyph.bitmap();
+            let y = y - glyph.bitmap_top() as f64;
+            self.draw_char(x as u32, y as u32, &bitmap)
+        }
         Ok(())
     }
+
+    fn end_text(&mut self) {}
 
     fn paint_path(&mut self, _pathinfo: &Path) -> PDFResult<()> {
         Ok(())

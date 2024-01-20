@@ -5,7 +5,7 @@ use std::u32;
 use freetype::Face;
 
 use crate::document::Document;
-use crate::errors::PDFResult;
+use crate::errors::{PDFError, PDFResult};
 use crate::font::cmap::predefined::get_predefine_cmap;
 use crate::font::{cmap::CMap, load_face, Font};
 use crate::object::{PDFArray, PDFObject};
@@ -55,9 +55,20 @@ pub fn create_composite_font<T: Seek + Read>(
 
     let mut face: Option<Face> = None;
     if let Some(descendant_fonts) = obj.get_value("DescendantFonts") {
-        let descendant_fonts = doc.read_indirect(descendant_fonts)?;
-        let df_ref = descendant_fonts.as_array()?.first().unwrap();
-        let df_obj = doc.read_indirect(df_ref)?;
+        let df_ref = match descendant_fonts {
+            PDFObject::Arrray(arr) => arr.first().unwrap().to_owned(),
+            PDFObject::Indirect(_) => {
+                let ar = doc.read_indirect(descendant_fonts)?;
+                ar.as_array().unwrap().first().unwrap().to_owned()
+            }
+            _ => {
+                return Err(PDFError::FontFailure(format!(
+                    "descendants need array,got{:?}",
+                    descendant_fonts
+                )))
+            }
+        };
+        let df_obj = doc.read_indirect(&df_ref)?;
         dw = df_obj.get_value("DW").unwrap().as_f64()?;
         // TODO cidtogid embeded
         let _cid_to_gid_map = df_obj.get_value("CIDToGIDMap");

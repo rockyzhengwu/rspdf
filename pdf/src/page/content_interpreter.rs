@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::io::{Read, Seek};
 use std::rc::Rc;
 
-use log::warn;
+use log::{debug, warn};
 
 use crate::device::Device;
 use crate::document::Document;
@@ -45,6 +45,10 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
         for content in contents {
             buffers.extend(content.bytes());
         }
+        let sss = String::from_utf8_lossy(buffers.as_slice());
+        for item in sss.split('\n') {
+            println!("{:?}", item);
+        }
         let parser = ContentParser::try_new(buffers)?;
         Ok(ContentInterpreter {
             page,
@@ -61,14 +65,21 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
     }
 
     pub fn run(&mut self) -> PDFResult<()> {
+        let media = self.page.media_bbox().unwrap().unwrap();
+        let crop = self.page.crop_bbox().unwrap().unwrap();
+        self.device
+            .borrow_mut()
+            .begain_page(&self.page.number, &media, &crop);
         let resource = self.page.resources()?;
         let state = GraphicsState::default();
         self.resource_stack.push(resource);
         self.state_stack.push(state);
 
         while let Ok(op) = self.parser.parse_operation() {
+            debug!("{:?}", op);
             self.invoke_operation(op)?;
         }
+        self.device.borrow_mut().end_page(&self.page.number);
         Ok(())
     }
 
@@ -331,13 +342,13 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
                     let width =
                         font.get_width(&cid) * 0.001 * state.font_size() + state.char_spacing();
                     let uc = font.cid_to_unicode(&cid);
-                    println!("{:?},{:?},{:?}", uc, text_matrix.v31, text_matrix.v32);
-                    let text_item = TextItem::new(text_matrix.v31, text_matrix.v32, uc);
+                    let text_item = TextItem::new(text_matrix.clone(), uc, cid);
                     let mat = Matrix::new_translation_matrix(width, 0.0);
+                    // println!("{:?}", text_matrix);
                     text_matrix = mat.mutiply(&text_matrix);
                     texts.push(text_item);
                 }
-                let textobj = PageText::new(texts, &font);
+                let textobj = PageText::new(texts, &font, state.font_size(), state.ctm().clone());
                 self.device.borrow_mut().show_text(&textobj)?;
                 self.text_matrix = text_matrix;
                 Ok(())
@@ -384,7 +395,13 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
             .unwrap()
             .get_value("XObject")
             .unwrap();
-        let xob = self.doc.read_indirect(xobject)?;
+        let xob = match xobject {
+            PDFObject::Indirect(_) => self.doc.read_indirect(xobject)?,
+            PDFObject::Dictionary(_) => xobject.to_owned(),
+            _ => {
+                return Err(PDFError::InvalidSyntax("xobjects not exist".to_string()));
+            }
+        };
         let obj = xob.get_value(xobject_name.as_str()).unwrap();
         let _obj_stream = self.doc.read_indirect(obj)?;
         Ok(())
@@ -408,10 +425,12 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
     fn begin_text(&mut self) -> PDFResult<()> {
         self.text_matrix = Matrix::default();
         self.text_line_matrix = Matrix::default();
+        self.device.borrow_mut().start_text();
         Ok(())
     }
     // ET
     fn end_text(&mut self) -> PDFResult<()> {
+        self.device.borrow_mut().end_text();
         Ok(())
     }
 
@@ -419,6 +438,7 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
     fn set_text_character_spacing(&mut self, operation: Operation) -> PDFResult<()> {
         // TODO error
         let char_spacing = operation.operand(0)?.as_f64()?;
+        println!("Tc {:?}", char_spacing);
         let state = self.last_mut_state();
         state.set_char_spacing(char_spacing);
         Ok(())

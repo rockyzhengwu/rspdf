@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::io::{Read, Seek};
 use std::rc::{Rc, Weak};
 
@@ -117,14 +118,14 @@ impl PageTree {
 fn create_pages(root: PageNodeRef) -> HashMap<u32, PageNodeRef> {
     let mut res = HashMap::new();
     let mut index = 0;
-    let mut stack: Vec<PageNodeRef> = Vec::new();
-    stack.push(root);
-    while !stack.is_empty() {
-        if let Some(node) = stack.pop() {
+    let mut queue: VecDeque<PageNodeRef> = VecDeque::new();
+    queue.push_back(root);
+    while !queue.is_empty() {
+        if let Some(node) = queue.pop_front() {
             match node.as_ref().borrow().node_type {
                 PageNodeType::Intermediate => {
                     for kid in node.as_ref().borrow().kids() {
-                        stack.push(kid.clone());
+                        queue.push_back(kid.clone());
                     }
                 }
                 PageNodeType::Leaf => {

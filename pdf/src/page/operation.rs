@@ -26,11 +26,11 @@ impl Operation {
     }
 }
 
-const PDF_CONTENT_COMMANDS: [&'static str; 58] = [
-    "q", "Q", "cm", "Do", "BMC", "BDC", "EMC", "BT", "ET", "Tc", "Tw", "Tz", "TL", "Tf", "Tr",
-    "Ts", "Td", "TD", "Tm", "T*", "Tj", "'", "\"", "TJ", "w", "J", "j", "M", "d", "m", "l", "c",
-    "v", "re", "y", "h", "S", "s", "F", "f*", "B", "B*", "b", "b*", "n", "f", "g", "G", "rg", "RG",
-    "k", "K", "cs", "CS", "sc", "SC", "gs", "EI",
+const PDF_CONTENT_COMMANDS: [&'static str; 62] = [
+    "q", "Q", "cm", "Do", "BMC", "BDC", "EMC", "g", "G", "rg", "RG", "k", "K", "cs", "CS", "sc",
+    "SC", "gs", "BT", "ET", "Tc", "Tw", "Tz", "TL", "Tf", "Tr", "Ts", "Td", "TD", "Tm", "T*", "Tj",
+    "'", "\"", "TJ", "w", "J", "j", "M", "d", "m", "l", "c", "v", "re", "y", "h", "S", "s", "F",
+    "f*", "B", "B*", "b", "b*", "n", "f", "EI", "scn", "SCN", "W", "W*",
 ];
 
 pub fn to_command(bytes: &[u8]) -> Option<String> {

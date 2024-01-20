@@ -11,6 +11,7 @@ use crate::page::Page;
 use crate::parser::document_parser::DocumentParser;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Document<T: Seek + Read> {
     parser: RefCell<DocumentParser<T>>,
     root: PDFDictionary,
@@ -67,7 +68,7 @@ impl<T: Seek + Read> Document<T> {
 
     pub fn get_page(&self, i: &u32) -> PDFResult<Page<T>> {
         if let Some(noderef) = self.catalog.get_page(i) {
-            Page::try_new(noderef.clone(), self)
+            Page::try_new(i, noderef.clone(), self)
         } else {
             Err(PDFError::InvalidFileStructure(format!(
                 "page {:?} not existed",

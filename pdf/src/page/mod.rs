@@ -23,17 +23,19 @@ pub mod text;
 
 #[derive(Debug)]
 pub struct Page<'a, T: Seek + Read> {
+    number: u32,
     data: PDFDictionary,
     doc: &'a Document<T>,
     resources: PDFDictionary,
 }
 
 impl<'a, T: Seek + Read> Page<'a, T> {
-    pub fn try_new(node: PageNodeRef, doc: &'a Document<T>) -> PDFResult<Self> {
+    pub fn try_new(number: &u32, node: PageNodeRef, doc: &'a Document<T>) -> PDFResult<Self> {
         let data = node.borrow().data().clone();
         let resources = node.borrow().resources(doc)?;
         // TODO create a page resource struct ?
         Ok(Page {
+            number:number.to_owned(),
             data,
             doc,
             resources,

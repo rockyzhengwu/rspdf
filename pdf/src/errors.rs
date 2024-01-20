@@ -27,6 +27,9 @@ pub enum PDFError {
     #[error("PDFObject Convert Failure:`{0}`")]
     ObjectConvertFailure(String),
 
+    #[error("Font Error: '{0}'")]
+    FontFailure(String),
+
     #[error("Font Cmap Error: '{0}'")]
     FontCmapFailure(String),
 
