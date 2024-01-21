@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::io::{Read, Seek, SeekFrom};
 
+use log::warn;
+
 use crate::errors::{PDFError, PDFResult};
 use crate::lexer::{buf_to_number, buf_to_real};
 use crate::object::{
@@ -161,13 +163,14 @@ impl<T: Seek + Read> SyntaxParser<T> {
                     code += val;
                     bytes.push(code);
                 }
-                first = !first
             } else {
+                panic!("parse hex string char not a hex{:?}", ch);
                 // TODO this get an error?
             }
             ch = self.read_next_char()?;
+            first = !first;
         }
-        if first {
+        if !first {
             bytes.push(code);
         }
         Ok(PDFString::HexString(bytes))
@@ -624,6 +627,14 @@ are the same.) "#;
         let result_c = string_c.to_string();
         assert_eq!(result_c, "\n");
     }
+    #[test]
+    fn test_read_hex_string() {
+        let content = r#"0050> "#;
+        let mut parser = new_parser(content);
+        let string = parser.read_hex_string().unwrap();
+        assert_eq!([0, 80], string.bytes());
+    }
+
     #[test]
     fn test_read_name_word() {
         let content = "/Name ";

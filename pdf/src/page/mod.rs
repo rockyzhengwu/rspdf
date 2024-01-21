@@ -24,21 +24,24 @@ pub mod text;
 #[derive(Debug)]
 pub struct Page<'a, T: Seek + Read> {
     number: u32,
-    data: PDFDictionary,
+    noderef: PageNodeRef,
     doc: &'a Document<T>,
     resources: PDFDictionary,
+    data: PDFDictionary,
 }
 
 impl<'a, T: Seek + Read> Page<'a, T> {
     pub fn try_new(number: &u32, node: PageNodeRef, doc: &'a Document<T>) -> PDFResult<Self> {
-        let data = node.borrow().data().clone();
+        let data = node.borrow().data().to_owned();
         let resources = node.borrow().resources(doc)?;
+
         // TODO create a page resource struct ?
         Ok(Page {
-            number:number.to_owned(),
-            data,
+            number: number.to_owned(),
+            noderef: node,
             doc,
             resources,
+            data,
         })
     }
 
@@ -123,36 +126,10 @@ impl<'a, T: Seek + Read> Page<'a, T> {
     }
 
     pub fn media_bbox(&self) -> PDFResult<Option<Rectangle>> {
-        match self.data.get("MediaBox") {
-            Some(PDFObject::Arrray(arrs)) => {
-                let lx = arrs[0].as_f64()?;
-                let ly = arrs[1].as_f64()?;
-                let ux = arrs[2].as_f64()?;
-                let uy = arrs[3].as_f64()?;
-                Ok(Some(Rectangle::new(lx, ly, ux, uy)))
-            }
-            Some(obj) => Err(PDFError::InvalidContentSyntax(format!(
-                "page mediabox not a rectanble,{:?}",
-                obj
-            ))),
-            None => Ok(None),
-        }
+        self.noderef.borrow().media_bbox()
     }
 
     pub fn crop_bbox(&self) -> PDFResult<Option<Rectangle>> {
-        match self.data.get("CropBox") {
-            Some(PDFObject::Arrray(arrs)) => {
-                let lx = arrs[0].as_f64()?;
-                let ly = arrs[1].as_f64()?;
-                let ux = arrs[2].as_f64()?;
-                let uy = arrs[3].as_f64()?;
-                Ok(Some(Rectangle::new(lx, ly, ux, uy)))
-            }
-            Some(obj) => Err(PDFError::InvalidContentSyntax(format!(
-                "page cropbox not a rectanble,{:?}",
-                obj
-            ))),
-            None => Ok(None),
-        }
+        self.noderef.borrow().crop_bbox()
     }
 }

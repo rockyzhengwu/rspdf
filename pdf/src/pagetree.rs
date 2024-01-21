@@ -6,7 +6,8 @@ use std::rc::{Rc, Weak};
 
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
-use crate::object::{PDFArray, PDFDictionary, PDFObject};
+use crate::geom::rectangle::Rectangle;
+use crate::object::{PDFDictionary, PDFObject};
 
 #[derive(Debug, Clone, Default)]
 enum PageNodeType {
@@ -53,6 +54,7 @@ impl PageNode {
     pub fn count(&self) -> &u32 {
         &self.count
     }
+
     pub fn data(&self) -> &PDFDictionary {
         &self.data
     }
@@ -77,6 +79,46 @@ impl PageNode {
             None => match self.parent {
                 Some(ref p) => p.upgrade().unwrap().borrow().resources(doc),
                 None => Ok(PDFDictionary::default()),
+            },
+        }
+    }
+
+    pub fn media_bbox(&self) -> PDFResult<Option<Rectangle>> {
+        match self.data.get("MediaBox") {
+            Some(PDFObject::Arrray(arrs)) => {
+                let lx = arrs[0].as_f64()?;
+                let ly = arrs[1].as_f64()?;
+                let ux = arrs[2].as_f64()?;
+                let uy = arrs[3].as_f64()?;
+                Ok(Some(Rectangle::new(lx, ly, ux, uy)))
+            }
+            Some(obj) => Err(PDFError::InvalidContentSyntax(format!(
+                "page mediabox not a rectanble,{:?}",
+                obj
+            ))),
+            None => match self.parent {
+                Some(ref p) => p.upgrade().unwrap().borrow().media_bbox(),
+                None => Ok(None),
+            },
+        }
+    }
+
+    pub fn crop_bbox(&self) -> PDFResult<Option<Rectangle>> {
+        match self.data.get("CropBox") {
+            Some(PDFObject::Arrray(arrs)) => {
+                let lx = arrs[0].as_f64()?;
+                let ly = arrs[1].as_f64()?;
+                let ux = arrs[2].as_f64()?;
+                let uy = arrs[3].as_f64()?;
+                Ok(Some(Rectangle::new(lx, ly, ux, uy)))
+            }
+            Some(obj) => Err(PDFError::InvalidContentSyntax(format!(
+                "page mediabox not a rectanble,{:?}",
+                obj
+            ))),
+            None => match self.parent {
+                Some(ref p) => p.upgrade().unwrap().borrow().media_bbox(),
+                None => Ok(None),
             },
         }
     }

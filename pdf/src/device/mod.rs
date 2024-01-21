@@ -8,7 +8,7 @@ pub mod trace;
 use crate::page::text::PageText;
 
 pub trait Device {
-    fn begain_page(&mut self, page_num: &u32, media: &Rectangle, crop: &Rectangle);
+    fn begain_page(&mut self, page_num: &u32, media: Option<Rectangle>, crop: Option<Rectangle>);
     fn end_page(&mut self, page_num: &u32);
     fn start_text(&mut self);
     fn show_text(&mut self, textobj: &PageText) -> PDFResult<()>;

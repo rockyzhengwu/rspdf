@@ -37,12 +37,12 @@ pub fn is_regular(ch: u8) -> bool {
     PDF_CHARACTER_SET[ch as usize] == 'R'
 }
 pub fn is_xdigit(ch: u8) -> bool {
-    (ch < 10) || (b'a'..=b'f').contains(&ch) || (b'A'..=b'F').contains(&ch)
+    ch.is_ascii_digit() || (b'a'..=b'f').contains(&ch) || (b'A'..=b'F').contains(&ch)
 }
 
 pub fn hex_to_u8(ch: u8) -> u8 {
     match ch {
-        0..=9 => ch,
+        b'0'..=b'9' => ch - b'0',
         b'a'..=b'f' => ch - b'a' + 10,
         b'A'..=b'F' => ch - b'A' + 10,
         _ => panic!("{} not a hex", ch),

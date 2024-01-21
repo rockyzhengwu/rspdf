@@ -1,6 +1,6 @@
 use crate::device::Device;
 use crate::errors::PDFResult;
-use crate::geom::path::Path;
+use crate::geom::{path::Path, rectangle::Rectangle};
 use crate::page::text::PageText;
 
 #[derive(Default, Clone)]
@@ -23,12 +23,7 @@ impl TraceDevice {
 }
 
 impl Device for TraceDevice {
-    fn begain_page(
-        &mut self,
-        page_num: &u32,
-        _media: &crate::geom::rectangle::Rectangle,
-        _crop: &crate::geom::rectangle::Rectangle,
-    ) {
+    fn begain_page(&mut self, page_num: &u32, _media: Option<Rectangle>, _crop: Option<Rectangle>) {
         let s = format!("<page number={}>\n", page_num);
         self.xml.push_str(s.as_str());
     }

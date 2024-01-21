@@ -85,22 +85,9 @@ impl TextDevice {
 }
 
 impl Device for TextDevice {
-    fn begain_page(&mut self, page_num: &u32, media: &Rectangle, crop: &Rectangle) {
-        self.result().push_str(
-            format!(
-                "<page={} mediabox=\"{},{},{},{}\" cropbox=\"{},{},{},{}\">",
-                page_num,
-                media.lx(),
-                media.ly(),
-                media.ux(),
-                media.uy(),
-                crop.lx(),
-                crop.ly(),
-                crop.ux(),
-                crop.uy(),
-            )
-            .as_str(),
-        );
+    fn begain_page(&mut self, page_num: &u32, _media: Option<Rectangle>, _crop: Option<Rectangle>) {
+        self.result()
+            .push_str(format!("<page=\"{}\">", page_num,).as_str());
     }
 
     fn end_page(&mut self, _page_num: &u32) {
@@ -111,17 +98,13 @@ impl Device for TextDevice {
         self.results.push("</page>".to_string());
     }
 
-    fn start_text(&mut self) {
-        
-    }
+    fn start_text(&mut self) {}
 
     fn show_text(&mut self, textobj: &PageText) -> PDFResult<()> {
         Ok(())
     }
 
-    fn end_text(&mut self) {
-        
-    }
+    fn end_text(&mut self) {}
 
     fn paint_path(&mut self, _pathinfo: &Path) -> PDFResult<()> {
         Ok(())

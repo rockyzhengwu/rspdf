@@ -49,7 +49,14 @@ impl ImageDevice {
 }
 
 impl Device for ImageDevice {
-    fn begain_page(&mut self, _page_num: &u32, media: &Rectangle, _crop: &Rectangle) {
+    fn begain_page(&mut self, _page_num: &u32, media: Option<Rectangle>, crop: Option<Rectangle>) {
+        println!("begain_page {:?},{:?}", media, crop);
+        let bbox = match (media, crop) {
+            (Some(m), Some(c)) => m,
+            (None, Some(c)) => c,
+            (Some(m), None) => m,
+            (None, None) => Rectangle::new(0.0, 0.0, 72.0, 72.0),
+        };
         let sx = self.x_res / 72.0;
         let sy = self.y_res / 72.0;
         // user cpace -> device
@@ -58,12 +65,12 @@ impl Device for ImageDevice {
             0.0,
             0.0,
             -1.0 * sy,
-            -1.0 * sx * media.lx(),
-            sy * media.uy(),
+            -1.0 * sx * bbox.lx(),
+            sy * bbox.uy(),
         );
         self.ctm = ctm;
-        let width = (sx * (media.width() + 0.5)) as u32;
-        let height = (sy * (media.height() + 0.5)) as u32;
+        let width = (sx * (bbox.width() + 0.5)) as u32;
+        let height = (sy * (bbox.height() + 0.5)) as u32;
 
         self.image = RgbaImage::from_fn(width, height, |_, _| image::Rgba([255, 255, 255, 255]));
     }

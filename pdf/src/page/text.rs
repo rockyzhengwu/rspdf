@@ -28,7 +28,7 @@ impl TextItem {
     pub fn code(&self) -> &u32 {
         &self.code
     }
-    pub fn tm(&self)->&Matrix{
+    pub fn tm(&self) -> &Matrix {
         &self.tm
     }
 }

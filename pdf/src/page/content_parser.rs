@@ -28,7 +28,7 @@ impl ContentParser {
             match obj {
                 PDFObject::String(ref s) => {
                     if self.is_other {
-                            self.is_other = false;
+                        self.is_other = false;
                         if let Some(cmd) = to_command(s.bytes()) {
                             let op = Operation::new(cmd, params);
                             return Ok(op);

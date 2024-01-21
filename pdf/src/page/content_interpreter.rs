@@ -65,11 +65,11 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
     }
 
     pub fn run(&mut self) -> PDFResult<()> {
-        let media = self.page.media_bbox().unwrap().unwrap();
-        let crop = self.page.crop_bbox().unwrap().unwrap();
+        let media = self.page.media_bbox()?;
+        let crop = self.page.crop_bbox()?;
         self.device
             .borrow_mut()
-            .begain_page(&self.page.number, &media, &crop);
+            .begain_page(&self.page.number, media, crop);
         let resource = self.page.resources()?;
         let state = GraphicsState::default();
         self.resource_stack.push(resource);
