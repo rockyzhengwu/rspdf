@@ -26,11 +26,24 @@ impl Operation {
     }
 }
 
-const PDF_CONTENT_COMMANDS: [&'static str; 62] = [
-    "q", "Q", "cm", "Do", "BMC", "BDC", "EMC", "g", "G", "rg", "RG", "k", "K", "cs", "CS", "sc",
-    "SC", "gs", "BT", "ET", "Tc", "Tw", "Tz", "TL", "Tf", "Tr", "Ts", "Td", "TD", "Tm", "T*", "Tj",
-    "'", "\"", "TJ", "w", "J", "j", "M", "d", "m", "l", "c", "v", "re", "y", "h", "S", "s", "F",
-    "f*", "B", "B*", "b", "b*", "n", "f", "EI", "scn", "SCN", "W", "W*",
+// PDF 32000-1:2008 Table 51 – Operator Categories
+const PDF_CONTENT_COMMANDS: [&'static str; 73] = [
+    "w", "J", "j", "M", "d", "i", "ri", "gs", // General graphics state
+    "q", "Q", "cm", // Special graphics state
+    "m", "l", "c", "v", "re", "y", "h", // Path construction
+    "s", "F", "f*", "B", "B*", "b", "b*", "n", "S", "f", // Path painting
+    "W", "W*", // Clipping paths
+    "BT", "ET", // Text objects
+    "Tc", "Tw", "Tz", "TL", "Tf", "Tr", "Ts", // Text state
+    "Td", "TD", "Tm", "T*", // Text positioning
+    "Tj", "'", "\"", "TJ", // Text showing
+    "d0", "d1", // Type 3 fonts
+    "cs", "CS", "sc", "SC", "scn", "SCN", "g", "G", "rg", "RG", "k", "K",  // Color
+    "sh", // Shading patterns
+    "BI", "ID", "EI", // Inline images
+    "Do", // XObjects
+    "MP", "DP", "BMC", "BDC", "EMC", // Marked content
+    "BX", "EX", // Compatibility
 ];
 
 pub fn to_command(bytes: &[u8]) -> Option<String> {

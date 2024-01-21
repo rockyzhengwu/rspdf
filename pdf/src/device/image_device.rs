@@ -91,6 +91,7 @@ impl Device for ImageDevice {
             let glyph = font.get_glyph(code, &scale).unwrap();
             let bitmap = glyph.bitmap();
             let y = y - glyph.bitmap_top() as f64;
+            let x = x + glyph.bitmap_left() as f64;
             self.draw_char(x as u32, y as u32, &bitmap)
         }
         Ok(())
