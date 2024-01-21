@@ -198,9 +198,9 @@ impl<T: Seek + Read> SyntaxParser<T> {
                 },
                 StringStatus::Backslash => {
                     match ch {
-                        0..=7 => {
+                        b'0'..=b'7' => {
                             status = StringStatus::Octal;
-                            esc_octal = ch
+                            esc_octal = ch - b'0';
                         }
                         b'\r' => status = StringStatus::CarriageReturn,
                         b'n' => {
@@ -233,8 +233,8 @@ impl<T: Seek + Read> SyntaxParser<T> {
                     }
                 }
                 StringStatus::Octal => match ch {
-                    0..=7 => {
-                        esc_octal = esc_octal * 8 + ch;
+                    b'0'..=b'7' => {
+                        esc_octal = esc_octal * 8 + ch - b'0';
                         status = StringStatus::FinishOctal;
                     }
                     _ => {
@@ -245,8 +245,8 @@ impl<T: Seek + Read> SyntaxParser<T> {
                 StringStatus::FinishOctal => {
                     status = StringStatus::Normal;
                     match ch {
-                        0..=7 => {
-                            esc_octal = esc_octal * 8 + ch;
+                        b'0'..=b'7' => {
+                            esc_octal = esc_octal * 8 + ch - b'0';
                             bytes.push(esc_octal);
                         }
                         _ => {
@@ -617,6 +617,12 @@ are the same.) "#;
         let string_b = parser.read_literal_string().unwrap();
         let result_b = string_b.to_string();
         assert_eq!(result, result_b);
+
+        let content_c = r#"\012) "#;
+        let mut parser = new_parser(content_c);
+        let string_c = parser.read_literal_string().unwrap();
+        let result_c = string_c.to_string();
+        assert_eq!(result_c, "\n");
     }
     #[test]
     fn test_read_name_word() {
