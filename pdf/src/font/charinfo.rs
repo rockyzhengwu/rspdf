@@ -1,3 +1,5 @@
+
+#[derive(Debug)]
 pub struct CharInfo {
     len: u8,
     charcode: u32,

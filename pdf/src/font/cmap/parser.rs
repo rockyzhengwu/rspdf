@@ -7,6 +7,8 @@
 // or Character Codes as Selectors
 //
 
+// this implement combine "cid" font cmap and charcode to  unicode cmap
+
 use std::io::{Read, Seek};
 use std::u8;
 

@@ -87,6 +87,7 @@ impl Font {
                         code.to_owned()
                     }
                 };
+                // TODO todo return Error install of unwrap
                 f.load_glyph(gid, LoadFlag::RENDER).unwrap();
                 let glyph = f.glyph();
                 Some(glyph.to_owned())
@@ -114,7 +115,7 @@ impl Font {
             }
             let cid = match self.encoding {
                 Some(ref enc) => enc.charcode_to_cid(&code),
-                None => code as u32,
+                None => code,
             };
             p += len as usize;
             let unicode = self.to_unicode.cid_to_unicode(&code);
@@ -163,7 +164,7 @@ pub fn create_font<T: Seek + Read>(
         "Type0" => create_composite_font(fontname, obj, doc),
         "Type1" | "TrueType" => create_simple_font(fontname, obj, doc),
         _ => {
-            panic!("didn't implement");
+            panic!("font type didn't support yet:{:?}", subtype);
         }
     }
 }
