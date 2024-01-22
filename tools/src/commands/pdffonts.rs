@@ -17,6 +17,7 @@ struct FontInfo {
     base_font: String,
     font_type: String,
     encoding: String,
+    tounicode: bool,
 }
 
 fn parse_basefont(name: String) -> String {
@@ -59,13 +60,13 @@ pub fn command<T: Seek + Read>(
                 let font_type = font_obj.get_value("Subtype").unwrap().as_string().unwrap();
                 let base_font = font_obj.get_value("BaseFont").unwrap().as_string().unwrap();
                 let base_font = parse_basefont(base_font);
-                let _tounicode = font_obj.get_value("ToUnicode");
+                let tounicode = font_obj.get_value("ToUnicode");
                 let name = key.to_string();
-                println!("font: {:?},{:?}", name, base_font);
                 let finfo = FontInfo {
                     base_font,
                     font_type,
                     encoding,
+                    tounicode: tounicode.is_some(),
                 };
                 if allfonts.contains_key(&name) {
                     continue;

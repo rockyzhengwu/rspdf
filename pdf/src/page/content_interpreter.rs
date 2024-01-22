@@ -332,17 +332,19 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
         let state = self.last_state();
         let fontname = state.font();
         let font = self.page.get_font(fontname)?;
-
         match content {
             PDFObject::String(s) => {
-                let cids = font.code_to_cids(s.bytes());
+                let chars = font.decode_charcodes(s.bytes());
                 let mut texts = Vec::new();
                 let mut text_matrix = self.text_matrix.clone();
-                for cid in cids {
+                for ch in chars {
                     let width =
-                        font.get_width(&cid) * 0.001 * state.font_size() + state.char_spacing();
-                    let uc = font.cid_to_unicode(&cid);
-                    let text_item = TextItem::new(text_matrix.clone(), uc, cid);
+                        font.get_width(ch.cid()) * 0.001 * state.font_size() + state.char_spacing();
+                    let text_item = TextItem::new(
+                        text_matrix.clone(),
+                        ch.unicode().to_owned(),
+                        ch.cid().to_owned(),
+                    );
                     let mat = Matrix::new_translation_matrix(width, 0.0);
                     // println!("{:?}", text_matrix);
                     text_matrix = mat.mutiply(&text_matrix);

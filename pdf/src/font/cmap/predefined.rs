@@ -1,22 +1,23 @@
 use std::collections::HashMap;
 
+use crate::errors::PDFResult;
 use crate::font::cmap::CMap;
 use lazy_static::lazy_static;
 
 // TODO init by generate
 
-pub fn create_cmap(bytes: &[u8]) -> CMap {
+pub fn create_cmap(bytes: &[u8]) -> PDFResult<CMap> {
     CMap::new_from_bytes(bytes)
 }
 
 pub fn identity_h() -> CMap {
     let bytes = include_bytes!("../../../cmaps/Identity-H");
-    create_cmap(bytes)
+    create_cmap(bytes).unwrap()
 }
 
 pub fn identity_v() -> CMap {
     let bytes = include_bytes!("../../../cmaps/Identity-V");
-    create_cmap(bytes)
+    create_cmap(bytes).unwrap()
 }
 
 lazy_static! {

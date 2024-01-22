@@ -75,12 +75,6 @@ impl PDFString {
             Self::Literial(v) => v.as_slice(),
         }
     }
-    pub fn binary_bytes(&self) -> Vec<u8> {
-        match self {
-            Self::HexString(v) => ASCIIHexDecode::default().decode(v, None).unwrap(),
-            Self::Literial(v) => v.to_owned(),
-        }
-    }
 }
 
 impl ToString for PDFString {

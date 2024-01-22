@@ -113,7 +113,7 @@ pub fn create_composite_font<T: Seek + Read>(
             PDFObject::Name(name) => encoding = get_predefine_cmap(name.to_string().as_str()),
             PDFObject::Stream(s) => {
                 let bytes = s.bytes();
-                encoding = CMap::new_from_bytes(bytes.as_slice());
+                encoding = CMap::new_from_bytes(bytes.as_slice())?;
             }
             _ => {}
         }
@@ -124,7 +124,7 @@ pub fn create_composite_font<T: Seek + Read>(
     if let Some(tu) = obj.get_value("ToUnicode") {
         let tus = doc.read_indirect(tu)?;
         let bytes = tus.bytes()?;
-        tounicode = CMap::new_from_bytes(bytes.as_slice());
+        tounicode = CMap::new_from_bytes(bytes.as_slice())?;
     }
     font.to_unicode = tounicode;
     Ok(font)

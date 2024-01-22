@@ -6,11 +6,13 @@ use freetype::{face::LoadFlag, Face, Library};
 
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
+use crate::font::charinfo::CharInfo;
 use crate::font::cmap::CMap;
 use crate::geom::rectangle::Rectangle;
 use crate::object::PDFObject;
 
 pub(crate) mod builtin;
+pub(crate) mod charinfo;
 pub(crate) mod cmap;
 pub(crate) mod composite_font;
 pub(crate) mod encoding;
@@ -95,14 +97,29 @@ impl Font {
         }
     }
 
-    pub fn code_to_cids(&self, bytes: &[u8]) -> Vec<u32> {
+    // TODO handle mutil bytes to one char
+    pub fn decode_charcodes(&self, bytes: &[u8]) -> Vec<CharInfo> {
         let mut res = Vec::new();
+        let mut len: u8 = 1;
         if let Some(enc) = &self.encoding {
-            res = enc.code_to_gid(bytes);
-        } else {
-            for code in bytes {
-                res.push(code.to_owned() as u32);
+            if enc.name() == "Identity-H" || enc.name() == "Identity-V" {
+                len = 2;
             }
+        }
+        let mut p = 0;
+        while p < bytes.len() {
+            let mut code: u32 = 0;
+            for i in 0..len {
+                code += bytes[p + i as usize] as u32;
+            }
+            let cid = match self.encoding {
+                Some(ref enc) => enc.charcode_to_cid(&code),
+                None => code as u32,
+            };
+            p += len as usize;
+            let unicode = self.to_unicode.cid_to_unicode(&code);
+            let char = CharInfo::new(len, code, cid, unicode);
+            res.push(char);
         }
         res
     }
@@ -113,6 +130,15 @@ impl Font {
 
     pub fn cid_to_unicode(&self, cid: &u32) -> char {
         self.to_unicode.cid_to_unicode(cid)
+    }
+
+    pub fn charcode_to_unicode(&self, bytes: &[u8]) -> Vec<char> {
+        let mut res = Vec::new();
+        for code in bytes {
+            let c = self.to_unicode.cid_to_unicode(&(code.to_owned() as u32));
+            res.push(c);
+        }
+        res
     }
 
     pub fn get_width(&self, code: &u32) -> f64 {

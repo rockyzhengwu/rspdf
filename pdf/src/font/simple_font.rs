@@ -211,7 +211,7 @@ fn create_encoding<T: Seek + Read>(
     if let Some(tu) = obj.get_value("ToUnicode") {
         let to_unicode = doc.read_indirect(tu)?;
         let bytes = to_unicode.bytes()?;
-        cmap = CMap::new_from_bytes(bytes.as_slice());
+        cmap = CMap::new_from_bytes(bytes.as_slice())?;
     } else {
         for (code, name) in &encoding {
             if name.is_empty() {

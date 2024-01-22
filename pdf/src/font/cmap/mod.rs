@@ -1,11 +1,13 @@
+use core::panic;
 use std::collections::HashMap;
 use std::io::Cursor;
 use std::u8;
 
 use log::warn;
 
-use crate::font::cmap::predefined::get_predefine_cmap_ref;
-use crate::lexer::Tokenizer;
+use crate::errors::PDFResult;
+use crate::font::cmap::predefined::{get_predefine_cmap, get_predefine_cmap_ref};
+use crate::parser::syntax::SyntaxParser;
 
 pub mod parser;
 pub mod predefined;
@@ -19,6 +21,9 @@ pub struct CodeSpaceRange {
 
 #[allow(dead_code)]
 impl CodeSpaceRange {
+    pub fn new(low: u32, high: u32) -> Self {
+        CodeSpaceRange { low, high }
+    }
     pub fn is_contain_code(&self, code: u32) -> bool {
         self.low <= code && self.high >= code
     }
@@ -46,6 +51,10 @@ impl CMap {
 
     pub fn set_type(&mut self, cmap_type: Option<u8>) {
         self.cmap_type = cmap_type;
+    }
+
+    pub fn set_wmdoe(&mut self, wmode: Option<u8>) {
+        self.wmode = wmode;
     }
 
     pub fn add_code_space_range(&mut self, space_range: CodeSpaceRange) {
@@ -83,11 +92,11 @@ impl CMap {
         self.code_to_cid.insert(code, cid);
     }
 
-    pub fn new_from_bytes(buffer: &[u8]) -> Self {
+    pub fn new_from_bytes(buffer: &[u8]) -> PDFResult<Self> {
         let cursor = Cursor::new(buffer);
-        let tokenizer = Tokenizer::new(cursor);
-        let mut parser = parser::CMapParser::new(tokenizer);
-        parser.parse().unwrap()
+        let syntax = SyntaxParser::try_new(cursor)?;
+        let mut parser = parser::CMapParser::new(syntax);
+        parser.parse()
     }
 
     #[allow(dead_code)]
@@ -112,38 +121,22 @@ impl CMap {
         if let Some(c) = self.code_to_character.get(gid) {
             char::from_u32(c.to_owned()).unwrap()
         } else {
+            warn!("cid to unicode not found: {:?}", gid);
             ' '
         }
     }
-
-    pub fn code_to_gid(&self, bytes: &[u8]) -> Vec<u32> {
-        let mut cids: Vec<u32> = Vec::new();
-        if matches!(self.name.as_str(), "Identity-H" | "Identity-V") {
-            for v in bytes.chunks(2) {
-                if v.len() == 2 {
-                    let h = v[0] as u32;
-                    let l = v[1] as u32;
-                    let code = (h << 8) + l;
-                    let cid = match self.code_to_cid.get(&code) {
-                        Some(cd) => cd,
-                        // TODO fix
-                        None => match self.usecmap {
-                            Some(ref scp) => {
-                                let um = get_predefine_cmap_ref(scp);
-                                let ucid = um.code_to_cid.get(&code).unwrap();
-                                ucid
-                            }
-                            None => {
-                                panic!("usep is none");
-                            }
-                        },
-                    };
-                    cids.push(cid.to_owned())
-                } else {
-                    cids.push(v[0] as u32)
+    pub fn charcode_to_cid(&self, charcode: &u32) -> u32 {
+        match self.code_to_cid.get(charcode) {
+            Some(cid) => cid.to_owned(),
+            None => match self.usecmap {
+                Some(ref scp) => {
+                    let nm = get_predefine_cmap(scp);
+                    nm.charcode_to_cid(charcode)
                 }
-            }
+                None => {
+                    panic!("faild map charcode to cid");
+                }
+            },
         }
-        cids
     }
 }
