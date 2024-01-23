@@ -95,11 +95,14 @@ impl Device for ImageDevice {
             let x = lx * ctm.v11 + ly * ctm.v21 + ctm.v31;
             let y = lx * ctm.v12 + ly * ctm.v22 + ctm.v32;
 
-            let glyph = font.get_glyph(code, &scale).unwrap();
-            let bitmap = glyph.bitmap();
-            let y = y - glyph.bitmap_top() as f64;
-            let x = x + glyph.bitmap_left() as f64;
-            self.draw_char(x as u32, y as u32, &bitmap)
+            if let Some(glyph) = font.get_glyph(code, &scale) {
+                let bitmap = glyph.bitmap();
+                let y = y - glyph.bitmap_top() as f64;
+                let x = x + glyph.bitmap_left() as f64;
+                self.draw_char(x as u32, y as u32, &bitmap)
+            } else {
+                warn!("{:?},didn't found glyph", item)
+            }
         }
         Ok(())
     }

@@ -334,7 +334,8 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
         let font = self.page.get_font(fontname)?;
         match content {
             PDFObject::String(s) => {
-                let chars = font.decode_charcodes(s.bytes());
+                let bytes = s.binary_bytes()?;
+                let chars = font.decode_charcodes(&bytes);
                 let mut texts = Vec::new();
                 let mut text_matrix = self.text_matrix.clone();
                 for ch in chars {
@@ -346,7 +347,6 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
                         ch.cid().to_owned(),
                     );
                     let mat = Matrix::new_translation_matrix(width, 0.0);
-                    // println!("{:?}", text_matrix);
                     text_matrix = mat.mutiply(&text_matrix);
                     texts.push(text_item);
                 }

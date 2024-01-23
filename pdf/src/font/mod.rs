@@ -3,6 +3,7 @@ use std::io::{Read, Seek};
 
 use freetype::GlyphSlot;
 use freetype::{face::LoadFlag, Face, Library};
+use log::warn;
 
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
@@ -18,6 +19,7 @@ pub(crate) mod composite_font;
 pub(crate) mod encoding;
 pub(crate) mod glyph_name;
 pub(crate) mod simple_font;
+pub(crate) mod charcode_to_unicode;
 
 use composite_font::create_composite_font;
 use simple_font::create_simple_font;
@@ -88,7 +90,10 @@ impl Font {
                     }
                 };
                 // TODO todo return Error install of unwrap
-                f.load_glyph(gid, LoadFlag::RENDER).unwrap();
+                if let Err(e) = f.load_glyph(gid, LoadFlag::RENDER) {
+                    warn!("{} load glyph error", e);
+                    return None;
+                }
                 let glyph = f.glyph();
                 Some(glyph.to_owned())
             }
@@ -101,44 +106,24 @@ impl Font {
     // TODO handle mutil bytes to one char
     pub fn decode_charcodes(&self, bytes: &[u8]) -> Vec<CharInfo> {
         let mut res = Vec::new();
-        let mut len: u8 = 1;
-        if let Some(enc) = &self.encoding {
-            if enc.name() == "Identity-H" || enc.name() == "Identity-V" {
-                len = 2;
+        let cids = match &self.encoding {
+            Some(enc) => enc.charcodes_to_cid(bytes),
+            None => {
+                let mut cids = Vec::new();
+                for b in bytes {
+                    cids.push(*b as u32);
+                }
+                cids
             }
+        };
+        let unicodes = self.to_unicode.charcodes_to_unicode(bytes);
+        println!("{:?},{:?},{:?}", cids, unicodes, self.to_unicode);
+        for (i, cid) in cids.iter().enumerate() {
+            let u = unicodes.get(i).unwrap();
+            let char = CharInfo::new(cid.to_owned(), u.to_owned());
+            res.push(char)
         }
-        let mut p = 0;
-        while p < bytes.len() {
-            let mut code: u32 = 0;
-            for i in 0..len {
-                code += bytes[p + i as usize] as u32;
-            }
-            let cid = match self.encoding {
-                Some(ref enc) => enc.charcode_to_cid(&code),
-                None => code,
-            };
-            p += len as usize;
-            let unicode = self.to_unicode.cid_to_unicode(&code);
-            let char = CharInfo::new(len, code, cid, unicode);
-            res.push(char);
-        }
-        res
-    }
 
-    pub fn get_unicode(&self, cids: &[u32]) -> String {
-        self.to_unicode.decode_string(cids)
-    }
-
-    pub fn cid_to_unicode(&self, cid: &u32) -> char {
-        self.to_unicode.cid_to_unicode(cid)
-    }
-
-    pub fn charcode_to_unicode(&self, bytes: &[u8]) -> Vec<char> {
-        let mut res = Vec::new();
-        for code in bytes {
-            let c = self.to_unicode.cid_to_unicode(&(code.to_owned() as u32));
-            res.push(c);
-        }
         res
     }
 

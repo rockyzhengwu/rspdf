@@ -213,6 +213,7 @@ fn create_encoding<T: Seek + Read>(
         let bytes = to_unicode.bytes()?;
         cmap = CMap::new_from_bytes(bytes.as_slice())?;
     } else {
+        println!("tounicodeobj: {:?}", encoding);
         for (code, name) in &encoding {
             if name.is_empty() {
                 continue;

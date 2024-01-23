@@ -148,31 +148,38 @@ impl<T: Seek + Read> SyntaxParser<T> {
 
     pub fn read_hex_string(&mut self) -> PDFResult<PDFString> {
         let mut ch = self.read_next_char()?;
-        let mut code: u8 = 0;
         let mut bytes = Vec::new();
-        let mut first = true;
         loop {
             if ch == b'>' {
                 break;
             }
-            if is_xdigit(ch) {
-                let val = hex_to_u8(ch);
-                if first {
-                    code = val * 16;
-                } else {
-                    code += val;
-                    bytes.push(code);
-                }
-            } else {
-                panic!("parse hex string char not a hex{:?}", ch);
-                // TODO this get an error?
-            }
-            ch = self.read_next_char()?;
-            first = !first;
+            bytes.push(ch);
+            ch = self.read_next_char()?
         }
-        if !first {
-            bytes.push(code);
-        }
+        //let mut code: u8 = 0;
+        //let mut first = true;
+        //loop {
+        //    if ch == b'>' {
+        //        break;
+        //    }
+        //    if is_xdigit(ch) {
+        //        let val = hex_to_u8(&ch);
+        //        if first {
+        //            code = val * 16;
+        //        } else {
+        //            code += val;
+        //            bytes.push(code);
+        //        }
+        //    } else {
+        //        panic!("parse hex string char not a hex{:?}", ch);
+        //        // TODO this get an error?
+        //    }
+        //    ch = self.read_next_char()?;
+        //    first = !first;
+        //}
+        //if !first {
+        //    bytes.push(code);
+        //}
         Ok(PDFString::HexString(bytes))
     }
 

@@ -6,7 +6,7 @@ use std::u8;
 use log::warn;
 
 use crate::errors::PDFResult;
-use crate::font::cmap::predefined::{get_predefine_cmap, get_predefine_cmap_ref};
+use crate::font::cmap::predefined::get_predefine_cmap;
 use crate::parser::syntax::SyntaxParser;
 
 pub mod parser;
@@ -15,17 +15,26 @@ pub mod predefined;
 #[allow(dead_code)]
 #[derive(Default, Clone, Debug)]
 pub struct CodeSpaceRange {
+    char_size: u8,
     low: u32,
     high: u32,
 }
 
 #[allow(dead_code)]
 impl CodeSpaceRange {
-    pub fn new(low: u32, high: u32) -> Self {
-        CodeSpaceRange { low, high }
+    pub fn new(char_size: u8, low: u32, high: u32) -> Self {
+        CodeSpaceRange {
+            char_size,
+            low,
+            high,
+        }
     }
     pub fn is_contain_code(&self, code: u32) -> bool {
         self.low <= code && self.high >= code
+    }
+
+    pub fn char_size(&self) -> &u8 {
+        &self.char_size
     }
 }
 
@@ -104,27 +113,48 @@ impl CMap {
         self.wmode
     }
 
-    pub fn decode_string(&self, gids: &[u32]) -> String {
-        let mut res = String::new();
-        for code in gids {
-            if let Some(c) = self.code_to_character.get(code) {
-                res.push(char::from_u32(c.to_owned()).unwrap());
-            } else {
-                res.push(' ');
-                warn!("{:?}, not found", code);
+    pub fn charcode_to_unicode(&self, charcode: &u32) -> char {
+        if let Some(c) = self.code_to_character.get(charcode) {
+            char::from_u32(c.to_owned()).unwrap()
+        } else {
+            warn!("cid to unicode not found: {:?}", charcode);
+            ' '
+        }
+    }
+
+    pub fn charcodes_to_unicode(&self, bytes: &[u8]) -> Vec<char> {
+        if self.code_to_character.is_empty() {
+            let n = bytes.len();
+            return vec![char::REPLACEMENT_CHARACTER; n];
+        }
+        let mut res = Vec::new();
+        if self.code_space_range.is_empty() {
+            for b in bytes {
+                let code = *b as u32;
+                let u = self.charcode_to_unicode(&code);
+                res.push(u);
+            }
+            return res;
+        }
+        let mut code = 0;
+        let mut n = 0;
+        for b in bytes.iter() {
+            code += *b as u32;
+            n += 1;
+            if self.find_charsize(code, n).is_some() {
+                res.push(self.charcode_to_unicode(&code));
+                code = 0;
+                continue;
+            }
+            if n == 4 {
+                res.push(self.charcode_to_unicode(&code));
+                n = 0;
+                code = 0;
             }
         }
         res
     }
 
-    pub fn cid_to_unicode(&self, gid: &u32) -> char {
-        if let Some(c) = self.code_to_character.get(gid) {
-            char::from_u32(c.to_owned()).unwrap()
-        } else {
-            warn!("cid to unicode not found: {:?}", gid);
-            ' '
-        }
-    }
     pub fn charcode_to_cid(&self, charcode: &u32) -> u32 {
         match self.code_to_cid.get(charcode) {
             Some(cid) => cid.to_owned(),
@@ -138,5 +168,39 @@ impl CMap {
                 }
             },
         }
+    }
+
+    fn find_charsize(&self, code: u32, size: u8) -> Option<u8> {
+        for range in &self.code_space_range {
+            if range.char_size != size {
+                continue;
+            }
+            if range.is_contain_code(code) {
+                return Some(range.char_size);
+            }
+        }
+        None
+    }
+
+    pub fn charcodes_to_cid(&self, bytes: &[u8]) -> Vec<u32> {
+        //pass
+        let mut code = 0;
+        let mut res = Vec::new();
+        let mut n = 0;
+        for b in bytes.iter() {
+            code += *b as u32;
+            n += 1;
+            if self.find_charsize(code, n).is_some() {
+                res.push(self.charcode_to_cid(&code));
+                code = 0;
+                continue;
+            }
+            if n == 4 {
+                res.push(self.charcode_to_cid(&code));
+                n = 0;
+                code = 0;
+            }
+        }
+        res
     }
 }

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Write;
 use std::io::{Read, Seek};
 use std::u32;
 
@@ -43,7 +44,6 @@ fn parse_widths(w: &PDFArray) -> HashMap<u32, f64> {
     widths
 }
 
-// TODO robust
 pub fn create_composite_font<T: Seek + Read>(
     fontname: &str,
     obj: &PDFObject,
@@ -54,6 +54,7 @@ pub fn create_composite_font<T: Seek + Read>(
     let mut dw: f64 = 0.0;
 
     let mut face: Option<Face> = None;
+    println!("fontobj: {:?}", obj);
     if let Some(descendant_fonts) = obj.get_value("DescendantFonts") {
         let df_ref = match descendant_fonts {
             PDFObject::Arrray(arr) => arr.first().unwrap().to_owned(),
@@ -69,6 +70,7 @@ pub fn create_composite_font<T: Seek + Read>(
             }
         };
         let df_obj = doc.read_indirect(&df_ref)?;
+        println!("subfont {:?}", df_obj);
         dw = df_obj.get_value("DW").unwrap().as_f64()?;
         // TODO cidtogid embeded
         let _cid_to_gid_map = df_obj.get_value("CIDToGIDMap");

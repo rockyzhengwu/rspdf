@@ -15,6 +15,7 @@ use std::u8;
 use crate::errors::{PDFError, PDFResult};
 use crate::font::cmap::{CMap, CodeSpaceRange};
 use crate::object::{PDFName, PDFNumber, PDFObject, PDFString};
+use crate::parser::character_set::hex_to_u8;
 use crate::parser::syntax::{SyntaxParser, Token};
 
 pub struct CMapParser<T: Seek + Read> {
@@ -25,10 +26,11 @@ fn is_comment(bytes: &[u8]) -> bool {
     bytes.len() >= 2 && bytes[..2] == [b'%', b'%']
 }
 
-fn bytes_to_u32(bytes: &[u8]) -> u32 {
+pub fn hex_bytes_to_u32(bytes: &[u8]) -> u32 {
     let mut res: u32 = 0;
-    for b in bytes {
-        res = res * 10 + b.to_owned() as u32;
+    for h in bytes {
+        let n = hex_to_u8(h) as u32;
+        res = res * 16 + n;
     }
     res
 }
@@ -57,9 +59,16 @@ impl<T: Seek + Read> CMapParser<T> {
             {
                 return Ok(());
             }
-            let low = bytes_to_u32(self.read_whole_hex()?.bytes());
-            let high = bytes_to_u32(self.read_whole_hex()?.bytes());
-            cmap.add_code_space_range(CodeSpaceRange::new(low, high));
+            let _start_hex = self.syntax_parser.next_token()?;
+            let low = self.syntax_parser.read_hex_string()?;
+            let _start_hex = self.syntax_parser.next_token()?;
+            let high = self.syntax_parser.read_hex_string()?;
+
+            let char_size = high.bytes().len() as u8;
+            let high_value: u32 = hex_bytes_to_u32(high.bytes());
+            let low_value: u32 = hex_bytes_to_u32(low.bytes());
+
+            cmap.add_code_space_range(CodeSpaceRange::new(char_size/2, low_value, high_value));
         }
     }
 
@@ -74,7 +83,7 @@ impl<T: Seek + Read> CMapParser<T> {
             let start = self.read_whole_hex()?;
             let end = self.read_whole_hex()?;
             let val = match self.syntax_parser.read_object()? {
-                PDFObject::String(s) => bytes_to_u32(s.bytes()),
+                PDFObject::String(s) => hex_bytes_to_u32(s.bytes()),
                 PDFObject::Number(n) => n.as_u32(),
                 _ => {
                     return Err(PDFError::FontCmapFailure(
@@ -82,7 +91,11 @@ impl<T: Seek + Read> CMapParser<T> {
                     ));
                 }
             };
-            cmap.add_range_cid(bytes_to_u32(start.bytes()), bytes_to_u32(end.bytes()), val);
+            cmap.add_range_cid(
+                hex_bytes_to_u32(start.bytes()),
+                hex_bytes_to_u32(end.bytes()),
+                val,
+            );
         }
     }
 
@@ -96,7 +109,7 @@ impl<T: Seek + Read> CMapParser<T> {
             }
             let key = self.read_whole_hex()?;
             let val = self.read_whole_hex()?;
-            cmap.add_cid(bytes_to_u32(key.bytes()), bytes_to_u32(val.bytes()));
+            cmap.add_cid(hex_bytes_to_u32(key.bytes()), hex_bytes_to_u32(val.bytes()));
         }
     }
     fn process_bf_range(&mut self, cmap: &mut CMap) -> PDFResult<()> {
@@ -110,7 +123,7 @@ impl<T: Seek + Read> CMapParser<T> {
             let start = self.read_whole_hex()?;
             let end = self.read_whole_hex()?;
             let val = match self.syntax_parser.read_object()? {
-                PDFObject::String(s) => bytes_to_u32(s.bytes()),
+                PDFObject::String(s) => hex_bytes_to_u32(s.bytes()),
                 PDFObject::Number(n) => n.as_u32(),
                 _ => {
                     return Err(PDFError::FontCmapFailure(
@@ -119,8 +132,8 @@ impl<T: Seek + Read> CMapParser<T> {
                 }
             };
             cmap.add_range_to_character(
-                bytes_to_u32(start.bytes()),
-                bytes_to_u32(end.bytes()),
+                hex_bytes_to_u32(start.bytes()),
+                hex_bytes_to_u32(end.bytes()),
                 val,
             );
         }
@@ -135,7 +148,7 @@ impl<T: Seek + Read> CMapParser<T> {
             }
             let key = self.read_whole_hex()?;
             let val = self.read_whole_hex()?;
-            cmap.add_character(bytes_to_u32(key.bytes()), bytes_to_u32(val.bytes()));
+            cmap.add_character(hex_bytes_to_u32(key.bytes()), hex_bytes_to_u32(val.bytes()));
         }
     }
 
@@ -224,6 +237,7 @@ impl<T: Seek + Read> CMapParser<T> {
 #[cfg(test)]
 mod tests {
 
+    use crate::font::cmap::parser::hex_bytes_to_u32;
     use crate::font::cmap::CMap;
 
     #[test]
@@ -273,5 +287,14 @@ endcmap CMapName currentdict /CMap defineresource pop end end";
         let bytes = include_bytes!("../../../cmaps/Identity-V");
         let cmap = CMap::new_from_bytes(bytes.as_slice()).unwrap();
         assert_eq!(Some("Identity-H".to_string()), cmap.usecmap);
+    }
+    #[test]
+    fn test_hex_to_u32() {
+        let bytes = b"ff";
+        let value = hex_bytes_to_u32(bytes);
+        assert_eq!(value, 255);
+        let bytes = b"0f";
+        let value = hex_bytes_to_u32(bytes);
+        assert_eq!(value, 15);
     }
 }

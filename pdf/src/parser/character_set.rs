@@ -40,7 +40,7 @@ pub fn is_xdigit(ch: u8) -> bool {
     ch.is_ascii_digit() || (b'a'..=b'f').contains(&ch) || (b'A'..=b'F').contains(&ch)
 }
 
-pub fn hex_to_u8(ch: u8) -> u8 {
+pub fn hex_to_u8(ch: &u8) -> u8 {
     match ch {
         b'0'..=b'9' => ch - b'0',
         b'a'..=b'f' => ch - b'a' + 10,
