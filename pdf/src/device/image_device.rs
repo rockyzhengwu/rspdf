@@ -82,11 +82,12 @@ impl Device for ImageDevice {
     fn start_text(&mut self) {}
 
     fn show_text(&mut self, textobj: &PageText) -> PDFResult<()> {
+        println!("{:?},{:?}", self.ctm, textobj.ctm());
         let ctm = textobj.ctm().mutiply(&self.ctm);
         let font = textobj.font();
         let font_size = textobj.font_size();
         for item in textobj.items() {
-            let scale = (self.y_res / 72.0 * font_size * item.tm().v11) as u32;
+            let scale = (ctm.v11 * font_size * item.tm().v11) as u32;
             let code = item.code();
             let bbox = item.bbox();
             let lx = bbox.lx();

@@ -19,7 +19,7 @@ pub(crate) mod composite_font;
 pub(crate) mod encoding;
 pub(crate) mod glyph_name;
 pub(crate) mod simple_font;
-pub(crate) mod charcode_to_unicode;
+pub(crate) mod to_unicode;
 
 use composite_font::create_composite_font;
 use simple_font::create_simple_font;
@@ -117,7 +117,6 @@ impl Font {
             }
         };
         let unicodes = self.to_unicode.charcodes_to_unicode(bytes);
-        println!("{:?},{:?},{:?}", cids, unicodes, self.to_unicode);
         for (i, cid) in cids.iter().enumerate() {
             let u = unicodes.get(i).unwrap();
             let char = CharInfo::new(cid.to_owned(), u.to_owned());
