@@ -44,12 +44,7 @@ pub struct PageText<'a> {
 }
 
 impl<'a> PageText<'a> {
-    pub fn new(
-        items: Vec<TextItem>,
-        font: &'a Font,
-        font_size: f64,
-        ctm: Matrix,
-    ) -> Self {
+    pub fn new(items: Vec<TextItem>, font: &'a Font, font_size: f64, ctm: Matrix) -> Self {
         PageText {
             bbox: Rectangle::default(),
             items,
@@ -73,5 +68,4 @@ impl<'a> PageText<'a> {
     pub fn ctm(&self) -> &Matrix {
         &self.ctm
     }
-
 }

@@ -68,7 +68,7 @@ impl<T: Seek + Read> CMapParser<T> {
             let high_value: u32 = hex_bytes_to_u32(high.bytes());
             let low_value: u32 = hex_bytes_to_u32(low.bytes());
 
-            cmap.add_code_space_range(CodeSpaceRange::new(char_size/2, low_value, high_value));
+            cmap.add_code_space_range(CodeSpaceRange::new(char_size / 2, low_value, high_value));
         }
     }
 

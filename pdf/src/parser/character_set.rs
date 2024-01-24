@@ -58,9 +58,8 @@ pub fn buf_to_number(buf: &[u8]) -> i64 {
 }
 
 fn is_digit(ch: &u8) -> bool {
-    (b'0'..=b'9').contains(ch)
+    ch.is_ascii_digit()
 }
-
 
 pub fn buf_to_real(buf: &[u8]) -> f64 {
     if buf.is_empty() {
