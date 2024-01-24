@@ -82,7 +82,6 @@ impl Device for ImageDevice {
     fn start_text(&mut self) {}
 
     fn show_text(&mut self, textobj: &PageText) -> PDFResult<()> {
-        println!("{:?},{:?}", self.ctm, textobj.ctm());
         let ctm = textobj.ctm().mutiply(&self.ctm);
         let font = textobj.font();
         let font_size = textobj.font_size();

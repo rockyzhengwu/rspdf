@@ -49,6 +49,58 @@ pub fn hex_to_u8(ch: &u8) -> u8 {
     }
 }
 
+pub fn buf_to_number(buf: &[u8]) -> i64 {
+    let mut res: i64 = 0;
+    for c in buf {
+        res = res * 10 + (c - b'0') as i64;
+    }
+    res
+}
+
+fn is_digit(ch: &u8) -> bool {
+    (b'0'..=b'9').contains(ch)
+}
+
+
+pub fn buf_to_real(buf: &[u8]) -> f64 {
+    if buf.is_empty() {
+        return 0_f64;
+    }
+    let mut i = 0;
+    let flag: f64 = match buf[0] {
+        43 => {
+            i += 1;
+            1_f64
+        }
+        45 => {
+            i += 1;
+            -1_f64
+        }
+        _ => 1_f64,
+    };
+
+    let mut ipart = 0_f64;
+    while i < buf.len() && is_digit(&buf[i]) {
+        ipart = ipart * 10_f64 + (buf[i] - b'0') as f64;
+        i += 1
+    }
+    if i < buf.len() && buf[i] != b'.' {
+        return flag * ipart;
+    } else if i < buf.len() && buf[i] == b'.' {
+        i += 1;
+        let mut dpart = 0_f64;
+        let mut n = 1_f64;
+        while i < buf.len() && is_digit(&buf[i]) {
+            n *= 10_f64;
+            dpart = dpart * 10_f64 + (buf[i] - b'0') as f64;
+            i += 1
+        }
+        return flag * (ipart + dpart / n);
+    }
+
+    flag * ipart
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,10 +1,10 @@
 use std::io::{Read, Seek};
 
 use crate::errors::{PDFError, PDFResult};
-use crate::lexer::buf_to_number;
 use crate::object::{PDFArray, PDFDictionary, PDFObject, PDFStream};
 use crate::parser::cross_ref_table::{CrossRefTable, EntryInfo, EntryType};
 use crate::parser::syntax::{SyntaxParser, Token};
+use crate::parser::character_set::buf_to_number;
 
 #[derive(Debug)]
 pub struct DocumentParser<T: Seek + Read> {

@@ -110,7 +110,7 @@ mod tests {
         let fname = peek_filename("hello_world.pdf");
         let buffer = read_file(fname);
         let cursor = create_memory_reader(buffer.as_slice());
-        let doc = Document::open(cursor).unwrap();
+        let _doc = Document::open(cursor).unwrap();
     }
 
     #[test]

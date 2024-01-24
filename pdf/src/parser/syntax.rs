@@ -4,12 +4,12 @@ use std::io::{Read, Seek, SeekFrom};
 use log::warn;
 
 use crate::errors::{PDFError, PDFResult};
-use crate::lexer::{buf_to_number, buf_to_real};
 use crate::object::{
     PDFDictionary, PDFIndirect, PDFName, PDFNumber, PDFObject, PDFStream, PDFString,
 };
 use crate::parser::character_set::{
-    hex_to_u8, is_delimiter, is_end_of_line, is_number, is_regular, is_whitespace, is_xdigit,
+    buf_to_number, buf_to_real, hex_to_u8, is_delimiter, is_end_of_line, is_number, is_regular,
+    is_whitespace, is_xdigit,
 };
 
 enum StringStatus {
@@ -156,30 +156,6 @@ impl<T: Seek + Read> SyntaxParser<T> {
             bytes.push(ch);
             ch = self.read_next_char()?
         }
-        //let mut code: u8 = 0;
-        //let mut first = true;
-        //loop {
-        //    if ch == b'>' {
-        //        break;
-        //    }
-        //    if is_xdigit(ch) {
-        //        let val = hex_to_u8(&ch);
-        //        if first {
-        //            code = val * 16;
-        //        } else {
-        //            code += val;
-        //            bytes.push(code);
-        //        }
-        //    } else {
-        //        panic!("parse hex string char not a hex{:?}", ch);
-        //        // TODO this get an error?
-        //    }
-        //    ch = self.read_next_char()?;
-        //    first = !first;
-        //}
-        //if !first {
-        //    bytes.push(code);
-        //}
         Ok(PDFString::HexString(bytes))
     }
 
@@ -639,7 +615,7 @@ are the same.) "#;
         let content = r#"0050> "#;
         let mut parser = new_parser(content);
         let string = parser.read_hex_string().unwrap();
-        assert_eq!([0, 80], string.bytes());
+        assert_eq!([48, 48, 53, 48], string.bytes());
     }
 
     #[test]

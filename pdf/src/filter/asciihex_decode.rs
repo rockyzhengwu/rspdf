@@ -1,6 +1,6 @@
 use crate::errors::{PDFError, PDFResult};
 use crate::filter::Filter;
-use crate::lexer::is_white;
+use crate::parser::character_set::is_whitespace;
 
 #[derive(Default)]
 pub struct ASCIIHexDecode {}
@@ -27,7 +27,7 @@ impl Filter for ASCIIHexDecode {
         let mut f = false;
         let mut result: Vec<u8> = Vec::new();
         for c in buf {
-            if is_white(c) {
+            if is_whitespace(*c) {
                 continue;
             }
             let n = hex_to_decimal(c)?;
