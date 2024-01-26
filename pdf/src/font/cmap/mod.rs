@@ -144,6 +144,7 @@ impl CMap {
             if self.find_charsize(code, n).is_some() {
                 res.push(self.charcode_to_unicode(&code));
                 code = 0;
+                n = 0;
                 continue;
             }
             if n == 4 {
