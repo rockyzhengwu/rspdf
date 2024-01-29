@@ -20,6 +20,9 @@ pub struct CodeSpaceRange {
     high: u32,
 }
 
+
+
+
 #[allow(dead_code)]
 impl CodeSpaceRange {
     pub fn new(char_size: u8, low: u32, high: u32) -> Self {
@@ -76,6 +79,7 @@ impl CMap {
             self.add_cid(code, cid)
         }
     }
+
     pub fn add_range_to_character(&mut self, low: u32, high: u32, start: u32) {
         for code in low..=high {
             let ch = start + code - low;

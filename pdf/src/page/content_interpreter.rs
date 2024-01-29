@@ -47,7 +47,7 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
         }
         let sss = String::from_utf8_lossy(buffers.as_slice());
         for item in sss.split('\n') {
-            // println!("{:?}", item);
+            println!("{:?}", item);
         }
         let parser = ContentParser::try_new(buffers)?;
         Ok(ContentInterpreter {
@@ -76,7 +76,7 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
         self.state_stack.push(state);
 
         while let Ok(op) = self.parser.parse_operation() {
-            // debug!("{:?}", op);
+            debug!("{:?}", op);
             self.invoke_operation(op)?;
         }
         self.device.borrow_mut().end_page(&self.page.number);
