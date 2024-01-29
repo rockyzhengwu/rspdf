@@ -35,7 +35,7 @@ impl TextItem {
 
 #[derive(Debug)]
 #[allow(dead_code)]
-pub struct PageText<'a> {
+pub struct Text<'a> {
     bbox: Rectangle,
     items: Vec<TextItem>,
     font: &'a Font,
@@ -43,9 +43,9 @@ pub struct PageText<'a> {
     ctm: Matrix,
 }
 
-impl<'a> PageText<'a> {
+impl<'a> Text<'a> {
     pub fn new(items: Vec<TextItem>, font: &'a Font, font_size: f64, ctm: Matrix) -> Self {
-        PageText {
+        Text {
             bbox: Rectangle::default(),
             items,
             font,

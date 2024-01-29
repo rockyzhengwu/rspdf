@@ -2,7 +2,7 @@ use crate::device::Device;
 use crate::errors::PDFResult;
 use crate::geom::path::Path;
 use crate::geom::rectangle::Rectangle;
-use crate::page::text::PageText;
+use crate::page::text::Text;
 
 #[allow(dead_code)]
 #[derive(Default, Clone, Debug)]
@@ -100,7 +100,7 @@ impl Device for TextDevice {
 
     fn start_text(&mut self) {}
 
-    fn show_text(&mut self, textobj: &PageText) -> PDFResult<()> {
+    fn show_text(&mut self, textobj: &Text) -> PDFResult<()> {
         Ok(())
     }
 

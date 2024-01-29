@@ -1,7 +1,7 @@
 use crate::device::Device;
 use crate::errors::PDFResult;
 use crate::geom::{path::Path, rectangle::Rectangle};
-use crate::page::text::PageText;
+use crate::page::text::Text;
 
 #[derive(Default, Clone)]
 pub struct TraceDevice {
@@ -40,7 +40,7 @@ impl Device for TraceDevice {
         self.xml.push_str("<text_span>\n");
     }
 
-    fn show_text(&mut self, textobj: &PageText) -> PDFResult<()> {
+    fn show_text(&mut self, textobj: &Text) -> PDFResult<()> {
         for item in textobj.items() {
             self.xml.push_str(
                 format!(

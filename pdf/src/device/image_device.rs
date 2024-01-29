@@ -8,7 +8,7 @@ use crate::errors::PDFResult;
 use crate::geom::matrix::Matrix;
 use crate::geom::path::Path;
 use crate::geom::rectangle::Rectangle;
-use crate::page::text::PageText;
+use crate::page::text::Text;
 
 pub struct ImageDevice {
     x_res: f64,
@@ -81,7 +81,7 @@ impl Device for ImageDevice {
 
     fn start_text(&mut self) {}
 
-    fn show_text(&mut self, textobj: &PageText) -> PDFResult<()> {
+    fn show_text(&mut self, textobj: &Text) -> PDFResult<()> {
         let ctm = textobj.ctm().mutiply(&self.ctm);
         let font = textobj.font();
         let font_size = textobj.font_size();

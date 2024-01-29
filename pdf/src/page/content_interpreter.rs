@@ -17,7 +17,7 @@ use crate::object::{PDFNumber, PDFObject};
 use crate::page::content_parser::ContentParser;
 use crate::page::graphics_state::GraphicsState;
 use crate::page::operation::Operation;
-use crate::page::text::{PageText, TextItem};
+use crate::page::text::{Text, TextItem};
 use crate::page::Page;
 
 pub struct ContentInterpreter<'a, T: Seek + Read, D: Device> {
@@ -350,7 +350,7 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
                     text_matrix = mat.mutiply(&text_matrix);
                     texts.push(text_item);
                 }
-                let textobj = PageText::new(texts, &font, state.font_size(), state.ctm().clone());
+                let textobj = Text::new(texts, &font, state.font_size(), state.ctm().clone());
                 self.device.borrow_mut().show_text(&textobj)?;
                 self.text_matrix = text_matrix;
                 Ok(())
