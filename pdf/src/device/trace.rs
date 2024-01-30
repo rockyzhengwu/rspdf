@@ -33,7 +33,17 @@ impl Device for TraceDevice {
     }
 
     fn paint_path(&mut self, path: &Path) -> PDFResult<()> {
-        println!("{:?}", path);
+        let current = path.current_point();
+        let subpaths = path.sub_paths();
+        let mut xml = String::new();
+        xml.push_str("<path>\n");
+        for sub in subpaths {
+            for seg in sub.segments() {
+                xml.push_str(seg.dump_xml().as_str());
+            }
+        }
+        xml.push_str("</path>\n");
+        self.xml.push_str(xml.as_str());
         Ok(())
     }
     fn start_text(&mut self) {

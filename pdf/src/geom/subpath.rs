@@ -2,6 +2,7 @@ use std::fmt;
 
 pub trait Segment {
     fn display(&self) -> String;
+    fn dump_xml(&self) -> String;
 }
 
 impl fmt::Debug for dyn Segment {
@@ -35,5 +36,9 @@ impl SubPath {
 
     pub fn close(&mut self) {
         self.closed = true;
+    }
+
+    pub fn segments(&self) -> &[Box<dyn Segment>] {
+        self.segments.as_slice()
     }
 }

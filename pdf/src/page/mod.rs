@@ -67,8 +67,8 @@ impl<'a, T: Seek + Read> Page<'a, T> {
                 }
                 None => {
                     return Err(PDFError::InvalidSyntax(format!(
-                        "get fonts {:?} not exist in resources",
-                        self.resources
+                        "get fonts {:?} not exist in resources:{:?}",
+                        tag, fontinfo
                     )));
                 }
             }
@@ -91,8 +91,8 @@ impl<'a, T: Seek + Read> Page<'a, T> {
         if let Some(contents) = self.data.get("Contents") {
             match contents {
                 PDFObject::Indirect(_) => {
-                    let cs: PDFStream = self.doc.read_indirect(contents)?.try_into()?;
-                    content_streams.push(cs)
+                    let cs: PDFObject = self.doc.read_indirect(contents)?;
+                    content_streams.push(cs.try_into()?)
                 }
                 PDFObject::Arrray(vals) => {
                     for ci in vals {

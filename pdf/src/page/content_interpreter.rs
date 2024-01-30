@@ -148,7 +148,8 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
     }
 
     // EI
-    fn end_image(&mut self, _operation: Operation) -> PDFResult<()> {
+    fn end_image(&mut self, operation: Operation) -> PDFResult<()> {
+        println!("inline image {:?}", operation);
         Ok(())
     }
 
@@ -203,10 +204,11 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
     // S
     fn paint_path(&mut self, _operation: Operation) -> PDFResult<()> {
         // TODO implement paint path
-        let state = self.last_mut_state().clone();
-        //self.current_path.close_last_subpath();
+        // let state = self.last_mut_state().clone();
+        // self.current_path.close_last_subpath();
         let mut path = std::mem::take(&mut self.current_path);
         path.close_last_subpath();
+        self.device.borrow_mut().paint_path(&path)?;
         Ok(())
     }
 

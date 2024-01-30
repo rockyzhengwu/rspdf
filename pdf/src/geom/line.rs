@@ -11,6 +11,16 @@ impl Segment for Line {
     fn display(&self) -> String {
         format!("Line: start:{:?} end:{:?}", self.start, self.end)
     }
+
+    fn dump_xml(&self) -> String {
+        format!(
+            "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" />\n",
+            self.start.x(),
+            self.start.y(),
+            self.end.x(),
+            self.end.y()
+        )
+    }
 }
 
 impl Line {

@@ -334,14 +334,20 @@ impl<T: Seek + Read> SyntaxParser<T> {
     fn read_stream(&mut self, dict: PDFDictionary) -> PDFResult<PDFStream> {
         self.move_next_line()?;
         let pos = self.current_position()?;
-        let buf = if let Some(length) = dict.get("Length") {
-            let len = length.as_u32()?;
-            self.read_fixlen_block(len as usize)?
-        } else {
-            let end_pos = self.find_end_stream_content()?;
-            let len = end_pos - pos;
-            self.read_fixlen_block(len as usize)?
+        let buf = match dict.get("Length") {
+            Some(PDFObject::Number(n)) => {
+                let len = n.as_u32();
+                self.read_fixlen_block(len as usize)?
+            }
+            _ => {
+                warn!("stream length not valid");
+                let end_pos = self.find_end_stream_content()?;
+                let len = end_pos - pos;
+                self.seek_to(pos)?;
+                self.read_fixlen_block(len as usize)?
+            }
         };
+
         let mut stream = PDFStream::new(pos, dict);
         stream.set_buffer(buf);
         Ok(stream)

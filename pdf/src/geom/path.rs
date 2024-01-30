@@ -67,4 +67,12 @@ impl Path {
             v.close()
         }
     }
+
+    pub fn current_point(&self) -> &Point {
+        &self.current
+    }
+
+    pub fn sub_paths(&self) -> &[SubPath] {
+        self.sub_paths.as_slice()
+    }
 }
