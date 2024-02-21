@@ -21,6 +21,10 @@ impl Segment for Line {
             self.end.y()
         )
     }
+
+    fn points(&self) -> Vec<Point> {
+        vec![self.start.clone(), self.end.clone()]
+    }
 }
 
 impl Line {

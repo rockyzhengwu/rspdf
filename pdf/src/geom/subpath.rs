@@ -1,8 +1,11 @@
 use std::fmt;
 
+use crate::geom::point::Point;
+
 pub trait Segment {
     fn display(&self) -> String;
     fn dump_xml(&self) -> String;
+    fn points(&self) -> Vec<Point>;
 }
 
 impl fmt::Debug for dyn Segment {

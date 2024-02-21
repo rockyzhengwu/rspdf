@@ -5,6 +5,7 @@ use log::warn;
 
 use crate::device::Device;
 use crate::errors::PDFResult;
+use crate::geom::bezier::Bezier;
 use crate::geom::matrix::Matrix;
 use crate::geom::path::Path;
 use crate::geom::rectangle::Rectangle;
@@ -30,6 +31,7 @@ impl ImageDevice {
         }
     }
 }
+
 impl ImageDevice {
     fn draw_char(&mut self, x: u32, y: u32, bitmap: &Bitmap) {
         let width = bitmap.width() as u32;
@@ -109,7 +111,18 @@ impl Device for ImageDevice {
 
     fn end_text(&mut self) {}
 
-    fn paint_path(&mut self, _pathinfo: &Path) -> PDFResult<()> {
+    fn paint_path(&mut self, path: &Path) -> PDFResult<()> {
+        let current = path.current_point();
+        for sub in path.sub_paths() {
+            for seg in sub.segments() {
+                match seg {
+                    Bezier => {
+                        println!("bezier:{:?}", seg.points());
+                    }
+                    Line => {}
+                }
+            }
+        }
         Ok(())
     }
 }

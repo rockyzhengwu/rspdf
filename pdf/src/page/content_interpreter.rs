@@ -76,7 +76,7 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
         self.state_stack.push(state);
 
         while let Ok(op) = self.parser.parse_operation() {
-            debug!("{:?}", op);
+            // debug!("{:?}", op);
             self.invoke_operation(op)?;
         }
         self.device.borrow_mut().end_page(&self.page.number);
@@ -442,7 +442,6 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
     fn set_text_character_spacing(&mut self, operation: Operation) -> PDFResult<()> {
         // TODO error
         let char_spacing = operation.operand(0)?.as_f64()?;
-        println!("Tc {:?}", char_spacing);
         let state = self.last_mut_state();
         state.set_char_spacing(char_spacing);
         Ok(())

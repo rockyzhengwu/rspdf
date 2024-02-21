@@ -21,14 +21,14 @@ impl Segment for Bezier {
             self.points[2].y()
         )
     }
+    
+    fn points(&self) -> Vec<Point> {
+        self.points.clone()
+    }
 }
 
 impl Bezier {
     pub fn new(points: Vec<Point>) -> Self {
         Bezier { points }
-    }
-
-    pub fn points(&self) -> &[Point] {
-        self.points.as_slice()
     }
 }
