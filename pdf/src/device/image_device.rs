@@ -5,7 +5,6 @@ use log::warn;
 
 use crate::device::Device;
 use crate::errors::PDFResult;
-use crate::geom::bezier::Bezier;
 use crate::geom::matrix::Matrix;
 use crate::geom::path::Path;
 use crate::geom::rectangle::Rectangle;

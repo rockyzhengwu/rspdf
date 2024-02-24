@@ -2,7 +2,7 @@ use std::io::{Read, Seek};
 
 use crate::document::Document;
 use crate::errors::PDFResult;
-use crate::object::{PDFDictionary, PDFName};
+use crate::object::PDFDictionary;
 use crate::pagetree::{PageNodeRef, PageTree};
 
 #[derive(Default, Debug)]

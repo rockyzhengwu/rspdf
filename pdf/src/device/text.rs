@@ -100,7 +100,7 @@ impl Device for TextDevice {
 
     fn start_text(&mut self) {}
 
-    fn show_text(&mut self, textobj: &Text) -> PDFResult<()> {
+    fn show_text(&mut self, _textobj: &Text) -> PDFResult<()> {
         Ok(())
     }
 

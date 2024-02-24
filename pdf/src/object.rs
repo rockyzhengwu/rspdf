@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 use crate::errors::{PDFError, PDFResult};
-use crate::filter::asciihex_decode::{self, ASCIIHexDecode};
+use crate::filter::asciihex_decode::ASCIIHexDecode;
 use crate::filter::{new_filter, Filter};
 
 #[derive(Clone, Debug)]

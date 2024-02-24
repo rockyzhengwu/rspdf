@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::io::Write;
 use std::io::{Read, Seek};
 use std::u32;
 

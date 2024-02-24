@@ -8,8 +8,7 @@ use crate::object::{
     PDFDictionary, PDFIndirect, PDFName, PDFNumber, PDFObject, PDFStream, PDFString,
 };
 use crate::parser::character_set::{
-    buf_to_number, buf_to_real, hex_to_u8, is_delimiter, is_end_of_line, is_number, is_regular,
-    is_whitespace, is_xdigit,
+    buf_to_number, buf_to_real, is_delimiter, is_end_of_line, is_number, is_regular, is_whitespace,
 };
 
 enum StringStatus {
