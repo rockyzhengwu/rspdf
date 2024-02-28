@@ -12,14 +12,19 @@ use crate::object::{PDFDictionary, PDFObject, PDFStream};
 use crate::page::content_interpreter::ContentInterpreter;
 use crate::pagetree::PageNodeRef;
 
+pub mod color;
+pub mod color_space;
 pub mod content_interpreter;
 pub mod content_parser;
 pub mod context;
+pub mod general_state;
+pub mod path_state;
 pub mod graphics_state;
 pub mod image;
 pub mod operation;
 pub mod page_object;
 pub mod text;
+pub mod text_state;
 
 #[derive(Debug)]
 pub struct Page<'a, T: Seek + Read> {

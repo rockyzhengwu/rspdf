@@ -26,7 +26,7 @@ pub struct ContentInterpreter<'a, T: Seek + Read, D: Device> {
     parser: ContentParser,
     state_stack: Vec<GraphicsState>,
     resource_stack: Vec<PDFObject>,
-
+    cur_state: GraphicsState,
     current_path: Path,
     text_matrix: Matrix,
     text_line_matrix: Matrix,
@@ -56,6 +56,7 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
             parser,
             state_stack: Vec::new(),
             resource_stack: Vec::new(),
+            cur_state: GraphicsState::default(),
             current_path: Path::default(),
             text_matrix: Matrix::default(),
             text_line_matrix: Matrix::default(),
@@ -289,50 +290,53 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
     }
 
     // d
-    fn set_line_dash_pattern(&mut self, _operation: Operation) -> PDFResult<()> {
-        //let pattern = operation.operands.get(0).unwrap();
-        //self.last_mut_state().set_line_dash_pattern(pattern);
+    fn set_line_dash_pattern(&mut self, operation: Operation) -> PDFResult<()> {
+        let pattern = operation.operand(0)?.as_array()?;
+        let mut dash = Vec::new();
+        for v in pattern {
+            dash.push(v.as_f64()?);
+        }
+        self.cur_state.path_state.set_dash_array(dash);
         Ok(())
     }
 
     // M
     fn set_miter_limit(&mut self, operation: Operation) -> PDFResult<()> {
         let limit = operation.operand(0)?;
-        self.last_mut_state().set_line_miter_limit(limit.as_i64()?);
+        self.cur_state.path_state.set_miter_limit(limit.as_f64()?);
         Ok(())
     }
 
     // w
     fn set_line_width(&mut self, operation: Operation) -> PDFResult<()> {
         let w = operation.operand(0)?;
-        self.last_mut_state().set_line_width(w.as_f64()?);
+        self.cur_state.path_state.set_line_width(w.as_f64()?);
         Ok(())
     }
 
     // J
     fn set_line_cap(&mut self, operation: Operation) -> PDFResult<()> {
         let w = operation.operand(0)?;
-        self.last_mut_state().set_line_cap_style(w.as_i64()?);
+        self.cur_state.path_state.set_line_cap(w.as_i64()?);
         Ok(())
     }
 
     // j
     fn set_line_join(&mut self, operation: Operation) -> PDFResult<()> {
         let j = operation.operand(0)?;
-        self.last_mut_state().set_line_join(j.as_i64()?);
+        self.cur_state.path_state.set_line_join(j.as_i64()?);
         Ok(())
     }
 
-    fn last_mut_state(&mut self) -> &mut GraphicsState {
-        self.state_stack.last_mut().unwrap()
-    }
     fn last_state(&self) -> &GraphicsState {
         self.state_stack.last().unwrap()
     }
 
     fn display_string(&mut self, content: &PDFObject) -> PDFResult<()> {
         let state = self.last_state();
-        let fontname = state.font();
+        let fontname = &state.text_state.font;
+        let font_size = state.text_state.font_size;
+        let char_space = state.text_state.char_space;
         let font = self.page.get_font(fontname)?;
         match content {
             PDFObject::String(s) => {
@@ -341,8 +345,7 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
                 let mut texts = Vec::new();
                 let mut text_matrix = self.text_matrix.clone();
                 for ch in chars {
-                    let width =
-                        font.get_width(ch.cid()) * 0.001 * state.font_size() + state.char_spacing();
+                    let width = font.get_width(ch.cid()) * 0.001 * font_size + char_space;
                     let text_item = TextItem::new(
                         text_matrix.clone(),
                         ch.unicode().to_owned(),
@@ -352,7 +355,7 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
                     text_matrix = mat.mutiply(&text_matrix);
                     texts.push(text_item);
                 }
-                let textobj = Text::new(texts, &font, state.font_size(), state.ctm().clone());
+                let textobj = Text::new(texts, &font, font_size, state.ctm().clone());
                 self.device.borrow_mut().show_text(&textobj)?;
                 self.text_matrix = text_matrix;
                 Ok(())
@@ -366,14 +369,13 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
 
     // q
     fn push_graph_state(&mut self) -> PDFResult<()> {
-        let last = self.state_stack.last().unwrap().clone();
-        self.state_stack.push(last);
+        self.state_stack.push(self.cur_state.clone());
         Ok(())
     }
 
     // Q
     fn pop_graph_state(&mut self) -> PDFResult<()> {
-        self.state_stack.pop();
+        self.cur_state = self.state_stack.pop().unwrap();
         Ok(())
     }
 
@@ -385,7 +387,7 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
         let d = operation.operand(3)?.as_f64()?;
         let e = operation.operand(4)?.as_f64()?;
         let f = operation.operand(5)?.as_f64()?;
-        self.last_mut_state()
+        self.cur_state
             .update_ctm_matrix(&Matrix::new(a, b, c, d, e, f));
         Ok(())
     }
@@ -442,29 +444,27 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
     fn set_text_character_spacing(&mut self, operation: Operation) -> PDFResult<()> {
         // TODO error
         let char_spacing = operation.operand(0)?.as_f64()?;
-        let state = self.last_mut_state();
-        state.set_char_spacing(char_spacing);
+        self.cur_state.text_state.set_char_space(char_spacing);
         Ok(())
     }
 
     // Tw
     fn set_text_word_spacing(&mut self, operation: Operation) -> PDFResult<()> {
-        // TODO error
         let word_spacing = operation.operand(0)?.as_f64()?;
-        self.last_mut_state().set_word_spacing(word_spacing);
+        self.cur_state.text_state.set_word_space(word_spacing);
         Ok(())
     }
 
     // Tz
     fn set_text_horizal_scaling(&mut self, operation: Operation) -> PDFResult<()> {
         let scale = operation.operand(0)?.as_f64()?;
-        self.last_mut_state().set_hscaling(scale);
+        self.cur_state.text_state.set_text_horz_scale(scale);
         Ok(())
     }
     // TL
     fn set_text_leading(&mut self, operation: Operation) -> PDFResult<()> {
         let leading = operation.operand(0)?.as_f64()?;
-        self.last_mut_state().set_text_leading(leading);
+        self.cur_state.text_state.set_text_leading(leading);
         Ok(())
     }
 
@@ -473,22 +473,22 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
         //TODO
         let fontname = operation.operand(0)?.as_string()?;
         let size = operation.operand(1)?.as_i64()? as f64;
-        self.last_mut_state().set_font(fontname, size);
+        self.cur_state.text_state.set_font(&fontname);
+        self.cur_state.text_state.set_font_size(size);
         Ok(())
     }
 
     // Tr
     fn set_text_reander_mode(&mut self, operation: Operation) -> PDFResult<()> {
-        let render = operation.operand(0)?.as_i64()?;
-        let state = self.state_stack.last_mut().unwrap();
-        state.set_rendering_indent(render);
+        let mode = operation.operand(0)?.as_i64()?;
+        self.cur_state.text_state.set_render_mode(mode);
         Ok(())
     }
 
     // Ts
     fn set_text_rise_mode(&mut self, operation: Operation) -> PDFResult<()> {
         let rise = operation.operand(0)?.as_f64()?;
-        self.last_mut_state().set_text_rise(rise);
+        self.cur_state.text_state.set_text_rise(rise);
         Ok(())
     }
 
@@ -528,7 +528,7 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
 
     // T*
     fn text_set_move_next_line(&mut self) -> PDFResult<()> {
-        let leading = self.last_mut_state().text_leading();
+        let leading = self.cur_state.text_state.text_leading();
         let op = Operation::new(
             "Td".to_string(),
             vec![
@@ -579,11 +579,11 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
                     self.display_string(operand)?;
                 }
                 PDFObject::Number(v) => {
-                    let state = self.last_mut_state();
-                    let adjust_by = -1.0 * v.as_f64() * 0.001 * state.font_size();
+                    let adjust_by =
+                        -1.0 * v.as_f64() * 0.001 * self.cur_state.text_state.font_size();
                     // TODO when hscaling setted adjust
-                    if state.hscaling() > 0.0 {
-                        warn!("hscaling {:?}", state.hscaling());
+                    if self.cur_state.text_state.text_horz_scale() > 0.0 {
+                        warn!("hscaling {:?}", self.cur_state.text_state.text_horz_scale());
                     }
                     let mat = Matrix::new_translation_matrix(adjust_by, 0.0);
 

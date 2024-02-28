@@ -27,7 +27,7 @@ impl Operation {
 }
 
 // PDF 32000-1:2008 Table 51 – Operator Categories
-const PDF_CONTENT_COMMANDS: [&'static str; 73] = [
+const PDF_CONTENT_COMMANDS: [&str; 73] = [
     "w", "J", "j", "M", "d", "i", "ri", "gs", // General graphics state
     "q", "Q", "cm", // Special graphics state
     "m", "l", "c", "v", "re", "y", "h", // Path construction
