@@ -18,11 +18,11 @@ pub mod content_interpreter;
 pub mod content_parser;
 pub mod context;
 pub mod general_state;
-pub mod path_state;
 pub mod graphics_state;
 pub mod image;
 pub mod operation;
 pub mod page_object;
+pub mod path_state;
 pub mod text;
 pub mod text_state;
 

@@ -328,16 +328,8 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
         Ok(())
     }
 
-    fn last_state(&self) -> &GraphicsState {
-        self.state_stack.last().unwrap()
-    }
-
     fn display_string(&mut self, content: &PDFObject) -> PDFResult<()> {
-        let state = self.last_state();
-        let fontname = &state.text_state.font;
-        let font_size = state.text_state.font_size;
-        let char_space = state.text_state.char_space;
-        let font = self.page.get_font(fontname)?;
+        let font = self.page.get_font(self.cur_state.text_state.font())?;
         match content {
             PDFObject::String(s) => {
                 let bytes = s.binary_bytes()?;
@@ -345,7 +337,9 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
                 let mut texts = Vec::new();
                 let mut text_matrix = self.text_matrix.clone();
                 for ch in chars {
-                    let width = font.get_width(ch.cid()) * 0.001 * font_size + char_space;
+                    let width =
+                        font.get_width(ch.cid()) * 0.001 * self.cur_state.text_state.font_size
+                            + self.cur_state.text_state.char_space;
                     let text_item = TextItem::new(
                         text_matrix.clone(),
                         ch.unicode().to_owned(),
@@ -355,7 +349,12 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
                     text_matrix = mat.mutiply(&text_matrix);
                     texts.push(text_item);
                 }
-                let textobj = Text::new(texts, &font, font_size, state.ctm().clone());
+                let textobj = Text::new(
+                    texts,
+                    &font,
+                    self.cur_state.text_state.font_size(),
+                    self.cur_state.ctm().clone(),
+                );
                 self.device.borrow_mut().show_text(&textobj)?;
                 self.text_matrix = text_matrix;
                 Ok(())
