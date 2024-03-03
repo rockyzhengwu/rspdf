@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{Read, Seek};
-use std::rc::Rc;
 
 use crate::catalog::Catalog;
 use crate::errors::{PDFError, PDFResult};
@@ -16,7 +15,7 @@ pub struct Document<T: Seek + Read> {
     parser: RefCell<DocumentParser<T>>,
     root: PDFDictionary,
     catalog: Catalog,
-    fonts: RefCell<HashMap<String, Rc<Font>>>,
+    fonts: RefCell<HashMap<String, Font>>,
 }
 
 impl<T: Seek + Read> Document<T> {
@@ -38,11 +37,11 @@ impl<T: Seek + Read> Document<T> {
         unimplemented!()
     }
 
-    pub fn get_font(&self, name: &str) -> Option<Rc<Font>> {
+    pub fn get_font(&self, name: &str) -> Option<Font> {
         self.fonts.borrow().get(name).cloned()
     }
 
-    pub fn add_font(&self, name: &str, font: Rc<Font>) {
+    pub fn add_font(&self, name: &str, font: Font) {
         self.fonts.borrow_mut().insert(name.to_string(), font);
     }
 
@@ -63,6 +62,12 @@ impl<T: Seek + Read> Document<T> {
                 "need a indirect in read_indirect:{:?}",
                 indirect
             ))),
+        }
+    }
+    pub fn get_object_without_indriect(&self, obj: &PDFObject) -> PDFResult<PDFObject> {
+        match obj {
+            PDFObject::Indirect(_) => self.read_indirect(obj),
+            _ => Ok(obj.to_owned()),
         }
     }
 

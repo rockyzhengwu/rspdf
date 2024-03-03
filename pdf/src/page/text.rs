@@ -1,71 +1,65 @@
 use crate::font::Font;
 use crate::geom::matrix::Matrix;
-use crate::geom::rectangle::Rectangle;
+use crate::page::graphics_state::GraphicsState;
 
 #[derive(Debug)]
-pub struct TextItem {
-    tm: Matrix,
-    unicode: char,
-    code: u32,
+pub struct TextOpItem {
+    bytes: Vec<u8>,
+    pos: Option<f64>,
 }
-
-impl TextItem {
-    pub fn new(tm: Matrix, unicode: char, code: u32) -> Self {
-        TextItem { tm, unicode, code }
-    }
-
-    pub fn bbox(&self) -> Rectangle {
-        let lx = self.tm.v31;
-        let ly = self.tm.v32;
-        // TODO calc ux, uy
-        Rectangle::new(lx, ly, 0.0, 0.0)
-    }
-
-    pub fn unicode(&self) -> &char {
-        &self.unicode
-    }
-
-    pub fn code(&self) -> &u32 {
-        &self.code
-    }
-    pub fn tm(&self) -> &Matrix {
-        &self.tm
+impl TextOpItem {
+    pub fn new(bytes: Vec<u8>, pos: Option<f64>) -> Self {
+        TextOpItem { bytes, pos }
     }
 }
 
 #[derive(Debug)]
 #[allow(dead_code)]
-pub struct Text<'a> {
-    bbox: Rectangle,
-    items: Vec<TextItem>,
-    font: &'a Font,
-    font_size: f64,
-    ctm: Matrix,
+pub struct Text {
+    content: Vec<TextOpItem>,
+    graphics_state: GraphicsState,
+    char_codecs: Vec<u32>,
 }
 
-impl<'a> Text<'a> {
-    pub fn new(items: Vec<TextItem>, font: &'a Font, font_size: f64, ctm: Matrix) -> Self {
+impl Text {
+    pub fn new(content: Vec<TextOpItem>, graphics_state: GraphicsState) -> Self {
+        let mut char_codecs = Vec::new();
+        for con in content.iter() {
+            let char_infos = graphics_state
+                .text_state
+                .font()
+                .decode_charcodes(&con.bytes);
+            for char in char_infos {
+                char_codecs.push(char.cid().to_owned());
+            }
+        }
         Text {
-            bbox: Rectangle::default(),
-            items,
-            font,
-            font_size,
-            ctm,
+            content,
+            graphics_state,
+            char_codecs,
         }
     }
 
-    pub fn items(&self) -> &[TextItem] {
-        &self.items
-    }
-
     pub fn font(&self) -> &Font {
-        self.font
+        self.graphics_state.text_state.font()
     }
 
-    pub fn font_size(&self) -> &f64 {
-        &self.font_size
+    pub fn font_size(&self) -> f64 {
+        self.graphics_state.text_state.font_size()
     }
+
     pub fn ctm(&self) -> &Matrix {
-        &self.ctm
+        self.graphics_state.ctm()
+    }
+
+    pub fn get_text_matrix(&self) -> Matrix {
+        let mut matrix = self.graphics_state.text_state.text_matrix().to_owned();
+        for charcode in self.char_codecs.iter() {
+            let width = self.graphics_state.text_state.font().get_width(charcode);
+            let mat = Matrix::new_translation_matrix(width, 0.0);
+            matrix = mat.mutiply(&matrix);
+            // TODO vertical
+        }
+        matrix
     }
 }

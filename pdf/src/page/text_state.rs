@@ -1,3 +1,6 @@
+use crate::font::Font;
+use crate::geom::matrix::Matrix;
+
 #[derive(Debug, Clone, Default)]
 pub enum TextRenderingMode {
     #[default]
@@ -17,10 +20,12 @@ pub struct TextState {
     pub char_space: f64,
     pub word_space: f64,
     pub render_mode: TextRenderingMode,
-    pub font: String,
+    pub font: Font,
     pub text_rise: f64,
     pub text_horz_scale: f64,
     pub text_leading: f64,
+    text_matrix: Matrix,
+    text_line_matrix: Matrix,
 }
 
 impl TextState {
@@ -31,11 +36,12 @@ impl TextState {
         self.font_size
     }
 
-    pub fn set_font(&mut self, font_name: &str) {
-        self.font = font_name.to_string()
+    pub fn set_font(&mut self, font: Font) {
+        self.font = font;
     }
-    pub fn font(&mut self) -> &str {
-        self.font.as_str()
+
+    pub fn font(&self) -> &Font {
+        &self.font
     }
 
     pub fn set_char_space(&mut self, char_space: f64) {
@@ -89,5 +95,21 @@ impl TextState {
 
     pub fn text_leading(&self) -> f64 {
         self.text_leading
+    }
+
+    pub fn text_matrix(&self) -> &Matrix {
+        &self.text_matrix
+    }
+
+    pub fn text_line_matrix(&self) -> &Matrix {
+        &self.text_line_matrix
+    }
+
+    pub fn set_text_matrix(&mut self, matrix: Matrix) {
+        self.text_matrix = matrix;
+    }
+
+    pub fn set_text_line_matrix(&mut self, matrix: Matrix) {
+        self.text_line_matrix = matrix;
     }
 }

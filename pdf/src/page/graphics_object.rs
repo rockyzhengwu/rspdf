@@ -2,8 +2,9 @@ use crate::geom::path::Path;
 use crate::page::image::Image;
 use crate::page::text::Text;
 
-pub enum PageObject<'a> {
+#[derive(Debug)]
+pub enum GraphicsObject {
     Path(Path),
-    Text(Text<'a>),
+    Text(Text),
     Image(Image),
 }

@@ -18,10 +18,11 @@ pub mod content_interpreter;
 pub mod content_parser;
 pub mod context;
 pub mod general_state;
+pub mod graphics_object;
 pub mod graphics_state;
 pub mod image;
+pub mod object_iterator;
 pub mod operation;
-pub mod page_object;
 pub mod path_state;
 pub mod text;
 pub mod text_state;
@@ -50,23 +51,16 @@ impl<'a, T: Seek + Read> Page<'a, T> {
         })
     }
 
-    pub fn get_font(&self, tag: &str) -> PDFResult<Rc<Font>> {
+    pub fn get_font(&self, tag: &str) -> PDFResult<Font> {
         if let Some(font) = self.doc.get_font(tag) {
             return Ok(font);
         }
         if let Some(fd) = self.resources.get("Font") {
-            let fontinfo = match fd {
-                PDFObject::Indirect(_) => {
-                    let font_dict: PDFDictionary = self.doc.read_indirect(fd)?.try_into()?;
-                    font_dict
-                }
-                PDFObject::Dictionary(font_dict) => font_dict.to_owned(),
-                _ => HashMap::new(),
-            };
+            let fontinfo: PDFDictionary = self.doc.get_object_without_indriect(fd)?.try_into()?;
             match fontinfo.get(tag) {
                 Some(vv) => {
                     let fontobj = self.doc.read_indirect(vv)?;
-                    let font = Rc::new(create_font(tag, &fontobj, self.doc)?);
+                    let font = create_font(tag, &fontobj, self.doc)?;
                     self.doc.add_font(tag, font.clone());
                     return Ok(font);
                 }
@@ -85,9 +79,13 @@ impl<'a, T: Seek + Read> Page<'a, T> {
         )))
     }
 
-    pub fn display<D: Device>(&self, device: Rc<RefCell<D>>) -> PDFResult<()> {
-        let mut interpreter = ContentInterpreter::try_new(self, self.doc, device)?;
-        interpreter.run()?;
+    pub fn display<D: Device>(&self, _device: Rc<RefCell<D>>) -> PDFResult<()> {
+        let mut interpreter = ContentInterpreter::try_new(self, self.doc)?;
+        interpreter.start()?;
+        while let Some(_obj) = interpreter.poll()? {
+            // TODO
+            // println!("obj:{:?}", obj);
+        }
         Ok(())
     }
 

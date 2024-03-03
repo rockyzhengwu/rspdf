@@ -86,25 +86,25 @@ impl Device for ImageDevice {
         let ctm = textobj.ctm().mutiply(&self.ctm);
         let font = textobj.font();
         let font_size = textobj.font_size();
-        for item in textobj.items() {
-            let scale = (ctm.v11 * font_size * item.tm().v11) as u32;
-            let code = item.code();
-            let bbox = item.bbox();
-            let lx = bbox.lx();
-            let ly = bbox.ly();
+        //for item in textobj.items() {
+        //    let scale = (ctm.v11 * font_size * item.tm().v11) as u32;
+        //    let code = item.code();
+        //    let bbox = item.bbox();
+        //    let lx = bbox.lx();
+        //    let ly = bbox.ly();
 
-            let x = lx * ctm.v11 + ly * ctm.v21 + ctm.v31;
-            let y = lx * ctm.v12 + ly * ctm.v22 + ctm.v32;
+        //    let x = lx * ctm.v11 + ly * ctm.v21 + ctm.v31;
+        //    let y = lx * ctm.v12 + ly * ctm.v22 + ctm.v32;
 
-            if let Some(glyph) = font.get_glyph(code, &scale) {
-                let bitmap = glyph.bitmap();
-                let y = y - glyph.bitmap_top() as f64;
-                let x = x + glyph.bitmap_left() as f64;
-                self.draw_char(x as u32, y as u32, &bitmap)
-            } else {
-                warn!("{:?},didn't found glyph", item)
-            }
-        }
+        //    if let Some(glyph) = font.get_glyph(code, &scale) {
+        //        let bitmap = glyph.bitmap();
+        //        let y = y - glyph.bitmap_top() as f64;
+        //        let x = x + glyph.bitmap_left() as f64;
+        //        self.draw_char(x as u32, y as u32, &bitmap)
+        //    } else {
+        //        warn!("{:?},didn't found glyph", item)
+        //    }
+        //}
         Ok(())
     }
 

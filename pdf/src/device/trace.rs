@@ -51,17 +51,17 @@ impl Device for TraceDevice {
     }
 
     fn show_text(&mut self, textobj: &Text) -> PDFResult<()> {
-        for item in textobj.items() {
-            self.xml.push_str(
-                format!(
-                    "<text_item lx=\"{}\" ly=\"{}\">{}</text_item>\n",
-                    item.bbox().lx(),
-                    item.bbox().ly(),
-                    item.unicode(),
-                )
-                .as_str(),
-            )
-        }
+        //for item in textobj.items() {
+        //    self.xml.push_str(
+        //        format!(
+        //            "<text_item lx=\"{}\" ly=\"{}\">{}</text_item>\n",
+        //            item.bbox().lx(),
+        //            item.bbox().ly(),
+        //            item.unicode(),
+        //        )
+        //        .as_str(),
+        //    )
+        //}
         Ok(())
     }
     fn end_text(&mut self) {

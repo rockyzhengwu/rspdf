@@ -1,45 +1,33 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::io::{Read, Seek};
-use std::rc::Rc;
 
 use log::{debug, warn};
 
-use crate::device::Device;
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
-use crate::font::Font;
 use crate::geom::matrix::Matrix;
 use crate::geom::path::Path;
 use crate::geom::point::Point;
 use crate::geom::rectangle::Rectangle;
 use crate::object::{PDFNumber, PDFObject};
 use crate::page::content_parser::ContentParser;
+use crate::page::graphics_object::GraphicsObject;
 use crate::page::graphics_state::GraphicsState;
 use crate::page::operation::Operation;
-use crate::page::text::{Text, TextItem};
+use crate::page::text::{Text, TextOpItem};
 use crate::page::Page;
 
-pub struct ContentInterpreter<'a, T: Seek + Read, D: Device> {
+pub struct ContentInterpreter<'a, T: Seek + Read> {
     doc: &'a Document<T>,
     page: &'a Page<'a, T>,
     parser: ContentParser,
     state_stack: Vec<GraphicsState>,
-    resource_stack: Vec<PDFObject>,
     cur_state: GraphicsState,
+    resource: Option<PDFObject>,
     current_path: Path,
-    text_matrix: Matrix,
-    text_line_matrix: Matrix,
-    font_cache: HashMap<String, Font>,
-    device: Rc<RefCell<D>>,
 }
 
-impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
-    pub fn try_new(
-        page: &'a Page<'_, T>,
-        doc: &'a Document<T>,
-        device: Rc<RefCell<D>>,
-    ) -> PDFResult<Self> {
+impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
+    pub fn try_new(page: &'a Page<'_, T>, doc: &'a Document<T>) -> PDFResult<Self> {
         let contents = page.contents()?;
         let mut buffers = Vec::new();
         for content in contents {
@@ -55,36 +43,33 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
             doc,
             parser,
             state_stack: Vec::new(),
-            resource_stack: Vec::new(),
+            resource: None,
             cur_state: GraphicsState::default(),
             current_path: Path::default(),
-            text_matrix: Matrix::default(),
-            text_line_matrix: Matrix::default(),
-            font_cache: HashMap::new(),
-            device,
         })
     }
-
-    pub fn run(&mut self) -> PDFResult<()> {
+    pub fn start(&mut self) -> PDFResult<()> {
         let media = self.page.media_bbox()?;
         let crop = self.page.crop_bbox()?;
-        self.device
-            .borrow_mut()
-            .begain_page(&self.page.number, media, crop);
+        // TODO set clip path
         let resource = self.page.resources()?;
         let state = GraphicsState::default();
-        self.resource_stack.push(resource);
+        self.resource = Some(resource);
         self.state_stack.push(state);
-
-        while let Ok(op) = self.parser.parse_operation() {
-            // debug!("{:?}", op);
-            self.invoke_operation(op)?;
-        }
-        self.device.borrow_mut().end_page(&self.page.number);
         Ok(())
     }
 
-    fn invoke_operation(&mut self, operation: Operation) -> PDFResult<()> {
+    pub fn poll(&mut self) -> PDFResult<Option<GraphicsObject>> {
+        while let Ok(op) = self.parser.parse_operation() {
+            let res = self.invoke_operation(op)?;
+            if let Some(obj) = res {
+                return Ok(Some(obj));
+            }
+        }
+        Ok(None)
+    }
+
+    fn invoke_operation(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let op = operation.name();
         match op {
             // default
@@ -136,101 +121,128 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
             "RG" => self.set_rgb_stroke(operation),
             "k" => self.set_cmyk_fill(operation),
             "K" => self.set_cmyk_stroke(operation),
-            "cs" => self.set_color_space(operation),
-            "CS" => self.set_color_space_fill(operation),
+            "cs" => self.set_color_space_fill(operation),
+            "CS" => self.set_color_space_stroke(operation),
             "sc" | "scn" => self.set_color_fill(operation),
             "SC" | "SCN" => self.set_color_stroke(operation),
-            "gs" => self.set_graphstate_resource(operation),
+            "gs" => self.set_extend_graphic_state(operation),
             // Image
             "EI" => self.end_image(operation),
-
-            _ => Ok(()),
+            _ => Ok(None),
         }
     }
 
-    // EI
-    fn end_image(&mut self, operation: Operation) -> PDFResult<()> {
-        println!("inline image {:?}", operation);
-        Ok(())
+    fn find_resource(&self, key: &str, name: &str) -> PDFResult<Option<PDFObject>> {
+        if let Some(resource) = self.resource.as_ref() {
+            if let Some(entry) = resource.get_value(key) {
+                let container = self.doc.get_object_without_indriect(entry)?;
+                let result = container.get_value(name);
+                if let Some(v) = result {
+                    let vv = self.doc.get_object_without_indriect(v)?;
+                    return Ok(Some(vv));
+                }
+            }
+        }
+        Ok(None)
     }
 
-    // scn
-    fn set_graphstate_resource(&mut self, _operation: Operation) -> PDFResult<()> {
-        Ok(())
+    // EI
+    fn end_image(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        println!("inline image {:?}", operation);
+        Ok(None)
     }
+
+    // gs
+    fn set_extend_graphic_state(
+        &mut self,
+        operation: Operation,
+    ) -> PDFResult<Option<GraphicsObject>> {
+        let name = operation.operand(0)?.as_string()?;
+        let _ext_state = self.find_resource("ExtGState", name.as_str())?;
+        // TODO update graphics state
+        Ok(None)
+    }
+
     // SC
-    fn set_color_stroke(&mut self, _operation: Operation) -> PDFResult<()> {
-        Ok(())
+    fn set_color_stroke(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        Ok(None)
     }
     // sc
-    fn set_color_fill(&mut self, _operation: Operation) -> PDFResult<()> {
-        Ok(())
+    fn set_color_fill(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        Ok(None)
     }
 
     // CS
-    fn set_color_space_fill(&mut self, _operation: Operation) -> PDFResult<()> {
-        Ok(())
+    fn set_color_space_stroke(
+        &mut self,
+        _operation: Operation,
+    ) -> PDFResult<Option<GraphicsObject>> {
+        Ok(None)
     }
+
     // cs
-    fn set_color_space(&mut self, _operation: Operation) -> PDFResult<()> {
-        Ok(())
+    fn set_color_space_fill(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        let ope = operation.operand(0)?.as_string()?;
+        let _color_space = self.find_resource("ColorSpace", &ope)?;
+        Ok(None)
     }
     // K
-    fn set_cmyk_stroke(&mut self, _operation: Operation) -> PDFResult<()> {
-        Ok(())
+    fn set_cmyk_stroke(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        Ok(None)
     }
     // k
-    fn set_cmyk_fill(&mut self, _operation: Operation) -> PDFResult<()> {
-        Ok(())
+    fn set_cmyk_fill(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        Ok(None)
     }
     //RG
-    fn set_rgb_stroke(&mut self, _operation: Operation) -> PDFResult<()> {
-        Ok(())
+    fn set_rgb_stroke(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        Ok(None)
     }
     // rg
-    fn set_rgb_fill(&mut self, _operation: Operation) -> PDFResult<()> {
-        //pass
-        Ok(())
+    fn set_rgb_fill(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        Ok(None)
     }
     // G
-    fn set_gray_stroke(&mut self, _operation: Operation) -> PDFResult<()> {
+    fn set_gray_stroke(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         //pass
-        Ok(())
+        Ok(None)
     }
     // g
-    fn set_gray_fill(&mut self, _operation: Operation) -> PDFResult<()> {
-        Ok(())
+    fn set_gray_fill(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        Ok(None)
     }
 
     // S
-    fn paint_path(&mut self, _operation: Operation) -> PDFResult<()> {
+    fn paint_path(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         // TODO implement paint path
         // let state = self.last_mut_state().clone();
         // self.current_path.close_last_subpath();
         let mut path = std::mem::take(&mut self.current_path);
         path.close_last_subpath();
-        self.device.borrow_mut().paint_path(&path)?;
-        Ok(())
+        // self.device.borrow_mut().paint_path(&path)?;
+        Ok(None)
     }
 
     // re
-    fn reanctle(&mut self, operation: Operation) -> PDFResult<()> {
+    fn reanctle(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let lx = operation.operand(0)?.as_f64()?;
         let ly = operation.operand(1)?.as_f64()?;
         let ux = operation.operand(2)?.as_f64()?;
         let uy = operation.operand(3)?.as_f64()?;
         self.current_path.rectangle(Rectangle::new(lx, ly, ux, uy));
-
-        Ok(())
+        Ok(None)
     }
 
     // h
-    fn close_sub_path(&mut self, _operation: Operation) -> PDFResult<()> {
-        Ok(())
+    fn close_sub_path(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        Ok(None)
     }
 
     // y
-    fn curve_fourh_point_duplicate(&mut self, operation: Operation) -> PDFResult<()> {
+    fn curve_fourh_point_duplicate(
+        &mut self,
+        operation: Operation,
+    ) -> PDFResult<Option<GraphicsObject>> {
         let x1 = operation.operand(0)?.as_f64()?;
         let y1 = operation.operand(0)?.as_f64()?;
         let x3 = operation.operand(0)?.as_f64()?;
@@ -239,11 +251,14 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
         let p1 = Point::new(x1, y1);
         let p3 = Point::new(x3, y3);
         self.current_path.curve_to(vec![p1, p3.clone(), p3.clone()]);
-        Ok(())
+        Ok(None)
     }
 
     // v
-    fn curve_first_point_duplicate(&mut self, operation: Operation) -> PDFResult<()> {
+    fn curve_first_point_duplicate(
+        &mut self,
+        operation: Operation,
+    ) -> PDFResult<Option<GraphicsObject>> {
         let x2 = operation.operand(0)?.as_f64()?;
         let y2 = operation.operand(0)?.as_f64()?;
         let x3 = operation.operand(0)?.as_f64()?;
@@ -252,11 +267,11 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
         let p2 = Point::new(x2, y2);
         let p3 = Point::new(x3, y3);
         self.current_path.curve_to(vec![p2, p3]);
-        Ok(())
+        Ok(None)
     }
 
     // c
-    fn curve(&mut self, operation: Operation) -> PDFResult<()> {
+    fn curve(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let x1 = operation.operand(0)?.as_f64()?;
         let y1 = operation.operand(0)?.as_f64()?;
         let x2 = operation.operand(0)?.as_f64()?;
@@ -268,118 +283,87 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
         let p3 = Point::new(x3, y3);
         self.current_path.curve_to(vec![p1, p2, p3]);
 
-        Ok(())
+        Ok(None)
     }
 
     // l lineto
-    fn line_to(&mut self, operation: Operation) -> PDFResult<()> {
+    fn line_to(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let x = operation.operand(0)?.as_f64()?;
         let y = operation.operand(1)?.as_f64()?;
         let p = Point::new(x, y);
         self.current_path.line_to(p);
-        Ok(())
+        Ok(None)
     }
 
     // m moveto
-    fn move_to(&mut self, operation: Operation) -> PDFResult<()> {
+    fn move_to(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let x = operation.operand(0)?.as_f64()?;
         let y = operation.operand(1)?.as_f64()?;
         let p = Point::new(x, y);
         self.current_path.move_to(p);
-        Ok(())
+        Ok(None)
     }
 
     // d
-    fn set_line_dash_pattern(&mut self, operation: Operation) -> PDFResult<()> {
+    fn set_line_dash_pattern(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let pattern = operation.operand(0)?.as_array()?;
         let mut dash = Vec::new();
         for v in pattern {
             dash.push(v.as_f64()?);
         }
         self.cur_state.path_state.set_dash_array(dash);
-        Ok(())
+        Ok(None)
     }
 
     // M
-    fn set_miter_limit(&mut self, operation: Operation) -> PDFResult<()> {
+    fn set_miter_limit(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let limit = operation.operand(0)?;
         self.cur_state.path_state.set_miter_limit(limit.as_f64()?);
-        Ok(())
+        Ok(None)
     }
 
     // w
-    fn set_line_width(&mut self, operation: Operation) -> PDFResult<()> {
+    fn set_line_width(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let w = operation.operand(0)?;
         self.cur_state.path_state.set_line_width(w.as_f64()?);
-        Ok(())
+        Ok(None)
     }
 
     // J
-    fn set_line_cap(&mut self, operation: Operation) -> PDFResult<()> {
+    fn set_line_cap(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let w = operation.operand(0)?;
         self.cur_state.path_state.set_line_cap(w.as_i64()?);
-        Ok(())
+        Ok(None)
     }
 
     // j
-    fn set_line_join(&mut self, operation: Operation) -> PDFResult<()> {
+    fn set_line_join(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let j = operation.operand(0)?;
         self.cur_state.path_state.set_line_join(j.as_i64()?);
-        Ok(())
-    }
-
-    fn display_string(&mut self, content: &PDFObject) -> PDFResult<()> {
-        let font = self.page.get_font(self.cur_state.text_state.font())?;
-        match content {
-            PDFObject::String(s) => {
-                let bytes = s.binary_bytes()?;
-                let chars = font.decode_charcodes(&bytes);
-                let mut texts = Vec::new();
-                let mut text_matrix = self.text_matrix.clone();
-                for ch in chars {
-                    let width =
-                        font.get_width(ch.cid()) * 0.001 * self.cur_state.text_state.font_size
-                            + self.cur_state.text_state.char_space;
-                    let text_item = TextItem::new(
-                        text_matrix.clone(),
-                        ch.unicode().to_owned(),
-                        ch.cid().to_owned(),
-                    );
-                    let mat = Matrix::new_translation_matrix(width, 0.0);
-                    text_matrix = mat.mutiply(&text_matrix);
-                    texts.push(text_item);
-                }
-                let textobj = Text::new(
-                    texts,
-                    &font,
-                    self.cur_state.text_state.font_size(),
-                    self.cur_state.ctm().clone(),
-                );
-                self.device.borrow_mut().show_text(&textobj)?;
-                self.text_matrix = text_matrix;
-                Ok(())
-            }
-            _ => Err(PDFError::ContentInterpret(format!(
-                "Display content need to be PDFString got:{:?}",
-                content
-            ))),
-        }
+        Ok(None)
     }
 
     // q
-    fn push_graph_state(&mut self) -> PDFResult<()> {
+    fn push_graph_state(&mut self) -> PDFResult<Option<GraphicsObject>> {
         self.state_stack.push(self.cur_state.clone());
-        Ok(())
+        Ok(None)
     }
 
     // Q
-    fn pop_graph_state(&mut self) -> PDFResult<()> {
-        self.cur_state = self.state_stack.pop().unwrap();
-        Ok(())
+    fn pop_graph_state(&mut self) -> PDFResult<Option<GraphicsObject>> {
+        if let Some(state) = self.state_stack.pop() {
+            self.cur_state = state;
+        } else {
+            warn!("State stack is empty!");
+        }
+        Ok(None)
     }
 
     //cm
-    fn modify_current_transform_matrix(&mut self, operation: Operation) -> PDFResult<()> {
+    fn modify_current_transform_matrix(
+        &mut self,
+        operation: Operation,
+    ) -> PDFResult<Option<GraphicsObject>> {
         let a = operation.operand(0)?.as_f64()?;
         let b = operation.operand(1)?.as_f64()?;
         let c = operation.operand(2)?.as_f64()?;
@@ -388,15 +372,15 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
         let f = operation.operand(5)?.as_f64()?;
         self.cur_state
             .update_ctm_matrix(&Matrix::new(a, b, c, d, e, f));
-        Ok(())
+        Ok(None)
     }
 
     // Do
-    fn do_operation(&mut self, operation: Operation) -> PDFResult<()> {
+    fn do_operation(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let xobject_name = operation.operand(0)?.as_string()?;
         let xobject = self
-            .resource_stack
-            .last()
+            .resource
+            .as_ref()
             .unwrap()
             .get_value("XObject")
             .unwrap();
@@ -409,110 +393,129 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
         };
         let obj = xob.get_value(xobject_name.as_str()).unwrap();
         let _obj_stream = self.doc.read_indirect(obj)?;
-        Ok(())
+        Ok(None)
     }
 
     // BMC
-    fn begin_marked_content(&mut self, _operation: Operation) -> PDFResult<()> {
-        Ok(())
+    fn begin_marked_content(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        Ok(None)
     }
     // BDC
-    fn begin_marked_content_dictionary(&mut self, _operation: Operation) -> PDFResult<()> {
-        Ok(())
+    fn begin_marked_content_dictionary(
+        &mut self,
+        _operation: Operation,
+    ) -> PDFResult<Option<GraphicsObject>> {
+        Ok(None)
     }
     // EMC
-    fn end_marked_content(&mut self, _operation: Operation) -> PDFResult<()> {
-        Ok(())
+    fn end_marked_content(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        Ok(None)
     }
 
     // Text operation
     // BT
-    fn begin_text(&mut self) -> PDFResult<()> {
-        self.text_matrix = Matrix::default();
-        self.text_line_matrix = Matrix::default();
-        self.device.borrow_mut().start_text();
-        Ok(())
+    fn begin_text(&mut self) -> PDFResult<Option<GraphicsObject>> {
+        self.cur_state.text_state.set_text_matrix(Matrix::default());
+        self.cur_state
+            .text_state
+            .set_text_line_matrix(Matrix::default());
+        // self.device.borrow_mut().start_text();
+        Ok(None)
     }
     // ET
-    fn end_text(&mut self) -> PDFResult<()> {
-        self.device.borrow_mut().end_text();
-        Ok(())
+    fn end_text(&mut self) -> PDFResult<Option<GraphicsObject>> {
+        // self.device.borrow_mut().end_text();
+        Ok(None)
     }
 
     // Tc
-    fn set_text_character_spacing(&mut self, operation: Operation) -> PDFResult<()> {
-        // TODO error
+    fn set_text_character_spacing(
+        &mut self,
+        operation: Operation,
+    ) -> PDFResult<Option<GraphicsObject>> {
         let char_spacing = operation.operand(0)?.as_f64()?;
         self.cur_state.text_state.set_char_space(char_spacing);
-        Ok(())
+        Ok(None)
     }
 
     // Tw
-    fn set_text_word_spacing(&mut self, operation: Operation) -> PDFResult<()> {
+    fn set_text_word_spacing(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let word_spacing = operation.operand(0)?.as_f64()?;
         self.cur_state.text_state.set_word_space(word_spacing);
-        Ok(())
+        Ok(None)
     }
 
     // Tz
-    fn set_text_horizal_scaling(&mut self, operation: Operation) -> PDFResult<()> {
+    fn set_text_horizal_scaling(
+        &mut self,
+        operation: Operation,
+    ) -> PDFResult<Option<GraphicsObject>> {
         let scale = operation.operand(0)?.as_f64()?;
         self.cur_state.text_state.set_text_horz_scale(scale);
-        Ok(())
+        Ok(None)
     }
     // TL
-    fn set_text_leading(&mut self, operation: Operation) -> PDFResult<()> {
+    fn set_text_leading(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let leading = operation.operand(0)?.as_f64()?;
         self.cur_state.text_state.set_text_leading(leading);
-        Ok(())
+        Ok(None)
     }
 
     // Tf
-    fn set_text_font(&mut self, operation: Operation) -> PDFResult<()> {
+    fn set_text_font(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         //TODO
         let fontname = operation.operand(0)?.as_string()?;
         let size = operation.operand(1)?.as_i64()? as f64;
-        self.cur_state.text_state.set_font(&fontname);
+        let font = self.page.get_font(&fontname)?;
+        self.cur_state.text_state.set_font(font);
         self.cur_state.text_state.set_font_size(size);
-        Ok(())
+        Ok(None)
     }
 
     // Tr
-    fn set_text_reander_mode(&mut self, operation: Operation) -> PDFResult<()> {
+    fn set_text_reander_mode(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let mode = operation.operand(0)?.as_i64()?;
         self.cur_state.text_state.set_render_mode(mode);
-        Ok(())
+        Ok(None)
     }
 
     // Ts
-    fn set_text_rise_mode(&mut self, operation: Operation) -> PDFResult<()> {
+    fn set_text_rise_mode(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let rise = operation.operand(0)?.as_f64()?;
         self.cur_state.text_state.set_text_rise(rise);
-        Ok(())
+        Ok(None)
     }
 
     // Td
-    fn text_move_start_next_line(&mut self, operation: Operation) -> PDFResult<()> {
+    fn text_move_start_next_line(
+        &mut self,
+        operation: Operation,
+    ) -> PDFResult<Option<GraphicsObject>> {
         let x = operation.operand(0)?.as_f64()?;
         let y = operation.operand(1)?.as_f64()?;
         let mat = Matrix::new_translation_matrix(x, y);
-        self.text_matrix = mat.mutiply(&self.text_line_matrix);
-        self.text_line_matrix = self.text_matrix.clone();
-        Ok(())
+        let tm = mat.mutiply(self.cur_state.text_state.text_line_matrix());
+        self.cur_state.text_state.set_text_matrix(tm.clone());
+        self.cur_state.text_state.set_text_line_matrix(tm);
+        Ok(None)
     }
     // TD
-    fn text_move_start_next_line_with_leading(&mut self, operation: Operation) -> PDFResult<()> {
+    fn text_move_start_next_line_with_leading(
+        &mut self,
+        operation: Operation,
+    ) -> PDFResult<Option<GraphicsObject>> {
         let ty = operation.operand(1)?.as_f64()? * -1.0;
         let tlop = Operation::new(
             "TL".to_string(),
             vec![PDFObject::Number(PDFNumber::Real(ty))],
         );
         self.set_text_leading(tlop)?;
-        self.text_move_start_next_line(operation)
+        self.text_move_start_next_line(operation)?;
+        Ok(None)
     }
 
     // Tm
-    fn text_set_text_matrix(&mut self, operation: Operation) -> PDFResult<()> {
+    fn text_set_text_matrix(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let a = operation.operand(0)?.as_f64()?;
         let b = operation.operand(1)?.as_f64()?;
         let c = operation.operand(2)?.as_f64()?;
@@ -520,13 +523,15 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
         let e = operation.operand(4)?.as_f64()?;
         let f = operation.operand(5)?.as_f64()?;
         let matrix = Matrix::new(a, b, c, d, e, f);
-        self.text_line_matrix = matrix.clone();
-        self.text_matrix = matrix;
-        Ok(())
+        self.cur_state
+            .text_state
+            .set_text_line_matrix(matrix.clone());
+        self.cur_state.text_state.set_text_matrix(matrix);
+        Ok(None)
     }
 
     // T*
-    fn text_set_move_next_line(&mut self) -> PDFResult<()> {
+    fn text_set_move_next_line(&mut self) -> PDFResult<Option<GraphicsObject>> {
         let leading = self.cur_state.text_state.text_leading();
         let op = Operation::new(
             "Td".to_string(),
@@ -539,20 +544,30 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
     }
 
     // Tj
-    fn show_text(&mut self, operation: Operation) -> PDFResult<()> {
+    fn show_text(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let content = &operation.operand(0)?;
-        self.display_string(content)?;
-        Ok(())
+        let bytes = content.bytes()?;
+        let text_codes = TextOpItem::new(bytes, None);
+        let obj = Text::new(vec![text_codes], self.cur_state.clone());
+        let matrix = obj.get_text_matrix();
+        self.cur_state.text_state.set_text_matrix(matrix);
+        Ok(Some(GraphicsObject::Text(obj)))
     }
 
     // "'"
-    fn move_next_line_and_show_text(&mut self, operation: Operation) -> PDFResult<()> {
+    fn move_next_line_and_show_text(
+        &mut self,
+        operation: Operation,
+    ) -> PDFResult<Option<GraphicsObject>> {
         self.text_set_move_next_line()?;
         self.show_text(operation)
     }
 
     // "
-    fn move_text_line_and_show_text_with_leading(&mut self, operation: Operation) -> PDFResult<()> {
+    fn move_text_line_and_show_text_with_leading(
+        &mut self,
+        operation: Operation,
+    ) -> PDFResult<Option<GraphicsObject>> {
         let aw = operation.operand(0)?.as_f64()?;
         let ac = operation.operand(1)?.as_f64()?;
         let content = operation.operand(2)?.to_owned();
@@ -569,24 +584,22 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
 
         self.show_text(Operation::new("Tj".to_string(), vec![content]))
     }
+
     // TJ
-    fn show_text_array(&mut self, operation: Operation) -> PDFResult<()> {
+    fn show_text_array(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let params = operation.operand(0)?.as_array()?;
+        let mut pos: Option<f64> = None;
+        let mut contents: Vec<TextOpItem> = Vec::new();
+
         for operand in params {
             match operand {
                 PDFObject::String(_) => {
-                    self.display_string(operand)?;
+                    let item = TextOpItem::new(operand.bytes()?, pos);
+                    contents.push(item);
+                    pos = None;
                 }
                 PDFObject::Number(v) => {
-                    let adjust_by =
-                        -1.0 * v.as_f64() * 0.001 * self.cur_state.text_state.font_size();
-                    // TODO when hscaling setted adjust
-                    if self.cur_state.text_state.text_horz_scale() > 0.0 {
-                        warn!("hscaling {:?}", self.cur_state.text_state.text_horz_scale());
-                    }
-                    let mat = Matrix::new_translation_matrix(adjust_by, 0.0);
-
-                    self.text_matrix = mat.mutiply(&self.text_matrix);
+                    pos = Some(v.as_f64());
                 }
                 _ => {
                     return Err(PDFError::InvalidSyntax(format!(
@@ -596,15 +609,7 @@ impl<'a, T: Seek + Read, D: Device> ContentInterpreter<'a, T, D> {
                 }
             }
         }
-        Ok(())
-    }
-
-    pub fn reset(&mut self) {
-        self.state_stack.clear();
-        self.resource_stack.clear();
-        self.current_path = Path::default();
-        self.text_line_matrix = Matrix::default();
-        self.text_matrix = Matrix::default();
-        self.font_cache = HashMap::new();
+        let text_obj = Text::new(contents, self.cur_state.clone());
+        Ok(Some(GraphicsObject::Text(text_obj)))
     }
 }

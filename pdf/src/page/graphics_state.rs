@@ -1,4 +1,5 @@
 use crate::geom::matrix::Matrix;
+use crate::object::PDFDictionary;
 use crate::page::general_state::GeneralState;
 use crate::page::path_state::PathState;
 use crate::page::text_state::TextState;
@@ -22,7 +23,12 @@ impl GraphicsState {
     pub fn ctm(&self) -> &Matrix {
         &self.ctm
     }
+
     pub fn update_ctm_matrix(&mut self, mat: &Matrix) {
         self.ctm = mat.mutiply(&self.ctm);
+    }
+
+    pub fn process_ext_gs(&mut self, _obj: PDFDictionary) {
+        unimplemented!()
     }
 }

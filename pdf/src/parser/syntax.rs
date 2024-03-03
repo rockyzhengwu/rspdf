@@ -136,9 +136,8 @@ impl<T: Seek + Read> SyntaxParser<T> {
                 ch = self.read_next_char()?;
                 if ch == b'\n' {
                     break;
-                } else {
-                    self.step_back()?;
                 }
+                self.step_back()?;
             }
             ch = self.read_next_char()?;
         }
