@@ -1,5 +1,6 @@
 use crate::font::Font;
 use crate::geom::matrix::Matrix;
+use crate::geom::point::Point;
 use crate::page::graphics_state::GraphicsState;
 
 #[derive(Debug)]
@@ -11,6 +12,11 @@ impl TextOpItem {
     pub fn new(bytes: Vec<u8>, pos: Option<f64>) -> Self {
         TextOpItem { bytes, pos }
     }
+}
+
+pub struct TextItem {
+    charcode: u32,
+    position: Point,
 }
 
 #[derive(Debug)]
@@ -61,5 +67,9 @@ impl Text {
             // TODO vertical
         }
         matrix
+    }
+
+    pub fn char_codecs(&self) -> &[u32] {
+        self.char_codecs.as_slice()
     }
 }

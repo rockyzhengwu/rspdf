@@ -1,11 +1,10 @@
-use std::cell::RefCell;
 use std::io::{Read, Seek};
-use std::rc::Rc;
 
 use clap::Parser;
 
 use log::info;
 use pdf::device::image_device::ImageDevice;
+use pdf::device::Device;
 use pdf::document::Document;
 use pdf::errors::PDFResult;
 
@@ -21,14 +20,14 @@ pub fn command<T: Seek + Read>(
     end: u32,
     cfg: Config,
 ) -> PDFResult<()> {
-    let device = Rc::new(RefCell::new(ImageDevice::new(
-        cfg.resulotion,
-        cfg.resulotion,
-    )));
+    let mut device = ImageDevice::new(cfg.resulotion, cfg.resulotion);
     for p in start..end {
         info!("Process page: {}", p);
         let page = doc.get_page(&p).unwrap();
-        page.display(device.clone()).unwrap();
+        let objects = page.grapics_objects()?;
+        for obj in objects {
+            device.process(&obj)?;
+        }
     }
     Ok(())
 }

@@ -1,6 +1,6 @@
 use crate::geom::point::Point;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct Rectangle {
     lower_left: Point,
     uper_right: Point,

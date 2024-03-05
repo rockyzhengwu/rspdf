@@ -10,6 +10,7 @@ use crate::font::{create_font, Font};
 use crate::geom::rectangle::Rectangle;
 use crate::object::{PDFDictionary, PDFObject, PDFStream};
 use crate::page::content_interpreter::ContentInterpreter;
+use crate::page::object_iterator::ObjectIterator;
 use crate::pagetree::PageNodeRef;
 
 pub mod color;
@@ -77,6 +78,13 @@ impl<'a, T: Seek + Read> Page<'a, T> {
             "get fonts {:?} not exist in resources",
             self.resources
         )))
+    }
+
+    pub fn grapics_objects(&self) -> PDFResult<ObjectIterator<T>> {
+        let mut interpreter = ContentInterpreter::try_new(self, self.doc)?;
+        interpreter.start()?;
+        let iterator = ObjectIterator::new(interpreter);
+        Ok(iterator)
     }
 
     pub fn display<D: Device>(&self, _device: Rc<RefCell<D>>) -> PDFResult<()> {

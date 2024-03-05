@@ -20,6 +20,8 @@ pub(crate) mod encoding;
 pub(crate) mod glyph_name;
 pub(crate) mod simple_font;
 pub(crate) mod to_unicode;
+pub mod truetype;
+pub mod ft_font;
 
 use composite_font::create_composite_font;
 use simple_font::create_simple_font;
@@ -124,6 +126,10 @@ impl Font {
         }
 
         res
+    }
+
+    pub fn unicode(&self, charcode: &u32) -> char {
+        self.to_unicode.charcode_to_unicode(charcode)
     }
 
     pub fn get_width(&self, code: &u32) -> f64 {

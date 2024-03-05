@@ -1,4 +1,4 @@
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct Point {
     x: f64,
     y: f64,
