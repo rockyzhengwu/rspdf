@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::{Read, Seek};
 
 use crate::document::Document;
@@ -7,7 +8,7 @@ use crate::geom::rectangle::Rectangle;
 use crate::object::PDFObject;
 
 pub struct TrueTypeFont {
-    name: Option<String>,
+    basename: String,
     flags: i32,
     stemv: i32,
     ascent: i32,
@@ -18,6 +19,7 @@ pub struct TrueTypeFont {
     char_bbox: [Rectangle; 256],
     font_bbox: Rectangle,
     ft_font: FTFont,
+    base_encoding: Option<String>,
 }
 
 impl TrueTypeFont {
@@ -29,7 +31,7 @@ impl TrueTypeFont {
 impl Default for TrueTypeFont {
     fn default() -> Self {
         TrueTypeFont {
-            name: None,
+            basename: String::new(),
             flags: 0,
             stemv: 0,
             ascent: 0,
@@ -40,6 +42,7 @@ impl Default for TrueTypeFont {
             char_bbox: [Rectangle::default(); 256],
             font_bbox: Rectangle::default(),
             ft_font: FTFont::default(),
+            base_encoding: None,
         }
     }
 }
@@ -98,17 +101,15 @@ fn load_width(font: &mut TrueTypeFont, obj: &PDFObject) -> PDFResult<()> {
 
 fn load_encoding(obj: &PDFObject, font: &mut TrueTypeFont) {
     let encoding = obj.get_value("Encoding");
-    match encoding{
-        None=>{
+    match encoding {
+        None => {
+            if font.basename == "Symbol" {
+            }
             // set default encoing
         }
-        Some(PDFObject::Name(_))=>{
-
-        }
-        Some(PDFObject::Dictionary(_))=>{
-
-        }
-        _=>{}
+        Some(PDFObject::Name(_)) => {}
+        Some(PDFObject::Dictionary(_)) => {}
+        _ => {}
     }
 }
 
@@ -120,7 +121,7 @@ pub fn create_truetype_font<T: Seek + Read>(
     let mut font = TrueTypeFont::default();
     if let Some(name_res) = obj.get_value_as_string("BaseFont") {
         let name = name_res?;
-        font.name = Some(name.to_string());
+        font.basename = name.to_string();
     }
     if let Some(descriptor) = obj.get_value("FontDescriptor") {
         let desc = doc.get_object_without_indriect(descriptor)?;

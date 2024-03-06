@@ -1,8 +1,19 @@
 // WiinAnsiEncoding
 // Identity-H
 // qlq
-
 use std::collections::HashMap;
+
+pub enum Encoding {
+    Builtin,
+    WinAnsi,
+    MacRoman,
+    MacExpert,
+    Standard,
+    AdobeSymbol,
+    ZapfDingbats,
+    PdfDoc,
+    MsSymbol,
+}
 
 static MAC_ROMAN_ENCODING: [&str; 256] = [
     "",
