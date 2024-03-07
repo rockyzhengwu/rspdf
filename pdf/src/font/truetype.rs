@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use std::io::{Read, Seek};
 
 use crate::document::Document;
-use crate::errors::PDFResult;
+use crate::errors::{PDFError, PDFResult};
+use crate::font::encoding::{get_predefined_encoding, FontEncoding};
 use crate::font::ft_font::FTFont;
 use crate::geom::rectangle::Rectangle;
 use crate::object::PDFObject;
@@ -19,12 +19,112 @@ pub struct TrueTypeFont {
     char_bbox: [Rectangle; 256],
     font_bbox: Rectangle,
     ft_font: FTFont,
-    base_encoding: Option<String>,
+    base_encoding: Option<FontEncoding>,
+    diffs: Option<Vec<String>>,
+    is_embed: bool,
+}
+pub enum CharmapType {
+    MsUnicode,
+    MsSymbol,
+    MacRoman,
+    Other,
 }
 
 impl TrueTypeFont {
     pub fn is_ttot(&self) -> bool {
         self.ft_font.is_ttot()
+    }
+
+    pub fn is_style_symbolic(&self) -> bool {
+        (self.flags & 4) != 0
+    }
+
+    pub fn determain_encoding(&self) -> Option<FontEncoding> {
+        if !self.is_embed
+            && !self.is_style_symbolic()
+            && !matches!(
+                self.base_encoding,
+                Some(FontEncoding::WinAnsi) | Some(FontEncoding::MacRoman)
+            )
+        {
+            return self.base_encoding.to_owned();
+        }
+        let num_charmaps = self.ft_font.num_charmaps();
+        if num_charmaps == 0 {
+            return self.base_encoding.to_owned();
+        }
+        let mut support_mac = false;
+        let mut support_win = false;
+        for charmap_id in 0..num_charmaps {
+            if let Some(charmap) = self.ft_font.charmap(charmap_id) {
+                let platform_id = charmap.platform_id();
+                match platform_id {
+                    0 | 3 => {
+                        support_win = true;
+                    }
+                    1 => {
+                        support_mac = true;
+                    }
+                    _ => {}
+                }
+                if support_win && support_mac {
+                    break;
+                }
+            }
+        }
+        match self.base_encoding {
+            Some(FontEncoding::WinAnsi) => {
+                if !support_win && support_mac {
+                    return Some(FontEncoding::MacRoman);
+                }
+                return None;
+            }
+            Some(FontEncoding::MacRoman) => {
+                if !support_mac && support_win {
+                    return Some(FontEncoding::WinAnsi);
+                }
+                return None;
+            }
+            _ => {}
+        }
+        self.base_encoding.to_owned()
+    }
+
+    pub fn determain_charmap_type(&self) -> PDFResult<CharmapType> {
+        if self.ft_font.use_charmaps_ms_unicode() {
+            return Ok(CharmapType::MsUnicode);
+        }
+        if !self.is_style_symbolic() {
+            if self.ft_font.use_charmaps_mac_rom() {
+                return Ok(CharmapType::MacRoman);
+            }
+            if self.ft_font.use_charmaps_ms_symbol() {
+                return Ok(CharmapType::MsSymbol);
+            }
+        } else {
+            if self.ft_font.use_charmaps_ms_symbol() {
+                return Ok(CharmapType::MsSymbol);
+            }
+
+            if self.ft_font.use_charmaps_mac_rom() {
+                return Ok(CharmapType::MacRoman);
+            }
+        }
+        Ok(CharmapType::Other)
+    }
+
+    pub fn set_glyph_map_from_start(&mut self, startchar: u32) {
+        if startchar > 256 {
+            return;
+        }
+        for i in 0..startchar {
+            self.glphy_index[i as usize] = 0;
+        }
+        let mut glyph_code: u32 = 3;
+        for charcode in startchar..256 {
+            self.glphy_index[charcode as usize] = glyph_code;
+            glyph_code += 1;
+        }
     }
 }
 
@@ -43,6 +143,8 @@ impl Default for TrueTypeFont {
             font_bbox: Rectangle::default(),
             ft_font: FTFont::default(),
             base_encoding: None,
+            diffs: None,
+            is_embed: false,
         }
     }
 }
@@ -99,18 +201,80 @@ fn load_width(font: &mut TrueTypeFont, obj: &PDFObject) -> PDFResult<()> {
     Ok(())
 }
 
-fn load_encoding(obj: &PDFObject, font: &mut TrueTypeFont) {
+fn load_encoding(obj: &PDFObject, font: &mut TrueTypeFont) -> PDFResult<()> {
     let encoding = obj.get_value("Encoding");
     match encoding {
         None => {
             if font.basename == "Symbol" {
+                if font.is_ttot() {
+                    font.base_encoding = Some(FontEncoding::MsSymbol);
+                } else {
+                    font.base_encoding = Some(FontEncoding::AdobeSymbol);
+                }
+            } else {
+                font.base_encoding = Some(FontEncoding::WinAnsi);
             }
-            // set default encoing
         }
-        Some(PDFObject::Name(_)) => {}
-        Some(PDFObject::Dictionary(_)) => {}
+        Some(PDFObject::Name(name)) => {
+            if font.is_style_symbolic() && font.basename == "Symbol" && !font.is_ttot() {
+                font.base_encoding = Some(FontEncoding::AdobeSymbol);
+            } else {
+                font.base_encoding = get_predefined_encoding(name.name());
+            }
+        }
+        Some(PDFObject::Dictionary(dict)) => {
+            if let Some(name) = dict.get("BaseEncoding") {
+                font.base_encoding = get_predefined_encoding(&name.as_string()?);
+            }
+
+            if let Some(diff) = dict.get("Differences") {
+                let diffs = diff.as_array()?;
+                let mut diff_vec = Vec::with_capacity(256);
+                let mut code: usize = 0;
+                for df in diffs {
+                    match df {
+                        PDFObject::Number(n) => {
+                            code = n.as_u32() as usize;
+                        }
+                        PDFObject::Name(_) => {
+                            let name = df.as_string()?;
+                            diff_vec[code] = name;
+                            code += 1;
+                        }
+                        _ => {
+                            return Err(PDFError::FontEncoding(format!(
+                                "encoding Differences need Name, or Number, got:{:?}",
+                                dict
+                            )));
+                        }
+                    }
+                }
+                font.diffs = Some(diff_vec);
+            }
+        }
         _ => {}
     }
+    Ok(())
+}
+
+fn load_glyph_map(font: &mut TrueTypeFont, font_dict: &PDFObject) -> PDFResult<()> {
+    let base_encoding = font.determain_encoding();
+    if (base_encoding == Some(FontEncoding::WinAnsi)
+        || base_encoding == Some(FontEncoding::MacRoman))
+        && font.diffs.is_some()
+        && !font.is_style_symbolic()
+        && font.ft_font.has_glyph_names()
+        && font.ft_font.num_charmaps() == 0
+    {
+        if let Some(startchar) = font_dict.get_value("FirstChar") {
+            font.set_glyph_map_from_start(startchar.as_u32()?)
+        }
+        return Ok(());
+    }
+
+    let charmap_type = font.determain_charmap_type()?;
+
+    unimplemented!()
 }
 
 pub fn create_truetype_font<T: Seek + Read>(
@@ -136,10 +300,14 @@ pub fn create_truetype_font<T: Seek + Read>(
         }
     }
     load_width(&mut font, obj)?;
+    if !font.is_style_symbolic() {
+        font.base_encoding = Some(FontEncoding::Standard);
+    }
     if !font.ft_font.is_loaded() {
         // TODO load builtin font
     }
-    // LoadEncoding
+    load_encoding(obj, &mut font);
+
     // note must after load descriptor
     unimplemented!()
 }

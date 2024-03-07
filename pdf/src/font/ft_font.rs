@@ -1,3 +1,4 @@
+use freetype::charmap::CharMap;
 // freetype font helper
 use freetype::face::Face;
 use freetype::ffi::FT_FACE_FLAG_SFNT;
@@ -28,5 +29,47 @@ impl FTFont {
             return (face.raw().face_flags & FT_FACE_FLAG_SFNT) == 0;
         }
         false
+    }
+
+    pub fn num_charmaps(&self) -> i32 {
+        match self.face {
+            Some(ref f) => f.num_charmaps(),
+            None => 0,
+        }
+    }
+
+    pub fn charmap(&self, index: i32) -> Option<CharMap> {
+        self.face.as_ref().map(|f| f.get_charmap(index as isize))
+    }
+
+    pub fn has_glyph_names(&self) -> bool {
+        match self.face {
+            Some(ref f) => f.has_glyph_names(),
+            None => false,
+        }
+    }
+
+    fn use_tt_charmap(&self, platform_id: u16, encoding_id: u16) -> bool {
+        if let Some(ref face) = self.face {
+            let num_charmaps = self.num_charmaps();
+            for i in 0..num_charmaps {
+                let charmap = face.get_charmap(i as isize);
+                if charmap.platform_id() == platform_id && charmap.encoding_id() == encoding_id {
+                    // TODO handle this error
+                    face.set_charmap(&charmap).unwrap();
+                    return true;
+                }
+            }
+        }
+        false
+    }
+    pub fn use_charmaps_ms_unicode(&self) -> bool {
+        self.use_tt_charmap(3, 1)
+    }
+    pub fn use_charmaps_ms_symbol(&self) -> bool {
+        self.use_tt_charmap(3, 0)
+    }
+    pub fn use_charmaps_mac_rom(&self) -> bool {
+        self.use_tt_charmap(1, 0)
     }
 }
