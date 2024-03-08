@@ -72,4 +72,11 @@ impl FTFont {
     pub fn use_charmaps_mac_rom(&self) -> bool {
         self.use_tt_charmap(1, 0)
     }
+
+    pub fn char_index(&self, charcode: usize) -> Option<u32> {
+        match &self.face {
+            Some(face) => face.get_char_index(charcode),
+            None => None,
+        }
+    }
 }

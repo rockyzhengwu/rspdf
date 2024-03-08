@@ -1,9 +1,13 @@
+use std::collections::HashMap;
 use std::io::{Read, Seek};
 
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
-use crate::font::encoding::{get_predefined_encoding, FontEncoding};
+use crate::font::encoding::{
+    char_name_from_predefined_encoding, get_predefined_encoding, FontEncoding,
+};
 use crate::font::ft_font::FTFont;
+use crate::font::to_unicode::ToUnicodeMap;
 use crate::geom::rectangle::Rectangle;
 use crate::object::PDFObject;
 
@@ -20,7 +24,7 @@ pub struct TrueTypeFont {
     font_bbox: Rectangle,
     ft_font: FTFont,
     base_encoding: Option<FontEncoding>,
-    diffs: Option<Vec<String>>,
+    diffs: HashMap<u8, String>,
     is_embed: bool,
 }
 pub enum CharmapType {
@@ -126,6 +130,12 @@ impl TrueTypeFont {
             glyph_code += 1;
         }
     }
+    pub fn charname(&self, charcode: u8, encoding: &FontEncoding) -> Option<String> {
+        if self.diffs.contains_key(&charcode) {
+            return self.diffs.get(&charcode).map(|x| x.to_owned());
+        }
+        char_name_from_predefined_encoding(encoding, charcode).map(|x| x.to_owned())
+    }
 }
 
 impl Default for TrueTypeFont {
@@ -143,7 +153,7 @@ impl Default for TrueTypeFont {
             font_bbox: Rectangle::default(),
             ft_font: FTFont::default(),
             base_encoding: None,
-            diffs: None,
+            diffs: HashMap::new(),
             is_embed: false,
         }
     }
@@ -229,7 +239,7 @@ fn load_encoding(obj: &PDFObject, font: &mut TrueTypeFont) -> PDFResult<()> {
 
             if let Some(diff) = dict.get("Differences") {
                 let diffs = diff.as_array()?;
-                let mut diff_vec = Vec::with_capacity(256);
+                let mut diff_map = HashMap::new();
                 let mut code: usize = 0;
                 for df in diffs {
                     match df {
@@ -238,7 +248,7 @@ fn load_encoding(obj: &PDFObject, font: &mut TrueTypeFont) -> PDFResult<()> {
                         }
                         PDFObject::Name(_) => {
                             let name = df.as_string()?;
-                            diff_vec[code] = name;
+                            diff_map.insert(code as u8, name);
                             code += 1;
                         }
                         _ => {
@@ -249,7 +259,7 @@ fn load_encoding(obj: &PDFObject, font: &mut TrueTypeFont) -> PDFResult<()> {
                         }
                     }
                 }
-                font.diffs = Some(diff_vec);
+                font.diffs = diff_map;
             }
         }
         _ => {}
@@ -261,7 +271,7 @@ fn load_glyph_map(font: &mut TrueTypeFont, font_dict: &PDFObject) -> PDFResult<(
     let base_encoding = font.determain_encoding();
     if (base_encoding == Some(FontEncoding::WinAnsi)
         || base_encoding == Some(FontEncoding::MacRoman))
-        && font.diffs.is_some()
+        && font.diffs.is_empty()
         && !font.is_style_symbolic()
         && font.ft_font.has_glyph_names()
         && font.ft_font.num_charmaps() == 0
@@ -273,6 +283,25 @@ fn load_glyph_map(font: &mut TrueTypeFont, font_dict: &PDFObject) -> PDFResult<(
     }
 
     let charmap_type = font.determain_charmap_type()?;
+    for charcode in 0..=255 {
+        let name: Option<String> = match &base_encoding {
+            Some(encoding) => font.charname(charcode, encoding),
+            None => None,
+        };
+
+        if name.is_none() {
+            if let Some(charindex) = font.ft_font.char_index(charcode as usize) {
+                font.glphy_index[charcode as usize] = charindex;
+                continue;
+            }
+        }
+        // todo
+    }
+
+    unimplemented!()
+}
+pub fn load_to_unicode(obj: &PDFObject) -> PDFResult<ToUnicodeMap> {
+    if let Some(tu) = obj.get_value("ToUnicode") {}
 
     unimplemented!()
 }
@@ -306,7 +335,7 @@ pub fn create_truetype_font<T: Seek + Read>(
     if !font.ft_font.is_loaded() {
         // TODO load builtin font
     }
-    load_encoding(obj, &mut font);
+    load_encoding(obj, &mut font)?;
 
     // note must after load descriptor
     unimplemented!()

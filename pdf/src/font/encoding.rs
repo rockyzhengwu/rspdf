@@ -1590,12 +1590,12 @@ static ZAPF_ENCODING_NAMES: [&str; ENCODING_NAME_TABLE_SIZE] = [
 ];
 
 pub fn char_name_from_predefined_encoding(
-    encoding: FontEncoding,
+    encoding: &FontEncoding,
     charcode: u8,
 ) -> Option<&'static str> {
     let mut index: usize = 0;
     let charcode = charcode as usize;
-    if encoding == FontEncoding::PdfDoc {
+    if encoding == &FontEncoding::PdfDoc {
         if charcode < PDF_DOC_ENCODING_FIRST_CHAR {
             return None;
         }
