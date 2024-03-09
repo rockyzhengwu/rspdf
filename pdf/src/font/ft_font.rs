@@ -1,10 +1,10 @@
 use freetype::charmap::CharMap;
-// freetype font helper
 use freetype::face::Face;
 use freetype::ffi::FT_FACE_FLAG_SFNT;
 use freetype::library::Library;
 
 use crate::errors::{PDFError, PDFResult};
+use crate::font::glyph_name::name_to_unicode;
 
 #[derive(Default)]
 pub struct FTFont {
@@ -78,5 +78,24 @@ impl FTFont {
             Some(face) => face.get_char_index(charcode),
             None => None,
         }
+    }
+
+    pub fn find_glyph_by_unicode_name(&self, name: &str) -> Option<u32> {
+        if let Some(unicode) = name_to_unicode(name) {
+            return self.find_glyph_by_charindex(unicode as usize);
+        }
+        None
+    }
+    pub fn find_glyph_by_name(&self, name: &str) -> Option<u32> {
+        if let Some(face) = &self.face {
+            return face.get_name_index(name);
+        }
+        None
+    }
+    pub fn find_glyph_by_charindex(&self, charindex: usize) -> Option<u32> {
+        if let Some(face) = &self.face {
+            return face.get_char_index(charindex);
+        }
+        None
     }
 }

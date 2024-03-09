@@ -7,8 +7,12 @@ use freetype::Face;
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::font::cmap::predefined::get_predefine_cmap;
-use crate::font::{cmap::CMap, load_face, Font};
+use crate::font::cmap::CMap;
 use crate::object::{PDFArray, PDFObject};
+
+pub struct CompositeFont{
+
+}
 
 fn parse_widths(w: &PDFArray) -> HashMap<u32, f64> {
     let mut widths = HashMap::new();
