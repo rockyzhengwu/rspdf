@@ -27,8 +27,6 @@ impl Device for TraceDevice {
             GraphicsObject::Text(text) => {
                 let font = text.font();
                 for code in text.char_codecs() {
-                    let chu = font.unicode(code);
-                    print!("{:?} ", chu)
                 }
                 println!(" ");
             }

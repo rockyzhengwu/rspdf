@@ -1,4 +1,4 @@
-use crate::font::Font;
+use crate::font::pdf_font::Font;
 use crate::geom::matrix::Matrix;
 
 #[derive(Debug, Clone, Default)]
@@ -20,7 +20,7 @@ pub struct TextState {
     pub char_space: f64,
     pub word_space: f64,
     pub render_mode: TextRenderingMode,
-    pub font: Font,
+    pub font: Option<Font>,
     pub text_rise: f64,
     pub text_horz_scale: f64,
     pub text_leading: f64,
@@ -37,11 +37,11 @@ impl TextState {
     }
 
     pub fn set_font(&mut self, font: Font) {
-        self.font = font;
+        self.font = Some(font);
     }
 
     pub fn font(&self) -> &Font {
-        &self.font
+        self.font.as_ref().unwrap()
     }
 
     pub fn set_char_space(&mut self, char_space: f64) {

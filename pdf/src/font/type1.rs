@@ -1,16 +1,20 @@
 use crate::errors::PDFResult;
 use crate::font::simple_font::SimpleFont;
 
-pub fn load_typ1_glyph(font: &mut SimpleFont) -> PDFResult<()> {
-    let base_encoding = font.determain_encoding();
+fn use_charmap(font: &mut SimpleFont) -> PDFResult<()> {
     let ft_font = font.ft_font();
+    if ft_font.use_charmap_platform(7) {
+        return Ok(());
+    }
+    ft_font.use_charmaps_first();
+    Ok(())
+}
+
+pub fn load_typ1_glyph(font: &mut SimpleFont) -> PDFResult<()> {
+    use_charmap(font)?;
     for charcode in 0..255 {
-        let name: Option<String> = match &base_encoding {
-            Some(encoding) => font.charname(charcode, encoding),
-            None => None,
-        };
-        if let Some(na) = name {
-            if let Some(glyph) = ft_font.find_glyph_by_name(&na) {
+        if let Some(na) = font.charname(charcode) {
+            if let Some(glyph) = font.ft_font().find_glyph_by_name(&na) {
                 font.set_glyph(charcode, glyph);
             }
         }

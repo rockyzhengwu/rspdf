@@ -13,7 +13,7 @@ use std::io::{Read, Seek};
 use std::u8;
 
 use crate::errors::{PDFError, PDFResult};
-use crate::font::cmap::{CMap, CodeSpaceRange};
+use crate::font::cmap::{CMap, CidRange, CodeSpaceRange};
 use crate::object::{PDFName, PDFNumber, PDFObject, PDFString};
 use crate::parser::character_set::hex_to_u8;
 use crate::parser::syntax::{SyntaxParser, Token};
@@ -82,21 +82,27 @@ impl<T: Seek + Read> CMapParser<T> {
             }
             let start = self.read_whole_hex()?;
             let end = self.read_whole_hex()?;
-            let val = match self.syntax_parser.read_object()? {
-                PDFObject::String(s) => hex_bytes_to_u32(s.bytes()),
-                PDFObject::Number(n) => n.as_u32(),
-                _ => {
-                    return Err(PDFError::FontCmapFailure(
-                        "parse cmap cidrange val not a number{:?} ".to_string(),
-                    ));
-                }
-            };
-            cmap.add_range_cid(
+            let val = self.get_cid()?;
+            let range = CidRange::new(
                 hex_bytes_to_u32(start.bytes()),
                 hex_bytes_to_u32(end.bytes()),
                 val,
             );
+            cmap.add_cid_range(range);
         }
+    }
+
+    fn get_cid(&mut self) -> PDFResult<u32> {
+        let val = match self.syntax_parser.read_object()? {
+            PDFObject::String(s) => hex_bytes_to_u32(s.bytes()),
+            PDFObject::Number(n) => n.as_u32(),
+            _ => {
+                return Err(PDFError::FontCmapFailure(
+                    "parse cmap cidrange val not a number{:?} ".to_string(),
+                ));
+            }
+        };
+        Ok(val)
     }
 
     fn process_cid_char(&mut self, cmap: &mut CMap) -> PDFResult<()> {
@@ -108,10 +114,11 @@ impl<T: Seek + Read> CMapParser<T> {
                 return Ok(());
             }
             let key = self.read_whole_hex()?;
-            let val = self.read_whole_hex()?;
-            cmap.add_cid(hex_bytes_to_u32(key.bytes()), hex_bytes_to_u32(val.bytes()));
+            let val = self.get_cid()?;
+            cmap.add_cid(hex_bytes_to_u32(key.bytes()), val);
         }
     }
+
     fn process_bf_range(&mut self, cmap: &mut CMap) -> PDFResult<()> {
         loop {
             if self
@@ -122,16 +129,8 @@ impl<T: Seek + Read> CMapParser<T> {
             }
             let start = self.read_whole_hex()?;
             let end = self.read_whole_hex()?;
-            let val = match self.syntax_parser.read_object()? {
-                PDFObject::String(s) => hex_bytes_to_u32(s.bytes()),
-                PDFObject::Number(n) => n.as_u32(),
-                _ => {
-                    return Err(PDFError::FontCmapFailure(
-                        "parse cmap bfrange val not a number{:?} ".to_string(),
-                    ));
-                }
-            };
-            cmap.add_range_to_character(
+            let val = self.get_cid()?;
+            cmap.add_range_to_unicode(
                 hex_bytes_to_u32(start.bytes()),
                 hex_bytes_to_u32(end.bytes()),
                 val,
@@ -148,7 +147,7 @@ impl<T: Seek + Read> CMapParser<T> {
             }
             let key = self.read_whole_hex()?;
             let val = self.read_whole_hex()?;
-            cmap.add_character(hex_bytes_to_u32(key.bytes()), hex_bytes_to_u32(val.bytes()));
+            cmap.add_unicode(hex_bytes_to_u32(key.bytes()), hex_bytes_to_u32(val.bytes()));
         }
     }
 

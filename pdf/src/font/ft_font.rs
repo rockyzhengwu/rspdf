@@ -6,7 +6,7 @@ use freetype::library::Library;
 use crate::errors::{PDFError, PDFResult};
 use crate::font::glyph_name::name_to_unicode;
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct FTFont {
     face: Option<Face>,
 }
@@ -63,12 +63,41 @@ impl FTFont {
         }
         false
     }
+
+    pub fn use_charmaps_first(&self) -> bool {
+        if let Some(charmap) = self.charmap(0) {
+            match &self.face {
+                Some(face) => {
+                    face.set_charmap(&charmap).unwrap();
+                    return true;
+                }
+                None => return false,
+            }
+        }
+        false
+    }
+    pub fn use_charmap_platform(&self, platform: u16) -> bool {
+        if let Some(face) = &self.face {
+            let num_chamaps = self.num_charmaps();
+            for i in 0..num_chamaps {
+                let charmap = face.get_charmap(i as isize);
+                if charmap.platform_id() == platform {
+                    face.set_charmap(&charmap).unwrap();
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     pub fn use_charmaps_ms_unicode(&self) -> bool {
         self.use_tt_charmap(3, 1)
     }
+
     pub fn use_charmaps_ms_symbol(&self) -> bool {
         self.use_tt_charmap(3, 0)
     }
+
     pub fn use_charmaps_mac_rom(&self) -> bool {
         self.use_tt_charmap(1, 0)
     }

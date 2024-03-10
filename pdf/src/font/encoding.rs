@@ -40,6 +40,7 @@ impl FontEncoding {
             FontEncoding::MsSymbol => None,
         }
     }
+
     pub fn charcode_from_unicode(&self, charcode: &u16) -> Option<u32> {
         match self {
             FontEncoding::Standard => find_code(&STANDARD_ENCODING, charcode),
@@ -52,6 +53,22 @@ impl FontEncoding {
             FontEncoding::MsSymbol => find_code(&MS_SYMBOL_ENCODING, charcode),
         }
     }
+    pub fn unicode_from_charcode(&self, charcode: u8) -> Option<u32> {
+        match self {
+            FontEncoding::Standard => get_unicode(&STANDARD_ENCODING, charcode),
+            FontEncoding::PdfDoc => get_unicode(&PDF_DOC_ENCODING, charcode),
+            FontEncoding::MacRoman => get_unicode(&MAC_ROMAN_ENCODING, charcode),
+            FontEncoding::WinAnsi => get_unicode(&ADOBE_WINANSI_ENCODING, charcode),
+            FontEncoding::MacExpert => get_unicode(&MAC_EXPERT_ENCODING, charcode),
+            FontEncoding::AdobeSymbol => get_unicode(&ADOBE_SYMBOL_ENCODING, charcode),
+            FontEncoding::ZapfDingbats => get_unicode(&ZAPF_ENCODING, charcode),
+            FontEncoding::MsSymbol => get_unicode(&MS_SYMBOL_ENCODING, charcode),
+        }
+    }
+}
+
+fn get_unicode(encoding: &[u16], charcode: u8) -> Option<u32> {
+    encoding.get(charcode as usize).map(|x| x.to_owned() as u32)
 }
 
 fn find_code(encoding: &[u16], charcode: &u16) -> Option<u32> {

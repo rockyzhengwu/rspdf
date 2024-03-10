@@ -12,32 +12,38 @@ use crate::parser::syntax::SyntaxParser;
 pub mod parser;
 pub mod predefined;
 
-#[allow(dead_code)]
 #[derive(Default, Clone, Debug)]
 pub struct CodeSpaceRange {
-    char_size: u8,
+    size: u8,
     low: u32,
     high: u32,
 }
-
-
-
-
-#[allow(dead_code)]
 impl CodeSpaceRange {
-    pub fn new(char_size: u8, low: u32, high: u32) -> Self {
-        CodeSpaceRange {
-            char_size,
-            low,
-            high,
-        }
+    pub fn new(size: u8, low: u32, high: u32) -> Self {
+        CodeSpaceRange { size, low, high }
     }
     pub fn is_contain_code(&self, code: u32) -> bool {
         self.low <= code && self.high >= code
     }
 
-    pub fn char_size(&self) -> &u8 {
-        &self.char_size
+    pub fn size(&self) -> &u8 {
+        &self.size
+    }
+}
+
+#[derive(Default, Clone, Debug)]
+pub struct CidRange {
+    start: u32,
+    end: u32,
+    start_cid: u32,
+}
+impl CidRange {
+    fn new(start: u32, end: u32, start_cid: u32) -> Self {
+        CidRange {
+            start,
+            end,
+            start_cid,
+        }
     }
 }
 
@@ -48,8 +54,9 @@ pub struct CMap {
     cmap_type: Option<u8>,
     usecmap: Option<String>,
     code_space_range: Vec<CodeSpaceRange>,
-    code_to_character: HashMap<u32, u32>,
+    code_to_unicode: HashMap<u32, u32>,
     code_to_cid: HashMap<u32, u32>,
+    cid_ranges: Vec<CidRange>,
 }
 
 impl CMap {
@@ -73,17 +80,14 @@ impl CMap {
         self.code_space_range.push(space_range);
     }
 
-    pub fn add_range_cid(&mut self, low: u32, high: u32, start: u32) {
-        for code in low..=high {
-            let cid = start + code - low;
-            self.add_cid(code, cid)
-        }
+    pub fn add_cid_range(&mut self, range: CidRange) {
+        self.cid_ranges.push(range);
     }
 
-    pub fn add_range_to_character(&mut self, low: u32, high: u32, start: u32) {
+    pub fn add_range_to_unicode(&mut self, low: u32, high: u32, start: u32) {
         for code in low..=high {
             let ch = start + code - low;
-            self.add_character(code, ch);
+            self.add_unicode(code, ch);
         }
     }
 
@@ -97,8 +101,8 @@ impl CMap {
         self.name.as_str()
     }
 
-    pub fn add_character(&mut self, code: u32, ch: u32) {
-        self.code_to_character.insert(code, ch);
+    pub fn add_unicode(&mut self, code: u32, ch: u32) {
+        self.code_to_unicode.insert(code, ch);
     }
 
     pub fn add_cid(&mut self, code: u32, cid: u32) {
@@ -118,7 +122,7 @@ impl CMap {
     }
 
     pub fn charcode_to_unicode(&self, charcode: &u32) -> char {
-        if let Some(c) = self.code_to_character.get(charcode) {
+        if let Some(c) = self.code_to_unicode.get(charcode) {
             char::from_u32(c.to_owned()).unwrap()
         } else {
             warn!("cid to unicode not found: {:?}", charcode);
@@ -127,7 +131,7 @@ impl CMap {
     }
 
     pub fn charcodes_to_unicode(&self, bytes: &[u8]) -> Vec<char> {
-        if self.code_to_character.is_empty() {
+        if self.code_to_unicode.is_empty() {
             let n = bytes.len();
             return vec![char::REPLACEMENT_CHARACTER; n];
         }
@@ -177,11 +181,11 @@ impl CMap {
 
     fn find_charsize(&self, code: u32, size: u8) -> Option<u8> {
         for range in &self.code_space_range {
-            if range.char_size != size {
+            if range.size != size {
                 continue;
             }
             if range.is_contain_code(code) {
-                return Some(range.char_size);
+                return Some(range.size);
             }
         }
         None

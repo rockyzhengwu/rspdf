@@ -19,12 +19,17 @@ pub fn identity_v() -> CMap {
     let bytes = include_bytes!("../../../cmaps/Identity-V");
     create_cmap(bytes).unwrap()
 }
+pub fn unicns_utf16_h() -> CMap {
+    let bytes = include_bytes!("../../../cmaps/UniCNS-UTF16-H");
+    create_cmap(bytes).unwrap()
+}
 
 lazy_static! {
     static ref PREDEFINE_CMAP: HashMap<String, CMap> = {
         let mut m = HashMap::new();
         m.insert("Identity-H".to_string(), identity_h());
         m.insert("Identity-V".to_string(), identity_v());
+        m.insert("UniCNS-UTF16-H".to_string(), unicns_utf16_h());
         m
     };
 }
@@ -47,6 +52,8 @@ mod tests {
         let name = "Identity-H";
         let cmap = get_predefine_cmap(name);
         println!("{:?}", cmap);
-        println!("{:?}", cmap.charcode_to_cid(&36));
+        let name = "UniCNS-UTF16-H";
+        let cmap = get_predefine_cmap(name);
+        println!("{:?}", cmap);
     }
 }

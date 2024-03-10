@@ -1,4 +1,4 @@
-use crate::font::Font;
+use crate::font::pdf_font::Font;
 use crate::geom::matrix::Matrix;
 use crate::geom::point::Point;
 use crate::page::graphics_state::GraphicsState;
@@ -31,13 +31,13 @@ impl Text {
     pub fn new(content: Vec<TextOpItem>, graphics_state: GraphicsState) -> Self {
         let mut char_codecs = Vec::new();
         for con in content.iter() {
-            let char_infos = graphics_state
-                .text_state
-                .font()
-                .decode_charcodes(&con.bytes);
-            for char in char_infos {
-                char_codecs.push(char.cid().to_owned());
-            }
+            //let char_infos = graphics_state
+            //    .text_state
+            //    .font()
+            //    .decode_charcodes(&con.bytes);
+            //for char in char_infos {
+            //    char_codecs.push(char.cid().to_owned());
+            //}
         }
         Text {
             content,
@@ -61,9 +61,9 @@ impl Text {
     pub fn get_text_matrix(&self) -> Matrix {
         let mut matrix = self.graphics_state.text_state.text_matrix().to_owned();
         for charcode in self.char_codecs.iter() {
-            let width = self.graphics_state.text_state.font().get_width(charcode);
-            let mat = Matrix::new_translation_matrix(width, 0.0);
-            matrix = mat.mutiply(&matrix);
+            // let width = self.graphics_state.text_state.font().get_width(charcode);
+            //let mat = Matrix::new_translation_matrix(width, 0.0);
+            //matrix = mat.mutiply(&matrix);
             // TODO vertical
         }
         matrix

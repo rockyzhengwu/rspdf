@@ -2,16 +2,52 @@ use std::collections::HashMap;
 use std::io::{Read, Seek};
 use std::u32;
 
-use freetype::Face;
-
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::font::cmap::predefined::get_predefine_cmap;
 use crate::font::cmap::CMap;
+use crate::font::font_descriptor::FontDescriptor;
+use crate::font::ft_font::FTFont;
 use crate::object::{PDFArray, PDFObject};
 
-pub struct CompositeFont{
+#[derive(Debug, Clone)]
+pub enum CIDCoding {
+    GB,
+    BIG5,
+    JIS,
+    KOREA,
+    UCS2,
+    CID,
+    UTF16,
+}
 
+#[derive(Debug, Clone)]
+pub enum CompositeFontType {
+    Type1,
+    TrueType,
+}
+
+#[derive(Debug, Clone)]
+pub struct CompositeFont {
+    font_type: CompositeFontType,
+    encoding: CMap,
+    desc: FontDescriptor,
+    ft_font: FTFont,
+    cid_coding: Option<CIDCoding>,
+    cid_to_unicode: CMap,
+}
+
+impl Default for CompositeFont {
+    fn default() -> Self {
+        CompositeFont {
+            font_type: CompositeFontType::Type1,
+            encoding: CMap::default(),
+            desc: FontDescriptor::default(),
+            ft_font: FTFont::default(),
+            cid_coding: None,
+            cid_to_unicode: CMap::default(),
+        }
+    }
 }
 
 fn parse_widths(w: &PDFArray) -> HashMap<u32, f64> {
@@ -47,90 +83,201 @@ fn parse_widths(w: &PDFArray) -> HashMap<u32, f64> {
     widths
 }
 
-pub fn create_composite_font<T: Seek + Read>(
-    fontname: &str,
+pub fn load_encoding<T: Seek + Read>(
+    font: &mut CompositeFont,
     obj: &PDFObject,
     doc: &Document<T>,
-) -> PDFResult<Font> {
-    let mut font = Font::default();
-    let mut widths = HashMap::new();
-    let mut dw: f64 = 0.0;
-
-    let mut face: Option<Face> = None;
-    println!("fontobj: {:?}", obj);
-    if let Some(descendant_fonts) = obj.get_value("DescendantFonts") {
-        let df_ref = match descendant_fonts {
-            PDFObject::Arrray(arr) => arr.first().unwrap().to_owned(),
+) -> PDFResult<()> {
+    let enc = obj.get_value("Encoding");
+    match enc {
+        Some(o) => match o {
+            PDFObject::Name(name) => {
+                font.encoding = get_predefine_cmap(name.name());
+                Ok(())
+            }
             PDFObject::Indirect(_) => {
-                let ar = doc.read_indirect(descendant_fonts)?;
-                ar.as_array().unwrap().first().unwrap().to_owned()
+                let encs = doc.get_object_without_indriect(o)?;
+                font.encoding = CMap::new_from_bytes(encs.bytes()?.as_slice())?;
+                Ok(())
             }
-            _ => {
-                return Err(PDFError::FontFailure(format!(
-                    "descendants need array,got{:?}",
-                    descendant_fonts
-                )))
-            }
-        };
-        let df_obj = doc.read_indirect(&df_ref)?;
-        println!("subfont {:?}", df_obj);
-        dw = df_obj.get_value("DW").unwrap().as_f64()?;
-        // TODO cidtogid embeded
-        let _cid_to_gid_map = df_obj.get_value("CIDToGIDMap");
-
-        if let Some(w_obj) = df_obj.get_value("W") {
-            match w_obj {
-                PDFObject::Arrray(arr) => widths = parse_widths(arr),
-                PDFObject::Indirect(_) => {
-                    let w_arr = doc.read_indirect(w_obj)?;
-                    widths = parse_widths(w_arr.as_array()?);
-                }
-                _ => {
-                    panic!("w need a array:{:?}", df_obj);
-                }
+            _ => Err(PDFError::FontFailure(format!(
+                "Type0 Encoding type error:{:?}",
+                obj
+            ))),
+        },
+        None => Err(PDFError::FontFailure(format!(
+            "Type0 missing Encoding:{:?}",
+            obj
+        ))),
+    }
+}
+fn cid_collection<T: Seek + Read>(obj: &PDFObject, doc: &Document<T>) -> PDFResult<String> {
+    match obj.get_value("CIDSystemInfo") {
+        Some(info) => {
+            let cidinfo = doc.get_object_without_indriect(info)?;
+            let reg = cidinfo.get_value_as_string("Registry").unwrap()?;
+            let order = cidinfo.get_value_as_string("Ordering").unwrap()?;
+            Ok(format!("{}-{}", reg, order))
+        }
+        None => Ok(String::from("Identity")),
+    }
+}
+fn font_type(dfont: &PDFObject) -> PDFResult<CompositeFontType> {
+    match dfont.get_value_as_string("Subtype") {
+        Some(subtype) => {
+            let subtype = subtype?;
+            match subtype.as_str() {
+                "CIDFontType2" => Ok(CompositeFontType::TrueType),
+                "CIDFontType0" => Ok(CompositeFontType::Type1),
+                _ => Err(PDFError::FontFailure(format!(
+                    "unknow subytype in dfont:{:?}",
+                    subtype
+                ))),
             }
         }
-
-        let df_desc = doc.read_indirect(df_obj.get_value("FontDescriptor").unwrap())?;
-        let sstype = df_obj.get_value("Subtype").unwrap();
-        let file = match sstype.as_string()?.as_str() {
-            "CIDFontType0" => "FontFile3",
-            _ => "FontFile2",
-        };
-        let font_file = doc.read_indirect(df_desc.get_value(file).unwrap())?;
-        face = Some(load_face(font_file.bytes()?)?);
-        //let mut file = std::fs::File::create("type0.otf").unwrap();
-        //file.write_all(font_file.bytes()?.as_slice()).unwrap();
+        _ => Err(PDFError::FontFailure(format!(
+            "didn't have subytype in dfont:{:?}",
+            dfont
+        ))),
     }
-    font.name = fontname.to_string();
-    font.widths = widths;
-    font.dwidths = dw;
-    font.face = face;
+}
 
-    let mut encoding = CMap::default();
-    if let Some(enc) = obj.get_value("Encoding") {
-        let enc_obj = if enc.is_indirect() {
-            doc.read_indirect(enc)?
-        } else {
-            enc.to_owned()
-        };
-        match enc_obj {
-            PDFObject::Name(name) => encoding = get_predefine_cmap(name.to_string().as_str()),
-            PDFObject::Stream(s) => {
-                let bytes = s.bytes();
-                encoding = CMap::new_from_bytes(bytes.as_slice())?;
+pub fn load_composite_font<T: Seek + Read>(
+    obj: &PDFObject,
+    doc: &Document<T>,
+) -> PDFResult<CompositeFont> {
+    let mut font = CompositeFont::default();
+    let dfont: PDFObject = match obj.get_value("DescendantFonts") {
+        Some(v) => {
+            let vv = doc.get_object_without_indriect(v)?;
+            let arrs = vv.as_array()?;
+            arrs.first().unwrap().to_owned()
+        }
+        None => {
+            return Err(PDFError::FontFailure(format!(
+                "descendants need array,got{:?}",
+                obj
+            )))
+        }
+    };
+    if let Some(desc) = dfont.get_value("FontDescriptor") {
+        font.desc = FontDescriptor::new_from_object(desc)?;
+    }
+    if let Some(embeded) = font.desc.embeded() {
+        let ft_font = FTFont::try_new(embeded.bytes()?)?;
+        font.ft_font = ft_font;
+    } else {
+        // load builtin font
+    }
+
+    //let fonttype = font_type(&dfont);
+    let collection = cid_collection(&dfont, doc)?;
+    font.cid_to_unicode = get_predefine_cmap(&collection);
+    // let basefont = dfont.get_value("BaseFont");
+    if let Some(cidtogid) = dfont.get_value("CIDToGIDMap") {
+        match &cidtogid {
+            PDFObject::Stream(_) => {
+                //
+            }
+            PDFObject::Name(_) => {
+                println!("{:?}", cidtogid);
             }
             _ => {}
         }
     }
-    font.encoding = Some(encoding);
 
-    let mut tounicode = CMap::default();
-    if let Some(tu) = obj.get_value("ToUnicode") {
-        let tus = doc.read_indirect(tu)?;
-        let bytes = tus.bytes()?;
-        tounicode = CMap::new_from_bytes(bytes.as_slice())?;
-    }
-    font.to_unicode = tounicode;
     Ok(font)
 }
+
+fn load_glyph(font: &mut CompositeFont, obj: &PDFObject) -> PDFResult<()> {
+    //
+    unimplemented!()
+}
+
+//pub fn create_composite_font<T: Seek + Read>(
+//    fontname: &str,
+//    obj: &PDFObject,
+//    doc: &Document<T>,
+//) -> PDFResult<Font> {
+//    let mut font = Font::default();
+//    let mut widths = HashMap::new();
+//    let mut dw: f64 = 0.0;
+//
+//    let mut face: Option<Face> = None;
+//    println!("fontobj: {:?}", obj);
+//    if let Some(descendant_fonts) = obj.get_value("DescendantFonts") {
+//        let df_ref = match descendant_fonts {
+//            PDFObject::Arrray(arr) => arr.first().unwrap().to_owned(),
+//            PDFObject::Indirect(_) => {
+//                let ar = doc.read_indirect(descendant_fonts)?;
+//                ar.as_array().unwrap().first().unwrap().to_owned()
+//            }
+//            _ => {
+//                return Err(PDFError::FontFailure(format!(
+//                    "descendants need array,got{:?}",
+//                    descendant_fonts
+//                )))
+//            }
+//        };
+//        let df_obj = doc.read_indirect(&df_ref)?;
+//        println!("subfont {:?}", df_obj);
+//        dw = df_obj.get_value("DW").unwrap().as_f64()?;
+//        // TODO cidtogid embeded
+//        let _cid_to_gid_map = df_obj.get_value("CIDToGIDMap");
+//
+//        if let Some(w_obj) = df_obj.get_value("W") {
+//            match w_obj {
+//                PDFObject::Arrray(arr) => widths = parse_widths(arr),
+//                PDFObject::Indirect(_) => {
+//                    let w_arr = doc.read_indirect(w_obj)?;
+//                    widths = parse_widths(w_arr.as_array()?);
+//                }
+//                _ => {
+//                    panic!("w need a array:{:?}", df_obj);
+//                }
+//            }
+//        }
+//
+//        let df_desc = doc.read_indirect(df_obj.get_value("FontDescriptor").unwrap())?;
+//        let sstype = df_obj.get_value("Subtype").unwrap();
+//        let file = match sstype.as_string()?.as_str() {
+//            "CIDFontType0" => "FontFile3",
+//            _ => "FontFile2",
+//        };
+//        let font_file = doc.read_indirect(df_desc.get_value(file).unwrap())?;
+//        face = Some(load_face(font_file.bytes()?)?);
+//        //let mut file = std::fs::File::create("type0.otf").unwrap();
+//        //file.write_all(font_file.bytes()?.as_slice()).unwrap();
+//    }
+//    font.name = fontname.to_string();
+//    font.widths = widths;
+//    font.dwidths = dw;
+//    font.face = face;
+//
+//    let mut encoding = CMap::default();
+//    if let Some(enc) = obj.get_value("Encoding") {
+//        let enc_obj = if enc.is_indirect() {
+//            doc.read_indirect(enc)?
+//        } else {
+//            enc.to_owned()
+//        };
+//        match enc_obj {
+//            PDFObject::Name(name) => encoding = get_predefine_cmap(name.to_string().as_str()),
+//            PDFObject::Stream(s) => {
+//                let bytes = s.bytes();
+//                encoding = CMap::new_from_bytes(bytes.as_slice())?;
+//            }
+//            _ => {}
+//        }
+//    }
+//    font.encoding = Some(encoding);
+//
+//    let mut tounicode = CMap::default();
+//    if let Some(tu) = obj.get_value("ToUnicode") {
+//        let tus = doc.read_indirect(tu)?;
+//        let bytes = tus.bytes()?;
+//        tounicode = CMap::new_from_bytes(bytes.as_slice())?;
+//    }
+//    font.to_unicode = tounicode;
+//    Ok(font)
+//}

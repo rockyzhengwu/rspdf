@@ -4,7 +4,7 @@ use std::io::{Read, Seek};
 
 use crate::catalog::Catalog;
 use crate::errors::{PDFError, PDFResult};
-use crate::font::Font;
+use crate::font::pdf_font::Font;
 use crate::object::{PDFDictionary, PDFObject};
 use crate::page::Page;
 use crate::parser::document_parser::DocumentParser;
@@ -38,7 +38,8 @@ impl<T: Seek + Read> Document<T> {
     }
 
     pub fn get_font(&self, name: &str) -> Option<Font> {
-        self.fonts.borrow().get(name).cloned()
+        //self.fonts.borrow().get(name).cloned()
+        None
     }
 
     pub fn add_font(&self, name: &str, font: Font) {
