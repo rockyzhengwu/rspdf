@@ -26,8 +26,7 @@ impl Device for TraceDevice {
         match obj {
             GraphicsObject::Text(text) => {
                 let font = text.font();
-                for code in text.char_codecs() {
-                }
+                for code in text.char_codecs() {}
                 println!(" ");
             }
             GraphicsObject::Image(image) => {

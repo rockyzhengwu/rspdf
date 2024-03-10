@@ -9,6 +9,4 @@ pub enum Font {
 
 // TODO impl type0
 
-impl Font {
-
-}
+impl Font {}

@@ -64,7 +64,6 @@ impl<'a, T: Seek + Read> Page<'a, T> {
                     //let font = create_font(tag, &fontobj, self.doc)?;
                     //self.doc.add_font(tag, font.clone());
                     return Err(PDFError::FontFailure("debug".to_string()));
-
                 }
                 None => {
                     return Err(PDFError::InvalidSyntax(format!(
