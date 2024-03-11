@@ -212,9 +212,12 @@ pub fn load_to_unicode(font: &mut SimpleFont, obj: &PDFObject, tu: &PDFObject) -
         _ => {
             // TODO set tounicode from encoding name
             for charcode in 0..=255 {
-                // TODO add diffs
+                // TODO add diffs fix this
                 if let Some(unicode) = font.unicode_from_charcode(charcode) {
-                    font.to_unicode.add_unicode(charcode as u32, unicode);
+                    let s = char::from_u32(unicode).unwrap();
+                    let mut ss = String::new();
+                    ss.push(s);
+                    font.to_unicode.add_simple_unicode(charcode as u32, ss);
                 }
             }
         }
@@ -223,7 +226,7 @@ pub fn load_to_unicode(font: &mut SimpleFont, obj: &PDFObject, tu: &PDFObject) -
     Ok(())
 }
 
-pub fn create_simple_font<T: Seek + Read>(
+pub fn load_simple_font<T: Seek + Read>(
     obj: &PDFObject,
     doc: &Document<T>,
 ) -> PDFResult<SimpleFont> {
@@ -243,7 +246,8 @@ pub fn create_simple_font<T: Seek + Read>(
         font.desc = FontDescriptor::new_from_object(&desc)?;
     }
     if let Some(embeded) = font.desc.embeded() {
-        let ft_font = FTFont::try_new(embeded.bytes()?)?;
+        let emb = doc.get_object_without_indriect(embeded)?;
+        let ft_font = FTFont::try_new(emb.bytes()?)?;
         font.ft_font = ft_font;
     } else {
         // load builtin font

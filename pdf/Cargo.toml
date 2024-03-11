@@ -5,6 +5,7 @@ edition = "2021"
 
 
 [dependencies]
+encoding_rs = "0.8.33"
 env_logger = "0.10.1"
 flate2 = "1.0.28"
 freetype-rs = "0.36.0"

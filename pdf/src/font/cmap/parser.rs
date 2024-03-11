@@ -12,6 +12,8 @@
 use std::io::{Read, Seek};
 use std::u8;
 
+use encoding_rs::UTF_16BE;
+
 use crate::errors::{PDFError, PDFResult};
 use crate::font::cmap::{CMap, CidRange, CodeSpaceRange};
 use crate::object::{PDFName, PDFNumber, PDFObject, PDFString};
@@ -33,6 +35,15 @@ pub fn hex_bytes_to_u32(bytes: &[u8]) -> u32 {
         res = res * 16 + n;
     }
     res
+}
+
+fn incresement(bytes: &mut Vec<u8>, pos: usize) {
+    if pos > 0 && bytes[pos] == 255 {
+        bytes[pos] = 0;
+        incresement(bytes, pos - 1);
+    } else {
+        bytes[pos] += 1;
+    }
 }
 
 impl<T: Seek + Read> CMapParser<T> {
@@ -84,8 +95,8 @@ impl<T: Seek + Read> CMapParser<T> {
             let end = self.read_whole_hex()?;
             let val = self.get_cid()?;
             let range = CidRange::new(
-                hex_bytes_to_u32(start.bytes()),
-                hex_bytes_to_u32(end.bytes()),
+                start.binary_bytes()?.as_slice(),
+                end.binary_bytes()?.as_slice(),
                 val,
             );
             cmap.add_cid_range(range);
@@ -115,7 +126,7 @@ impl<T: Seek + Read> CMapParser<T> {
             }
             let key = self.read_whole_hex()?;
             let val = self.get_cid()?;
-            cmap.add_cid(hex_bytes_to_u32(key.bytes()), val);
+            cmap.add_cid(key.binary_bytes()?.as_slice(), val);
         }
     }
 
@@ -129,14 +140,46 @@ impl<T: Seek + Read> CMapParser<T> {
             }
             let start = self.read_whole_hex()?;
             let end = self.read_whole_hex()?;
-            let val = self.get_cid()?;
-            cmap.add_range_to_unicode(
-                hex_bytes_to_u32(start.bytes()),
-                hex_bytes_to_u32(end.bytes()),
-                val,
-            );
+            let obj = self.syntax_parser.read_object()?;
+            match obj {
+                PDFObject::Arrray(arr) => {
+                    let mut bytes = start.bytes().to_vec();
+                    let pos = bytes.len() - 1;
+                    for v in arr {
+                        let val_bytes = v.bytes()?;
+                        let (s, _, has_err) = UTF_16BE.decode(val_bytes.as_slice());
+                        if has_err {
+                            return Err(PDFError::FontCmapFailure(
+                                "cmap decode bfrange error".to_string(),
+                            ));
+                        }
+                        cmap.add_unicode(start.bytes(), s.to_string());
+                        incresement(&mut bytes, pos);
+                    }
+                }
+                PDFObject::String(s) => {
+                    let n = hex_bytes_to_u32(end.bytes()) - hex_bytes_to_u32(start.bytes());
+                    let mut val_bytes = s.binary_bytes()?;
+                    let mut code_bytes = start.binary_bytes()?;
+                    for _ in 0..n {
+                        let (s, _, has_err) = UTF_16BE.decode(&val_bytes);
+                        if has_err {
+                            return Err(PDFError::FontCmapFailure(
+                                "cmap decode bfrange error".to_string(),
+                            ));
+                        }
+                        cmap.add_unicode(code_bytes.as_slice(), s.to_string());
+                        let pos = val_bytes.len() - 1;
+                        incresement(&mut val_bytes, pos);
+                        let code_pos = code_bytes.len() - 1;
+                        incresement(&mut code_bytes, code_pos);
+                    }
+                }
+                _ => {}
+            }
         }
     }
+
     fn process_bf_char(&mut self, cmap: &mut CMap) -> PDFResult<()> {
         loop {
             if self
@@ -147,7 +190,13 @@ impl<T: Seek + Read> CMapParser<T> {
             }
             let key = self.read_whole_hex()?;
             let val = self.read_whole_hex()?;
-            cmap.add_unicode(hex_bytes_to_u32(key.bytes()), hex_bytes_to_u32(val.bytes()));
+            let (s, _, has_err) = UTF_16BE.decode(val.bytes());
+            if has_err {
+                return Err(PDFError::FontCmapFailure(
+                    "cmap decode bfrange error".to_string(),
+                ));
+            }
+            cmap.add_unicode(key.bytes(), s.to_string());
         }
     }
 
@@ -295,5 +344,9 @@ endcmap CMapName currentdict /CMap defineresource pop end end";
         let bytes = b"0f";
         let value = hex_bytes_to_u32(bytes);
         assert_eq!(value, 15);
+
+        let bytes = b"d862dde7";
+        let value = hex_bytes_to_u32(bytes);
+        println!("{:?}", value);
     }
 }

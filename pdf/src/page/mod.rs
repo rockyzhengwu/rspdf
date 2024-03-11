@@ -6,7 +6,7 @@ use std::rc::Rc;
 use crate::device::Device;
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
-use crate::font::pdf_font::Font;
+use crate::font::pdf_font::{load_font, Font};
 use crate::geom::rectangle::Rectangle;
 use crate::object::{PDFDictionary, PDFObject, PDFStream};
 use crate::page::content_interpreter::ContentInterpreter;
@@ -58,12 +58,13 @@ impl<'a, T: Seek + Read> Page<'a, T> {
         }
         if let Some(fd) = self.resources.get("Font") {
             let fontinfo: PDFDictionary = self.doc.get_object_without_indriect(fd)?.try_into()?;
+
             match fontinfo.get(tag) {
                 Some(vv) => {
                     let fontobj = self.doc.read_indirect(vv)?;
-                    //let font = create_font(tag, &fontobj, self.doc)?;
-                    //self.doc.add_font(tag, font.clone());
-                    return Err(PDFError::FontFailure("debug".to_string()));
+                    let font = load_font(&fontobj, self.doc)?;
+                    self.doc.add_font(tag, font.clone());
+                    return Ok(font);
                 }
                 None => {
                     return Err(PDFError::InvalidSyntax(format!(
