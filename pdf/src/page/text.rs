@@ -6,11 +6,11 @@ use crate::page::graphics_state::GraphicsState;
 #[derive(Debug)]
 pub struct TextOpItem {
     bytes: Vec<u8>,
-    pos: Option<f64>,
+    adjust: Option<f64>,
 }
 impl TextOpItem {
-    pub fn new(bytes: Vec<u8>, pos: Option<f64>) -> Self {
-        TextOpItem { bytes, pos }
+    pub fn new(bytes: Vec<u8>, adjust: Option<f64>) -> Self {
+        TextOpItem { bytes, adjust }
     }
 }
 
@@ -29,20 +29,10 @@ pub struct Text {
 
 impl Text {
     pub fn new(content: Vec<TextOpItem>, graphics_state: GraphicsState) -> Self {
-        let mut char_codecs = Vec::new();
-        for con in content.iter() {
-            //let char_infos = graphics_state
-            //    .text_state
-            //    .font()
-            //    .decode_charcodes(&con.bytes);
-            //for char in char_infos {
-            //    char_codecs.push(char.cid().to_owned());
-            //}
-        }
         Text {
             content,
             graphics_state,
-            char_codecs,
+            char_codecs: Vec::new(),
         }
     }
 
@@ -59,14 +49,16 @@ impl Text {
     }
 
     pub fn get_text_matrix(&self) -> Matrix {
-        let mut matrix = self.graphics_state.text_state.text_matrix().to_owned();
-        for charcode in self.char_codecs.iter() {
-            // let width = self.graphics_state.text_state.font().get_width(charcode);
-            //let mat = Matrix::new_translation_matrix(width, 0.0);
-            //matrix = mat.mutiply(&matrix);
-            // TODO vertical
-        }
-        matrix
+        let mut text_matrix = self.graphics_state.text_state.text_matrix().to_owned();
+        // 需要在这里执行一次
+        let font_size = self.graphics_state.text_state.font_size();
+        let font = self.graphics_state.text_state.font();
+        let char_spacing = self.graphics_state.text_state.char_space();
+        let horz_scale = self.graphics_state.text_state.text_horz_scale();
+        let mut word_spacing = 0;
+
+        for con in self.content.iter() {}
+        text_matrix
     }
 
     pub fn char_codecs(&self) -> &[u32] {

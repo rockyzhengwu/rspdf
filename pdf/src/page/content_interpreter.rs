@@ -250,7 +250,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
 
         let p1 = Point::new(x1, y1);
         let p3 = Point::new(x3, y3);
-        self.current_path.curve_to(vec![p1, p3.clone(), p3.clone()]);
+        self.current_path.curve_to(vec![p1, p3, p3]);
         Ok(None)
     }
 
@@ -548,7 +548,13 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         let content: PDFString = operation.operand(0)?.to_owned().try_into()?;
         let bytes = content.binary_bytes()?;
         let font = self.cur_state.text_state.font();
+        // let cids = font.decode_to_cids(bytes.as_slice());
+        let chars = font.decode_chars(bytes.as_slice());
         let text_codes = TextOpItem::new(bytes, None);
+        for char in chars {
+            let width = font.get_char_width(&char.code());
+            println!("{:?},{:?}", char, width);
+        }
         let obj = Text::new(vec![text_codes], self.cur_state.clone());
         let matrix = obj.get_text_matrix();
         self.cur_state.text_state.set_text_matrix(matrix);

@@ -74,4 +74,8 @@ impl FontDescriptor {
     pub fn embeded(&self) -> Option<&PDFObject> {
         self.embed.as_ref()
     }
+
+    pub fn missing_width(&self) -> f64 {
+        self.missing_width
+    }
 }

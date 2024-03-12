@@ -2,6 +2,7 @@ use std::io::{Read, Seek};
 
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
+use crate::font::cmap::charcode::CharCode;
 use crate::font::composite_font::{load_composite_font, CompositeFont};
 use crate::font::simple_font::{load_simple_font, SimpleFont};
 use crate::object::PDFObject;
@@ -12,19 +13,24 @@ pub enum Font {
     Composite(CompositeFont),
 }
 
-// TODO impl type0
-
 impl Font {
-    pub fn decode_to_cids(&self, bytes: &[u8]) -> Vec<u32> {
-        match self {
-            Font::Simple(sf) => sf.decode_to_cids(bytes),
-            Font::Composite(cf) => cf.decode_to_cids(bytes),
-        }
-    }
     pub fn to_unicode(&self, bytes: &[u8]) -> Vec<String> {
         match self {
             Font::Simple(sf) => sf.decode_to_unicode(bytes),
             Font::Composite(cf) => cf.decode_to_unicode(bytes),
+        }
+    }
+
+    pub fn decode_chars(&self, bytes: &[u8]) -> Vec<CharCode> {
+        match self {
+            Font::Simple(sf) => sf.decode_chars(bytes),
+            Font::Composite(cf) => cf.decode_chars(bytes),
+        }
+    }
+    pub fn get_char_width(&self, code: &u32) -> f64 {
+        match self {
+            Font::Simple(sf) => sf.get_char_width(code) ,
+            Font::Composite(cf) => cf.get_char_width(code),
         }
     }
 }

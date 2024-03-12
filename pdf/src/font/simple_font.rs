@@ -3,6 +3,7 @@ use std::io::{Read, Seek};
 
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
+use crate::font::cmap::charcode::CharCode;
 use crate::font::cmap::predefined::get_predefine_cmap;
 use crate::font::cmap::CMap;
 use crate::font::encoding::{get_predefined_encoding, FontEncoding};
@@ -45,12 +46,23 @@ impl Default for SimpleFont {
 }
 
 impl SimpleFont {
+    pub fn get_char_width(&self, code: &u32) -> f64 {
+        if *code > 256 {
+            return 0.0;
+        }
+        let code = code.to_owned() as u8;
+        self.char_width[code as usize] as f64
+    }
+
     pub fn decode_to_unicode(&self, bytes: &[u8]) -> Vec<String> {
         self.to_unicode.charcodes_to_unicode(bytes)
     }
 
-    pub fn decode_to_cids(&self, bytes: &[u8]) -> Vec<u32> {
-        bytes.iter().map(|v| v.to_owned() as u32).collect()
+    pub fn decode_chars(&self, bytes: &[u8]) -> Vec<CharCode> {
+        bytes
+            .iter()
+            .map(|v| CharCode::new(v.to_owned() as u32, 1))
+            .collect()
     }
 
     pub fn ft_font(&self) -> &FTFont {

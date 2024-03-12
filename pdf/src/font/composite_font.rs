@@ -4,6 +4,7 @@ use std::u32;
 
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
+use crate::font::cmap::charcode::CharCode;
 use crate::font::cmap::predefined::get_predefine_cmap;
 use crate::font::cmap::CMap;
 use crate::font::font_descriptor::FontDescriptor;
@@ -39,11 +40,27 @@ pub struct CompositeFont {
     dw: f64,
 }
 impl CompositeFont {
-    pub fn decode_to_cids(&self, bytes: &[u8]) -> Vec<u32> {
-        self.encoding.charcode_to_cids(bytes)
-    }
     pub fn decode_to_unicode(&self, bytes: &[u8]) -> Vec<String> {
         self.to_unicode.charcodes_to_unicode(bytes)
+    }
+
+    pub fn decode_chars(&self, bytes: &[u8]) -> Vec<CharCode> {
+        let mut res = Vec::new();
+        let mut offset: usize = 0;
+        while offset < bytes.len() {
+            if let Some(ch) = self.encoding.next_char(bytes, offset) {
+                offset += ch.length() as usize;
+                res.push(ch)
+            }
+        }
+        res
+    }
+
+    pub fn get_char_width(&self, code: &u32) -> f64 {
+        if let Some(w) = self.widths.get(code) {
+            return w.to_owned();
+        }
+        self.desc.missing_width()
     }
 }
 

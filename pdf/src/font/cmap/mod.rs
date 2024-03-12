@@ -4,8 +4,10 @@ use std::io::Cursor;
 use log::warn;
 
 use crate::errors::PDFResult;
+use crate::font::cmap::charcode::CharCode;
 use crate::parser::syntax::SyntaxParser;
 
+pub mod charcode;
 pub mod parser;
 pub mod predefined;
 
@@ -139,7 +141,6 @@ impl CMap {
         parser.parse()
     }
 
-    #[allow(dead_code)]
     pub fn wmode(&self) -> Option<u8> {
         self.wmode
     }
@@ -226,6 +227,24 @@ impl CMap {
             }
             if range.is_contain_code(code) {
                 return Some(range.size);
+            }
+        }
+        None
+    }
+
+    pub fn next_char(&self, bytes: &[u8], offset: usize) -> Option<CharCode> {
+        if offset > bytes.len() {
+            return None;
+        }
+        let mut codecs = Vec::new();
+        for i in 0..4 {
+            if offset + i > bytes.len() {
+                return None;
+            }
+            codecs.push(bytes[offset + i].to_owned());
+            if let Some(v) = self.find_charsize(codecs.as_slice()) {
+                let ch = CharCode::new(bytes_to_u32(codecs.as_slice()), v);
+                return Some(ch);
             }
         }
         None
