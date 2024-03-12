@@ -14,7 +14,20 @@ pub enum Font {
 
 // TODO impl type0
 
-impl Font {}
+impl Font {
+    pub fn decode_to_cids(&self, bytes: &[u8]) -> Vec<u32> {
+        match self {
+            Font::Simple(sf) => sf.decode_to_cids(bytes),
+            Font::Composite(cf) => cf.decode_to_cids(bytes),
+        }
+    }
+    pub fn to_unicode(&self, bytes: &[u8]) -> Vec<String> {
+        match self {
+            Font::Simple(sf) => sf.decode_to_unicode(bytes),
+            Font::Composite(cf) => cf.decode_to_unicode(bytes),
+        }
+    }
+}
 
 pub fn load_font<T: Seek + Read>(obj: &PDFObject, doc: &Document<T>) -> PDFResult<Font> {
     let subtype = obj.get_value_as_string("Subtype").unwrap()?;

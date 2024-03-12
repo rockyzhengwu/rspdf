@@ -1,4 +1,4 @@
-// https://adobe-type-tools.github.io/font-tech-notes/pdfs/5014.CIDFont_Spec.pdf
+// https://adobe-type-tools.github.io/font-terch-notes/pdfs/5014.CIDFont_Spec.pdf
 // Operators That Use CIDs as Selectors
 // functional: specifies range of CIDFont characters
 //   begincidchar endcidchar && begincidrange endcidrange
@@ -143,10 +143,11 @@ impl<T: Seek + Read> CMapParser<T> {
             let obj = self.syntax_parser.read_object()?;
             match obj {
                 PDFObject::Arrray(arr) => {
-                    let mut bytes = start.bytes().to_vec();
+                    let mut bytes = start.binary_bytes()?;
                     let pos = bytes.len() - 1;
                     for v in arr {
-                        let val_bytes = v.bytes()?;
+                        let vs: PDFString = v.try_into()?;
+                        let val_bytes = vs.binary_bytes()?;
                         let (s, _, has_err) = UTF_16BE.decode(val_bytes.as_slice());
                         if has_err {
                             return Err(PDFError::FontCmapFailure(
@@ -158,7 +159,7 @@ impl<T: Seek + Read> CMapParser<T> {
                     }
                 }
                 PDFObject::String(s) => {
-                    let n = hex_bytes_to_u32(end.bytes()) - hex_bytes_to_u32(start.bytes());
+                    let n = hex_bytes_to_u32(end.bytes()) - hex_bytes_to_u32(start.bytes()) + 1;
                     let mut val_bytes = s.binary_bytes()?;
                     let mut code_bytes = start.binary_bytes()?;
                     for _ in 0..n {
@@ -190,13 +191,15 @@ impl<T: Seek + Read> CMapParser<T> {
             }
             let key = self.read_whole_hex()?;
             let val = self.read_whole_hex()?;
-            let (s, _, has_err) = UTF_16BE.decode(val.bytes());
+            let bv = val.binary_bytes()?;
+            let (s, _, has_err) = UTF_16BE.decode(bv.as_slice());
             if has_err {
                 return Err(PDFError::FontCmapFailure(
                     "cmap decode bfrange error".to_string(),
                 ));
             }
-            cmap.add_unicode(key.bytes(), s.to_string());
+            let kbyte = key.binary_bytes()?;
+            cmap.add_unicode(kbyte.as_slice(), s.to_string());
         }
     }
 

@@ -34,9 +34,17 @@ pub struct CompositeFont {
     desc: FontDescriptor,
     ft_font: FTFont,
     cid_coding: Option<CIDCoding>,
-    cid_to_unicode: CMap,
+    to_unicode: CMap,
     widths: HashMap<u32, f64>,
     dw: f64,
+}
+impl CompositeFont {
+    pub fn decode_to_cids(&self, bytes: &[u8]) -> Vec<u32> {
+        self.encoding.charcode_to_cids(bytes)
+    }
+    pub fn decode_to_unicode(&self, bytes: &[u8]) -> Vec<String> {
+        self.to_unicode.charcodes_to_unicode(bytes)
+    }
 }
 
 impl Default for CompositeFont {
@@ -47,7 +55,7 @@ impl Default for CompositeFont {
             desc: FontDescriptor::default(),
             ft_font: FTFont::default(),
             cid_coding: None,
-            cid_to_unicode: CMap::default(),
+            to_unicode: CMap::default(),
             widths: HashMap::new(),
             dw: 1000.0,
         }
@@ -126,6 +134,47 @@ fn cid_collection<T: Seek + Read>(obj: &PDFObject, doc: &Document<T>) -> PDFResu
         None => Ok(String::from("Identity")),
     }
 }
+fn load_unicode<T: Seek + Read>(
+    font: &mut CompositeFont,
+    obj: &PDFObject,
+    doc: &Document<T>,
+) -> PDFResult<()> {
+    if let Some(tu) = obj.get_value("ToUnicode") {
+        let tounicode = doc.get_object_without_indriect(tu)?;
+        match tounicode {
+            PDFObject::Stream(s) => {
+                let cmp = CMap::new_from_bytes(s.bytes().as_slice())?;
+                font.to_unicode = cmp;
+            }
+            PDFObject::Name(name) => {
+                let cmap = get_predefine_cmap(name.name());
+                font.to_unicode = cmap;
+            }
+            _ => {
+                //
+            }
+        }
+    } else {
+        let collection = cid_collection(obj, doc)?;
+        match collection.as_str() {
+            "Adobe-CNS1" => {
+                font.to_unicode = get_predefine_cmap("Adobe-CNS1-UCS2");
+            }
+            "Adobe-GB1" => {
+                font.to_unicode = get_predefine_cmap("Adobe-GB1-UCS2");
+            }
+            "Adobe-Japan1" => {
+                font.to_unicode = get_predefine_cmap("Adobe-Japan1-UCS2");
+            }
+            "Adobe-Korea1" => {
+                font.to_unicode = get_predefine_cmap("Adobe-Korea1-UCS2");
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 fn font_type(dfont: &PDFObject) -> PDFResult<CompositeFontType> {
     match dfont.get_value_as_string("Subtype") {
         Some(subtype) => {
@@ -172,15 +221,13 @@ pub fn load_composite_font<T: Seek + Read>(
         let ft_font = FTFont::try_new(embeded.bytes()?)?;
         font.ft_font = ft_font;
     } else {
+        // TODO
         // load builtin font
     }
     load_encoding(&mut font, obj, doc)?;
 
     font.font_type = font_type(&dfont)?;
-    let collection = cid_collection(&dfont, doc)?;
-    println!("{:?}", collection);
-    //font.cid_to_unicode = get_predefine_cmap(&collection);
-    // let basefont = dfont.get_value("BaseFont");
+    load_unicode(&mut font, obj, doc)?;
     if let Some(cidtogid) = dfont.get_value("CIDToGIDMap") {
         match &cidtogid {
             PDFObject::Stream(_) => {
@@ -194,7 +241,6 @@ pub fn load_composite_font<T: Seek + Read>(
     }
     if let Some(widtharray) = dfont.get_value("W") {
         let w_arr = doc.get_object_without_indriect(widtharray)?;
-        println!("{:?}", w_arr);
         font.widths = load_widths(w_arr.as_array()?);
     }
 

@@ -47,6 +47,14 @@ impl CidRange {
             length,
         }
     }
+    fn find_cide(&self, bytes: &[u8]) -> Option<u32> {
+        let l = bytes.len() as u8;
+        let v = bytes_to_u32(bytes);
+        if l != self.length || v < self.start || v > self.end {
+            return None;
+        }
+        Some(self.start_cid + v - self.start)
+    }
 }
 
 fn bytes_to_u32(bytes: &[u8]) -> u32 {
@@ -101,9 +109,9 @@ impl CMap {
 
     pub fn add_unicode(&mut self, bytes: &[u8], ch: String) {
         let charcode = bytes_to_u32(bytes);
-        if bytes.len() == 2 {
+        if bytes.len() == 1 {
             self.code_to_unicode_one.insert(charcode, ch);
-        } else if bytes.len() == 4 {
+        } else if bytes.len() == 2 {
             self.code_to_unicode_two.insert(charcode, ch);
         }
     }
@@ -136,66 +144,82 @@ impl CMap {
         self.wmode
     }
 
-    pub fn charcode_to_unicode(&self, charcode: &u32) -> Option<&str> {
-        if charcode < &256 {
-            self.code_to_unicode_one.get(charcode).map(|s| s.as_str())
-        } else {
-            self.code_to_unicode_two.get(charcode).map(|s| s.as_str())
+    pub fn charcode_to_unicode(&self, bytes: &[u8]) -> Option<&str> {
+        let n = bytes.len();
+        match n {
+            1 => self
+                .code_to_unicode_one
+                .get(&bytes_to_u32(bytes))
+                .map(|s| s.as_str()),
+            2 => self
+                .code_to_unicode_two
+                .get(&bytes_to_u32(bytes))
+                .map(|s| s.as_str()),
+            _ => None,
         }
     }
 
-    pub fn charcodes_to_unicode(&self, bytes: &[u8]) -> Vec<char> {
-        //if self.code_to_unicode.is_empty() {
-        //    let n = bytes.len();
-        //    return vec![char::REPLACEMENT_CHARACTER; n];
-        //}
-        //let mut res = Vec::new();
-        //if self.code_space_range.is_empty() {
-        //    for b in bytes {
-        //        let code = *b as u32;
-        //        let u = self.charcode_to_unicode(&code);
-        //        res.push(u);
-        //    }
-        //    return res;
-        //}
-        //let mut code = 0;
-        //let mut n = 0;
-        //for b in bytes.iter() {
-        //    code += *b as u32;
-        //    n += 1;
-        //    if self.find_charsize(code, n).is_some() {
-        //        res.push(self.charcode_to_unicode(&code));
-        //        code = 0;
-        //        n = 0;
-        //        continue;
-        //    }
-        //    if n == 4 {
-        //        res.push(self.charcode_to_unicode(&code));
-        //        n = 0;
-        //        code = 0;
-        //    }
-        //}
-        //res
-        unimplemented!()
+    pub fn has_unicode_map(&self) -> bool {
+        !self.code_to_unicode_two.is_empty() || !self.code_to_unicode_one.is_empty()
     }
 
-    pub fn charcode_to_cid(&self, charcode: &u32) -> u32 {
-        //match self.code_to_cid.get(charcode) {
-        //    Some(cid) => cid.to_owned(),
-        //    None => match self.usecmap {
-        //        Some(ref scp) => {
-        //            let nm = get_predefine_cmap(scp);
-        //            nm.charcode_to_cid(charcode)
-        //        }
-        //        None => {
-        //            panic!("faild map charcode to cid");
-        //        }
-        //    },
-        //}
-        unimplemented!()
+    pub fn charcodes_to_unicode(&self, bytes: &[u8]) -> Vec<String> {
+        if !self.has_unicode_map() {
+            let n = bytes.len();
+            return vec![String::from(char::REPLACEMENT_CHARACTER); n];
+        }
+        let mut res: Vec<String> = Vec::new();
+        if self.code_space_range.is_empty() {
+            for b in bytes {
+                let code = vec![b.to_owned()];
+                if let Some(s) = self.charcode_to_unicode(code.as_slice()) {
+                    res.push(s.to_string());
+                }
+            }
+            return res;
+        }
+        let mut charcode: Vec<u8> = Vec::new();
+        for b in bytes.iter() {
+            charcode.push(b.to_owned());
+            if self.find_charsize(charcode.as_slice()).is_some() {
+                if let Some(s) = self.charcode_to_unicode(charcode.as_slice()) {
+                    res.push(s.to_string());
+                } else {
+                    warn!("notfound char:{:?}", charcode);
+                }
+                charcode.clear();
+                continue;
+            }
+            if charcode.len() == 4 {
+                if let Some(v) = self.charcode_to_unicode(charcode.as_slice()) {
+                    res.push(v.to_string());
+                }
+                charcode.clear();
+            }
+        }
+        res
     }
 
-    fn find_charsize(&self, code: u32, size: u8) -> Option<u8> {
+    pub fn charcode_to_cid(&self, charcode: &[u8]) -> Option<u32> {
+        let l = charcode.len() as u8;
+        if let Some(map) = self.code_to_cid.get(&l) {
+            let v = bytes_to_u32(charcode);
+            if let Some(cid) = map.get(&v) {
+                return Some(cid.to_owned());
+            }
+        }
+
+        for range in &self.cid_ranges {
+            if let Some(v) = range.find_cide(charcode) {
+                return Some(v);
+            }
+        }
+        None
+    }
+
+    fn find_charsize(&self, bytes: &[u8]) -> Option<u8> {
+        let code = bytes_to_u32(bytes);
+        let size = bytes.len() as u8;
         for range in &self.code_space_range {
             if range.size != size {
                 continue;
@@ -207,23 +231,23 @@ impl CMap {
         None
     }
 
-    pub fn charcodes_to_cid(&self, bytes: &[u8]) -> Vec<u32> {
+    pub fn charcode_to_cids(&self, bytes: &[u8]) -> Vec<u32> {
         //pass
-        let mut code = 0;
         let mut res = Vec::new();
-        let mut n = 0;
+        let mut charcode: Vec<u8> = Vec::new();
         for b in bytes.iter() {
-            code += *b as u32;
-            n += 1;
-            if self.find_charsize(code, n).is_some() {
-                res.push(self.charcode_to_cid(&code));
-                code = 0;
+            charcode.push(b.to_owned());
+            if self.find_charsize(charcode.as_slice()).is_some() {
+                if let Some(v) = self.charcode_to_cid(charcode.as_slice()) {
+                    res.push(v);
+                }
+                charcode.clear();
                 continue;
             }
-            if n == 4 {
-                res.push(self.charcode_to_cid(&code));
-                n = 0;
-                code = 0;
+            if charcode.len() == 4 {
+                // TODO fix this unwrap
+                res.push(self.charcode_to_cid(charcode.as_slice()).unwrap());
+                charcode.clear()
             }
         }
         res

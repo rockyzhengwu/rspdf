@@ -8,7 +8,7 @@ use crate::geom::matrix::Matrix;
 use crate::geom::path::Path;
 use crate::geom::point::Point;
 use crate::geom::rectangle::Rectangle;
-use crate::object::{PDFNumber, PDFObject};
+use crate::object::{PDFNumber, PDFObject, PDFString};
 use crate::page::content_parser::ContentParser;
 use crate::page::graphics_object::GraphicsObject;
 use crate::page::graphics_state::GraphicsState;
@@ -545,8 +545,9 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
 
     // Tj
     fn show_text(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
-        let content = &operation.operand(0)?;
-        let bytes = content.bytes()?;
+        let content: PDFString = operation.operand(0)?.to_owned().try_into()?;
+        let bytes = content.binary_bytes()?;
+        let font = self.cur_state.text_state.font();
         let text_codes = TextOpItem::new(bytes, None);
         let obj = Text::new(vec![text_codes], self.cur_state.clone());
         let matrix = obj.get_text_matrix();

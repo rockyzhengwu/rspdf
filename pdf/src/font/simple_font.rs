@@ -45,6 +45,14 @@ impl Default for SimpleFont {
 }
 
 impl SimpleFont {
+    pub fn decode_to_unicode(&self, bytes: &[u8]) -> Vec<String> {
+        self.to_unicode.charcodes_to_unicode(bytes)
+    }
+
+    pub fn decode_to_cids(&self, bytes: &[u8]) -> Vec<u32> {
+        bytes.iter().map(|v| v.to_owned() as u32).collect()
+    }
+
     pub fn ft_font(&self) -> &FTFont {
         &self.ft_font
     }
@@ -141,64 +149,70 @@ fn load_width(font: &mut SimpleFont, obj: &PDFObject) -> PDFResult<()> {
     Ok(())
 }
 
-fn load_encoding(obj: &PDFObject, font: &mut SimpleFont) -> PDFResult<()> {
+fn load_encoding<T: Seek + Read>(
+    obj: &PDFObject,
+    font: &mut SimpleFont,
+    doc: &Document<T>,
+) -> PDFResult<()> {
     if !font.is_symbolic() {
         font.base_encoding = Some(FontEncoding::Standard);
     }
-    let encoding = obj.get_value("Encoding");
-    match encoding {
-        None => {
-            if font.basename == "Symbol" {
-                if font.is_ttot() {
-                    font.base_encoding = Some(FontEncoding::MsSymbol);
-                } else {
+    if let Some(enc) = obj.get_value("Encoding") {
+        let encoding = doc.get_object_without_indriect(enc)?;
+        match encoding {
+            PDFObject::Name(name) => {
+                if font.is_symbolic() && font.basename == "Symbol" && !font.is_ttot() {
                     font.base_encoding = Some(FontEncoding::AdobeSymbol);
+                } else {
+                    font.base_encoding = get_predefined_encoding(name.name());
                 }
             }
-        }
-        Some(PDFObject::Name(name)) => {
-            if font.is_symbolic() && font.basename == "Symbol" && !font.is_ttot() {
-                font.base_encoding = Some(FontEncoding::AdobeSymbol);
-            } else {
-                font.base_encoding = get_predefined_encoding(name.name());
-            }
-        }
-        Some(PDFObject::Dictionary(dict)) => {
-            if let Some(name) = dict.get("BaseEncoding") {
-                font.base_encoding = get_predefined_encoding(&name.as_string()?);
-            }
+            PDFObject::Dictionary(dict) => {
+                if let Some(name) = dict.get("BaseEncoding") {
+                    font.base_encoding = get_predefined_encoding(&name.as_string()?);
+                }
 
-            if let Some(diff) = dict.get("Differences") {
-                let diffs = diff.as_array()?;
-                let mut diff_map = HashMap::new();
-                let mut code: usize = 0;
-                for df in diffs {
-                    match df {
-                        PDFObject::Number(n) => {
-                            code = n.as_u32() as usize;
-                        }
-                        PDFObject::Name(_) => {
-                            let name = df.as_string()?;
-                            diff_map.insert(code as u8, name);
-                            code += 1;
-                        }
-                        _ => {
-                            return Err(PDFError::FontEncoding(format!(
-                                "encoding Differences need Name, or Number, got:{:?}",
-                                dict
-                            )));
+                if let Some(diff) = dict.get("Differences") {
+                    let diffs = diff.as_array()?;
+                    let mut diff_map = HashMap::new();
+                    let mut code: usize = 0;
+                    for df in diffs {
+                        match df {
+                            PDFObject::Number(n) => {
+                                code = n.as_u32() as usize;
+                            }
+                            PDFObject::Name(_) => {
+                                let name = df.as_string()?;
+                                diff_map.insert(code as u8, name);
+                                code += 1;
+                            }
+                            _ => {
+                                return Err(PDFError::FontEncoding(format!(
+                                    "encoding Differences need Name, or Number, got:{:?}",
+                                    dict
+                                )));
+                            }
                         }
                     }
+                    font.diffs = diff_map;
                 }
-                font.diffs = diff_map;
+            }
+            _ => {}
+        }
+    }
+    {
+        if font.basename == "Symbol" {
+            if font.is_ttot() {
+                font.base_encoding = Some(FontEncoding::MsSymbol);
+            } else {
+                font.base_encoding = Some(FontEncoding::AdobeSymbol);
             }
         }
-        _ => {}
     }
     Ok(())
 }
 
-pub fn load_to_unicode(font: &mut SimpleFont, obj: &PDFObject, tu: &PDFObject) -> PDFResult<()> {
+pub fn load_to_unicode(font: &mut SimpleFont, tu: &PDFObject) -> PDFResult<()> {
     match tu {
         PDFObject::Name(_) => {
             let name = tu.as_string()?;
@@ -222,7 +236,6 @@ pub fn load_to_unicode(font: &mut SimpleFont, obj: &PDFObject, tu: &PDFObject) -
             }
         }
     }
-
     Ok(())
 }
 
@@ -253,7 +266,7 @@ pub fn load_simple_font<T: Seek + Read>(
         // load builtin font
     }
     load_width(&mut font, obj)?;
-    load_encoding(obj, &mut font)?;
+    load_encoding(obj, &mut font, doc)?;
     match subtype.as_str() {
         "TrueType" => load_truetype_glyph_map(&mut font, obj)?,
         "Type1" => {
@@ -263,7 +276,7 @@ pub fn load_simple_font<T: Seek + Read>(
     }
     if let Some(tu) = obj.get_value("ToUnicode") {
         let tounicode = doc.get_object_without_indriect(tu)?;
-        load_to_unicode(&mut font, obj, &tounicode)?;
+        load_to_unicode(&mut font, &tounicode)?;
     }
 
     Ok(font)
