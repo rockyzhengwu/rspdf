@@ -56,11 +56,13 @@ impl CompositeFont {
         res
     }
 
-    pub fn get_char_width(&self, code: &u32) -> f64 {
-        if let Some(w) = self.widths.get(code) {
-            return w.to_owned();
+    pub fn get_char_width(&self, charcode: &CharCode) -> f64 {
+        if let Some(cid) = self.encoding.charcode_to_cid(charcode) {
+            if let Some(w) = self.widths.get(&cid) {
+                return w.to_owned();
+            }
         }
-        self.desc.missing_width()
+        self.dw
     }
 }
 
@@ -251,10 +253,14 @@ pub fn load_composite_font<T: Seek + Read>(
                 //
             }
             PDFObject::Name(_) => {
-                println!("{:?}", cidtogid);
+                println!("cidgid:{:?}", cidtogid);
             }
             _ => {}
         }
+    }
+    if let Some(dw) = dfont.get_value("DW") {
+        let dw = dw.as_f64()?;
+        font.dw = dw;
     }
     if let Some(widtharray) = dfont.get_value("W") {
         let w_arr = doc.get_object_without_indriect(widtharray)?;

@@ -16,4 +16,8 @@ impl CharCode {
     pub fn length(&self) -> u8 {
         self.length
     }
+
+    pub fn is_space(&self) -> bool {
+        self.length == 1 && self.code == 32
+    }
 }

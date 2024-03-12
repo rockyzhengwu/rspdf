@@ -55,9 +55,24 @@ impl Text {
         let font = self.graphics_state.text_state.font();
         let char_spacing = self.graphics_state.text_state.char_space();
         let horz_scale = self.graphics_state.text_state.text_horz_scale();
-        let mut word_spacing = 0;
+        let mut word_spacing = self.graphics_state.text_state.word_space();
 
-        for con in self.content.iter() {}
+        for con in self.content.iter() {
+            let unicode = font.to_unicode(&con.bytes);
+            print!("{:?}", unicode);
+            let mut total_with = 0.0;
+            let chars = font.decode_chars(&con.bytes);
+            for char in chars.iter() {
+                total_with += (font.get_char_width(char) * 0.001) * font_size;
+                if char.is_space() {
+                    total_with += word_spacing;
+                }
+                total_with += char_spacing;
+            }
+            let trm = Matrix::new_translation_matrix(total_with, 0.0);
+            text_matrix = trm.mutiply(&text_matrix);
+        }
+        println!("{:?}, {:?}", text_matrix.v32, text_matrix.v32);
         text_matrix
     }
 

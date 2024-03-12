@@ -49,13 +49,12 @@ impl CidRange {
             length,
         }
     }
-    fn find_cide(&self, bytes: &[u8]) -> Option<u32> {
-        let l = bytes.len() as u8;
-        let v = bytes_to_u32(bytes);
-        if l != self.length || v < self.start || v > self.end {
+    fn find_cide(&self, charcode: &CharCode) -> Option<u32> {
+        let code = charcode.code();
+        if charcode.length() != self.length || code < self.start || code > self.end {
             return None;
         }
-        Some(self.start_cid + v - self.start)
+        Some(self.start_cid + code - self.start)
     }
 }
 
@@ -201,11 +200,9 @@ impl CMap {
         res
     }
 
-    pub fn charcode_to_cid(&self, charcode: &[u8]) -> Option<u32> {
-        let l = charcode.len() as u8;
-        if let Some(map) = self.code_to_cid.get(&l) {
-            let v = bytes_to_u32(charcode);
-            if let Some(cid) = map.get(&v) {
+    pub fn charcode_to_cid(&self, charcode: &CharCode) -> Option<u32> {
+        if let Some(map) = self.code_to_cid.get(&charcode.length()) {
+            if let Some(cid) = map.get(&charcode.code()) {
                 return Some(cid.to_owned());
             }
         }
@@ -253,20 +250,13 @@ impl CMap {
     pub fn charcode_to_cids(&self, bytes: &[u8]) -> Vec<u32> {
         //pass
         let mut res = Vec::new();
-        let mut charcode: Vec<u8> = Vec::new();
-        for b in bytes.iter() {
-            charcode.push(b.to_owned());
-            if self.find_charsize(charcode.as_slice()).is_some() {
-                if let Some(v) = self.charcode_to_cid(charcode.as_slice()) {
-                    res.push(v);
+        let mut offset = 0;
+        while offset < bytes.len() {
+            if let Some(charcode) = self.next_char(bytes, offset) {
+                offset += charcode.length() as usize;
+                if let Some(cid) = self.charcode_to_cid(&charcode) {
+                    res.push(cid);
                 }
-                charcode.clear();
-                continue;
-            }
-            if charcode.len() == 4 {
-                // TODO fix this unwrap
-                res.push(self.charcode_to_cid(charcode.as_slice()).unwrap());
-                charcode.clear()
             }
         }
         res

@@ -27,10 +27,11 @@ impl Font {
             Font::Composite(cf) => cf.decode_chars(bytes),
         }
     }
-    pub fn get_char_width(&self, code: &u32) -> f64 {
+
+    pub fn get_char_width(&self, charcode: &CharCode) -> f64 {
         match self {
-            Font::Simple(sf) => sf.get_char_width(code) ,
-            Font::Composite(cf) => cf.get_char_width(code),
+            Font::Simple(sf) => sf.get_char_width(charcode),
+            Font::Composite(cf) => cf.get_char_width(charcode),
         }
     }
 }

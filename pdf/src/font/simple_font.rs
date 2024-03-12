@@ -46,11 +46,11 @@ impl Default for SimpleFont {
 }
 
 impl SimpleFont {
-    pub fn get_char_width(&self, code: &u32) -> f64 {
-        if *code > 256 {
+    pub fn get_char_width(&self, charcode: &CharCode) -> f64 {
+        if charcode.code() > 256 {
             return 0.0;
         }
-        let code = code.to_owned() as u8;
+        let code = charcode.code() as u8;
         self.char_width[code as usize] as f64
     }
 
