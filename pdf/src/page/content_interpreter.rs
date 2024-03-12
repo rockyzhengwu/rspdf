@@ -610,6 +610,8 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
             }
         }
         let text_obj = Text::new(contents, self.cur_state.clone());
+        let text_matrix = text_obj.get_text_matrix();
+        self.cur_state.text_state.set_text_matrix(text_matrix);
         Ok(Some(GraphicsObject::Text(text_obj)))
     }
 }

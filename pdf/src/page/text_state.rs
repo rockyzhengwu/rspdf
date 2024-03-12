@@ -87,7 +87,11 @@ impl TextState {
         self.text_horz_scale = horz_scale;
     }
     pub fn text_horz_scale(&self) -> f64 {
-        self.text_horz_scale
+        if self.text_horz_scale == 0.0 {
+            1.0
+        } else {
+            self.text_horz_scale * 0.01
+        }
     }
     pub fn set_text_leading(&mut self, leading: f64) {
         self.text_leading = leading

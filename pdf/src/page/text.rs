@@ -1,6 +1,5 @@
 use crate::font::pdf_font::Font;
 use crate::geom::matrix::Matrix;
-use crate::geom::point::Point;
 use crate::page::graphics_state::GraphicsState;
 
 #[derive(Debug)]
@@ -12,11 +11,9 @@ impl TextOpItem {
     pub fn new(bytes: Vec<u8>, adjust: Option<f64>) -> Self {
         TextOpItem { bytes, adjust }
     }
-}
-
-pub struct TextItem {
-    charcode: u32,
-    position: Point,
+    pub fn adjust(&self) -> Option<&f64> {
+        self.adjust.as_ref()
+    }
 }
 
 #[derive(Debug)]
@@ -50,29 +47,30 @@ impl Text {
 
     pub fn get_text_matrix(&self) -> Matrix {
         let mut text_matrix = self.graphics_state.text_state.text_matrix().to_owned();
-        // 需要在这里执行一次
         let font_size = self.graphics_state.text_state.font_size();
         let font = self.graphics_state.text_state.font();
         let char_spacing = self.graphics_state.text_state.char_space();
         let horz_scale = self.graphics_state.text_state.text_horz_scale();
-        let mut word_spacing = self.graphics_state.text_state.word_space();
+        let word_spacing = self.graphics_state.text_state.word_space();
 
         for con in self.content.iter() {
             let unicode = font.to_unicode(&con.bytes);
-            print!("{:?}", unicode);
-            let mut total_with = 0.0;
+            if let Some(adjust) = con.adjust() {
+                let tj = adjust * -1.0 * font_size * 0.001 * horz_scale;
+                let translate = Matrix::new_translation_matrix(tj, 0.0);
+                text_matrix = translate.mutiply(&text_matrix);
+            }
+            let mut total_width = 0.0;
             let chars = font.decode_chars(&con.bytes);
             for char in chars.iter() {
-                total_with += (font.get_char_width(char) * 0.001) * font_size;
+                total_width += font.get_char_width(char) * 0.001 + char_spacing;
                 if char.is_space() {
-                    total_with += word_spacing;
+                    total_width += word_spacing;
                 }
-                total_with += char_spacing;
             }
-            let trm = Matrix::new_translation_matrix(total_with, 0.0);
+            let trm = Matrix::new_translation_matrix(total_width, 0.0);
             text_matrix = trm.mutiply(&text_matrix);
         }
-        println!("{:?}, {:?}", text_matrix.v32, text_matrix.v32);
         text_matrix
     }
 
