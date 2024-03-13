@@ -84,6 +84,9 @@ impl TextDevice {
 }
 
 impl Device for TextDevice {
+    fn start_page(&mut self, bbox:Rectangle) {
+        
+    }
     fn process(&mut self, obj: &GraphicsObject) -> PDFResult<()> {
         println!("{:?}", obj);
         Ok(())

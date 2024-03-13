@@ -22,11 +22,13 @@ impl TraceDevice {
 }
 
 impl Device for TraceDevice {
+    fn start_page(&mut self, bbox:crate::geom::rectangle::Rectangle) {
+        
+    }
     fn process(&mut self, obj: &GraphicsObject) -> PDFResult<()> {
         match obj {
             GraphicsObject::Text(text) => {
                 let font = text.font();
-                for code in text.char_codecs() {}
             }
             GraphicsObject::Image(image) => {
                 println!("image, {:?}", image);

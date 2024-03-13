@@ -20,14 +20,16 @@ pub fn command<T: Seek + Read>(
     end: u32,
     cfg: Config,
 ) -> PDFResult<()> {
-    let mut device = ImageDevice::new(cfg.resulotion, cfg.resulotion);
+    let mut device = ImageDevice::new(cfg.resulotion);
     for p in start..end {
         info!("Process page: {}", p);
         let page = doc.get_page(&p).unwrap();
         let objects = page.grapics_objects()?;
+        device.start_page(page.media_bbox()?.unwrap());
         for obj in objects {
             device.process(&obj)?;
         }
+        device.finish_page();
     }
     Ok(())
 }

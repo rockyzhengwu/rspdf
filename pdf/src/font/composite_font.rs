@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::io::{Read, Seek};
 use std::u32;
 
+use freetype::GlyphSlot;
+
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::font::cmap::charcode::CharCode;
@@ -40,6 +42,14 @@ pub struct CompositeFont {
     dw: f64,
 }
 impl CompositeFont {
+    pub fn glyph_index_from_charcode(&self, charcode: &CharCode) -> Option<u32> {
+        unimplemented!()
+    }
+
+    pub fn get_glyph(&self, gid: u32, scale: u32) -> Option<GlyphSlot> {
+        self.ft_font.get_glyph(gid, scale)
+    }
+
     pub fn decode_to_unicode(&self, bytes: &[u8]) -> Vec<String> {
         self.to_unicode.charcodes_to_unicode(bytes)
     }

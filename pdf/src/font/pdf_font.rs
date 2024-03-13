@@ -1,5 +1,7 @@
 use std::io::{Read, Seek};
 
+use freetype::GlyphSlot;
+
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::font::cmap::charcode::CharCode;
@@ -32,6 +34,19 @@ impl Font {
         match self {
             Font::Simple(sf) => sf.get_char_width(charcode),
             Font::Composite(cf) => cf.get_char_width(charcode),
+        }
+    }
+    pub fn glyph_index_from_charcode(&self, charcode: &CharCode) -> Option<u32> {
+        match self {
+            Font::Simple(sf) => sf.glyph_index_from_charcode(charcode),
+            Font::Composite(cf) => cf.glyph_index_from_charcode(charcode),
+        }
+    }
+
+    pub fn get_glyph(&self, gid: u32, scale: u32) -> Option<GlyphSlot> {
+        match self {
+            Font::Simple(sf) => sf.get_glyph(gid, scale),
+            Font::Composite(cf) => cf.get_glyph(gid, scale),
         }
     }
 }

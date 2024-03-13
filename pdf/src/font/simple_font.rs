@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::io::{Read, Seek};
 
+use freetype::GlyphSlot;
+
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::font::cmap::charcode::CharCode;
@@ -19,7 +21,7 @@ pub struct SimpleFont {
     basename: String,
     desc: FontDescriptor,
     char_width: [i32; 256],
-    glphy_index: [u32; 256],
+    glyph_index: [u32; 256],
     char_bbox: [Rectangle; 256],
     font_bbox: Rectangle,
     ft_font: FTFont,
@@ -34,7 +36,7 @@ impl Default for SimpleFont {
             basename: String::new(),
             desc: FontDescriptor::default(),
             char_width: [0; 256],
-            glphy_index: [0; 256],
+            glyph_index: [0; 256],
             char_bbox: [Rectangle::default(); 256],
             font_bbox: Rectangle::default(),
             ft_font: FTFont::default(),
@@ -46,6 +48,16 @@ impl Default for SimpleFont {
 }
 
 impl SimpleFont {
+    pub fn get_glyph(&self, gid: u32, scale: u32) -> Option<GlyphSlot> {
+        self.ft_font.get_glyph(gid, scale)
+    }
+
+    pub fn glyph_index_from_charcode(&self, charcode: &CharCode) -> Option<u32> {
+        self.glyph_index
+            .get(charcode.code() as usize)
+            .map(|x| x.to_owned())
+    }
+
     pub fn get_char_width(&self, charcode: &CharCode) -> f64 {
         if charcode.code() > 256 {
             return 0.0;
@@ -74,7 +86,7 @@ impl SimpleFont {
 
     pub fn set_glyph(&mut self, charcode: u8, glyph: u32) {
         // need charcode < 256
-        self.glphy_index[charcode as usize] = glyph;
+        self.glyph_index[charcode as usize] = glyph;
     }
 
     pub fn is_ttot(&self) -> bool {
@@ -94,11 +106,11 @@ impl SimpleFont {
             return;
         }
         for i in 0..startchar {
-            self.glphy_index[i as usize] = 0;
+            self.glyph_index[i as usize] = 0;
         }
         let mut glyph_code: u32 = 3;
         for charcode in startchar..256 {
-            self.glphy_index[charcode as usize] = glyph_code;
+            self.glyph_index[charcode as usize] = glyph_code;
             glyph_code += 1;
         }
     }

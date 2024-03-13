@@ -1,7 +1,7 @@
 use freetype::charmap::CharMap;
-use freetype::face::Face;
 use freetype::ffi::FT_FACE_FLAG_SFNT;
-use freetype::library::Library;
+use freetype::GlyphSlot;
+use freetype::{face::LoadFlag, Face, Library};
 
 use crate::errors::{PDFError, PDFResult};
 use crate::font::glyph_name::name_to_unicode;
@@ -20,6 +20,20 @@ impl FTFont {
             Err(e) => Err(PDFError::FontFreeType(format!("Load face error{:?}", e))),
         }
     }
+
+    pub fn get_glyph(&self, gid: u32, scale: u32) -> Option<GlyphSlot> {
+        match &self.face {
+            Some(f) => {
+                f.set_pixel_sizes(scale.to_owned(), scale.to_owned())
+                    .unwrap();
+                f.load_glyph(gid, LoadFlag::RENDER).unwrap();
+                let glyph = f.glyph();
+                Some(glyph.to_owned())
+            }
+            None => None,
+        }
+    }
+
     pub fn is_loaded(&self) -> bool {
         self.face.is_some()
     }

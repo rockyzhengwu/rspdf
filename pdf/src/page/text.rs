@@ -11,8 +11,11 @@ impl TextOpItem {
     pub fn new(bytes: Vec<u8>, adjust: Option<f64>) -> Self {
         TextOpItem { bytes, adjust }
     }
-    pub fn adjust(&self) -> Option<&f64> {
-        self.adjust.as_ref()
+    pub fn adjust(&self) -> f64 {
+        self.adjust.map_or(0.0, |x| x.to_owned())
+    }
+    pub fn bytes(&self) -> &[u8] {
+        self.bytes.as_slice()
     }
 }
 
@@ -21,7 +24,6 @@ impl TextOpItem {
 pub struct Text {
     content: Vec<TextOpItem>,
     graphics_state: GraphicsState,
-    char_codecs: Vec<u32>,
 }
 
 impl Text {
@@ -29,8 +31,11 @@ impl Text {
         Text {
             content,
             graphics_state,
-            char_codecs: Vec::new(),
         }
+    }
+
+    pub fn text_items(&self) -> &[TextOpItem] {
+        self.content.as_slice()
     }
 
     pub fn font(&self) -> &Font {
@@ -45,6 +50,25 @@ impl Text {
         self.graphics_state.ctm()
     }
 
+    pub fn text_matrix(&self) -> &Matrix {
+        self.graphics_state.text_state.text_matrix()
+    }
+
+    pub fn char_spacing(&self) -> f64 {
+        self.graphics_state.text_state.char_space()
+    }
+
+    pub fn text_horz_scale(&self) -> f64 {
+        self.graphics_state.text_state.text_horz_scale()
+    }
+
+    pub fn word_space(&self) -> f64 {
+        self.graphics_state.text_state.word_space()
+    }
+    pub fn text_rise(&self) -> f64 {
+        self.graphics_state.text_state.text_rise()
+    }
+
     pub fn get_text_matrix(&self) -> Matrix {
         let mut text_matrix = self.graphics_state.text_state.text_matrix().to_owned();
         let font_size = self.graphics_state.text_state.font_size();
@@ -54,27 +78,21 @@ impl Text {
         let word_spacing = self.graphics_state.text_state.word_space();
 
         for con in self.content.iter() {
-            let unicode = font.to_unicode(&con.bytes);
-            if let Some(adjust) = con.adjust() {
-                let tj = adjust * -1.0 * font_size * 0.001 * horz_scale;
-                let translate = Matrix::new_translation_matrix(tj, 0.0);
-                text_matrix = translate.mutiply(&text_matrix);
-            }
-            let mut total_width = 0.0;
             let chars = font.decode_chars(&con.bytes);
+            let mut displacement = 0.0;
             for char in chars.iter() {
-                total_width += font.get_char_width(char) * 0.001 + char_spacing;
+                displacement += font.get_char_width(char) * 0.001 + char_spacing;
                 if char.is_space() {
-                    total_width += word_spacing;
+                    displacement += word_spacing;
                 }
             }
-            let trm = Matrix::new_translation_matrix(total_width, 0.0);
+            let tj = con.adjust();
+            // PDF3200 chapter: 9.4.4
+            // TODO handler vertical
+            let tx = ((displacement - tj * 0.001) * font_size) * horz_scale;
+            let trm = Matrix::new_translation_matrix(tx, 0.0);
             text_matrix = trm.mutiply(&text_matrix);
         }
         text_matrix
-    }
-
-    pub fn char_codecs(&self) -> &[u32] {
-        self.char_codecs.as_slice()
     }
 }
