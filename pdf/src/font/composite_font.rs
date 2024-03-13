@@ -42,6 +42,10 @@ pub struct CompositeFont {
     dw: f64,
 }
 impl CompositeFont {
+    pub fn basename(&self) -> &str {
+        "type0font"
+    }
+
     pub fn glyph_index_from_charcode(&self, charcode: &CharCode) -> Option<u32> {
         unimplemented!()
     }

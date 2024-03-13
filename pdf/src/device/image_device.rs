@@ -46,7 +46,6 @@ impl ImageDevice {
         }
     }
     pub fn finish_page(&self) {
-        println!("finish");
         self.image.save(format!("page-{}.png", 3)).unwrap()
     }
 }
@@ -87,7 +86,8 @@ impl Device for ImageDevice {
 
                     let chars = font.decode_chars(con.bytes());
                     for char in chars.iter() {
-                        let mut displacement = font.get_char_width(char) * 0.001 + char_spacing;
+                        let mut displacement =
+                            font.get_char_width(char) * 0.001 * font_size + char_spacing;
                         if char.is_space() {
                             displacement += word_spacing;
                         }

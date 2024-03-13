@@ -43,16 +43,15 @@ impl Device for TraceDevice {
                     let chars = font.decode_chars(con.bytes());
                     for (i, char) in chars.iter().enumerate() {
                         let u = unicode.get(i);
-                        let mut displacement = font.get_char_width(char) * 0.001;
-                        println!(
-                            "{:?}, x:{},y:{},displacement:{:?},{:?}",
-                            u, text_matrix.v31, text_matrix.v32, displacement, horz_scale
-                        );
+                        println!("{:?},{:?},{:?}", u, text_matrix.v31, text_matrix.v32);
+                        let mut displacement = (font.get_char_width(char) * 0.001) * horz_scale;
                         if char.is_space() {
                             displacement += word_spacing;
                         }
-                        let mrm = Matrix::new_translation_matrix(displacement, 0.0);
-                        text_matrix = mrm.mutiply(&text_matrix);
+
+                        let m = Matrix::new_translation_matrix(displacement, 0.0);
+                        text_matrix.v31 += displacement;
+                        // text_matrix = m.mutiply(&text_matrix);
                     }
                 }
             }

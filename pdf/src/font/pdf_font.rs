@@ -49,6 +49,12 @@ impl Font {
             Font::Composite(cf) => cf.get_glyph(gid, scale),
         }
     }
+    pub fn name(&self) -> &str {
+        match self {
+            Font::Simple(sf) => sf.basename(),
+            Font::Composite(cf) => cf.basename(),
+        }
+    }
 }
 
 pub fn load_font<T: Seek + Read>(obj: &PDFObject, doc: &Document<T>) -> PDFResult<Font> {

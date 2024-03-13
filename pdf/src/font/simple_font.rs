@@ -48,6 +48,10 @@ impl Default for SimpleFont {
 }
 
 impl SimpleFont {
+    pub fn basename(&self) -> &str {
+        &self.basename
+    }
+
     pub fn get_glyph(&self, gid: u32, scale: u32) -> Option<GlyphSlot> {
         self.ft_font.get_glyph(gid, scale)
     }

@@ -80,17 +80,17 @@ impl Text {
         for con in self.content.iter() {
             let chars = font.decode_chars(&con.bytes);
             let mut displacement = 0.0;
+            let tj = con.adjust();
+            let rm = Matrix::new_translation_matrix(-tj * 0.001, 0.0);
+            text_matrix = rm.mutiply(&text_matrix);
             for char in chars.iter() {
-                displacement += font.get_char_width(char) * 0.001 + char_spacing;
+                displacement += font.get_char_width(char) * 0.001 * font_size + char_spacing;
                 if char.is_space() {
                     displacement += word_spacing;
                 }
             }
-            let tj = con.adjust();
-            // PDF3200 chapter: 9.4.4
             // TODO handler vertical
-            let tx = ((displacement - tj * 0.001) * font_size) * horz_scale;
-            let trm = Matrix::new_translation_matrix(tx, 0.0);
+            let trm = Matrix::new_translation_matrix(displacement, 0.0);
             text_matrix = trm.mutiply(&text_matrix);
         }
         text_matrix
