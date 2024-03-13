@@ -60,8 +60,12 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
     }
 
     pub fn poll(&mut self) -> PDFResult<Option<GraphicsObject>> {
-        while let Ok(op) = self.parser.parse_operation() {
-            let res = self.invoke_operation(op)?;
+        loop {
+            let op = self.parser.parse_operation();
+            if op.is_err() {
+                break;
+            }
+            let res = self.invoke_operation(op.unwrap())?;
             if let Some(obj) = res {
                 return Ok(Some(obj));
             }
@@ -148,7 +152,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
 
     // EI
     fn end_image(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
-        println!("inline image {:?}", operation);
+        // println!("inline image {:?}", operation);
         Ok(None)
     }
 

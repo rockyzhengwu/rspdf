@@ -102,6 +102,7 @@ impl Device for ImageDevice {
                         let user_matrix = trm.mutiply(&text_matrix).mutiply(&ctm);
                         let x = user_matrix.v31 as u32;
                         let y = user_matrix.v32 as u32;
+
                         let scale_x = user_matrix.v11;
                         let scale_y = user_matrix.v22;
                         let scale = ((scale_y * scale_y + scale_x * scale_x) * 0.5).sqrt() as u32;

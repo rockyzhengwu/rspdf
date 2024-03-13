@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::Cursor;
 
 use crate::errors::{PDFError, PDFResult};
-use crate::object::{PDFName, PDFNumber, PDFObject, PDFString};
+use crate::object::{PDFDictionary, PDFName, PDFNumber, PDFObject, PDFString};
 use crate::page::operation::{to_command, Operation};
 use crate::parser::syntax::{SyntaxParser, Token};
 
@@ -29,6 +29,31 @@ impl ContentParser {
                 PDFObject::String(ref s) => {
                     if self.is_other {
                         self.is_other = false;
+                        if s.bytes() == b"BI" {
+                            let mut image_info = PDFDictionary::default();
+                            loop {
+                                let key = self.read_object()?;
+                                match key {
+                                    PDFObject::Name(n) => {
+                                        let val = self.read_object()?;
+                                        image_info.insert(n.name().to_string(), val);
+                                    }
+                                    PDFObject::String(s) => {
+                                        if s.bytes() == b"ID" {
+                                            let bytes =
+                                                self.syntax_parser.read_until_reach(b"\nEI")?;
+                                            let image =
+                                                PDFObject::String(PDFString::Literial(bytes));
+                                            params.push(PDFObject::Dictionary(image_info));
+                                            params.push(image);
+                                            break;
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            return Ok(Operation::new("EI".to_string(), params));
+                        }
                         if let Some(cmd) = to_command(s.bytes()) {
                             let op = Operation::new(cmd, params);
                             return Ok(op);

@@ -338,7 +338,7 @@ impl<T: Seek + Read> SyntaxParser<T> {
                 self.read_fixlen_block(len as usize)?
             }
             _ => {
-                warn!("stream length not valid");
+                warn!("stream length not valid:{:?}", dict);
                 let end_pos = self.find_end_stream_content()?;
                 let len = end_pos - pos;
                 self.seek_to(pos)?;
@@ -359,6 +359,29 @@ impl<T: Seek + Read> SyntaxParser<T> {
         Ok(end)
     }
 
+    pub fn read_until_reach(&mut self, tag: &[u8]) -> PDFResult<Vec<u8>> {
+        let mut cur = 0;
+        let mut res = Vec::new();
+        loop {
+            let ch = self.read_next_char()?;
+            res.push(ch);
+            if ch == tag[cur] {
+                if cur == tag.len() - 1 {
+                    break;
+                }
+                cur += 1;
+            } else if ch == tag[0] {
+                cur = 1;
+            } else {
+                cur = 0;
+            }
+        }
+        for _ in 0..tag.len() {
+            res.pop();
+        }
+        Ok(res)
+    }
+
     // search a word , and return word start postion
     pub fn find_tag(&mut self, tag: &[u8]) -> PDFResult<u64> {
         let pos = self.current_position()?;
@@ -368,9 +391,8 @@ impl<T: Seek + Read> SyntaxParser<T> {
             if ch == tag[cur] {
                 if cur == tag.len() - 1 {
                     break;
-                } else {
-                    cur += 1;
                 }
+                cur += 1;
             } else if ch == tag[0] {
                 cur = 1;
             } else {

@@ -168,7 +168,6 @@ fn load_width(font: &mut SimpleFont, obj: &PDFObject) -> PDFResult<()> {
                 font.char_width[i as usize] = v.as_i32()?;
             }
         }
-        return Ok(());
     }
     Ok(())
 }
