@@ -597,8 +597,8 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
 
         for operand in params {
             match operand {
-                PDFObject::String(_) => {
-                    let item = TextOpItem::new(operand.bytes()?, pos);
+                PDFObject::String(s) => {
+                    let item = TextOpItem::new(s.binary_bytes()?, pos);
                     contents.push(item);
                     pos = None;
                 }

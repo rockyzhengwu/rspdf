@@ -32,6 +32,7 @@ pub enum CompositeFontType {
 
 #[derive(Debug, Clone)]
 pub struct CompositeFont {
+    basename: String,
     font_type: CompositeFontType,
     encoding: CMap,
     desc: FontDescriptor,
@@ -40,10 +41,14 @@ pub struct CompositeFont {
     to_unicode: CMap,
     widths: HashMap<u32, f64>,
     dw: f64,
+    widths_y: HashMap<u32, f64>,
+    widths_v: HashMap<u32, (f64, f64)>,
+    dwy: f64,
+    dv: f64,
 }
 impl CompositeFont {
     pub fn basename(&self) -> &str {
-        "type0font"
+        &self.basename
     }
 
     pub fn glyph_index_from_charcode(&self, charcode: &CharCode) -> Option<u32> {
@@ -71,19 +76,33 @@ impl CompositeFont {
         res
     }
 
+    pub fn is_vertical(&self) -> bool {
+        self.encoding.wmode().map_or(false, |x| x == 1)
+    }
+
     pub fn get_char_width(&self, charcode: &CharCode) -> f64 {
-        if let Some(cid) = self.encoding.charcode_to_cid(charcode) {
-            if let Some(w) = self.widths.get(&cid) {
-                return w.to_owned();
+        if self.is_vertical() {
+            if let Some(cid) = self.encoding.charcode_to_cid(charcode) {
+                if let Some(w) = self.widths_y.get(&cid) {
+                    return w.to_owned();
+                }
             }
+            self.dwy
+        } else {
+            if let Some(cid) = self.encoding.charcode_to_cid(charcode) {
+                if let Some(w) = self.widths.get(&cid) {
+                    return w.to_owned();
+                }
+            }
+            self.dw
         }
-        self.dw
     }
 }
 
 impl Default for CompositeFont {
     fn default() -> Self {
         CompositeFont {
+            basename: String::new(),
             font_type: CompositeFontType::Type1,
             encoding: CMap::default(),
             desc: FontDescriptor::default(),
@@ -92,6 +111,10 @@ impl Default for CompositeFont {
             to_unicode: CMap::default(),
             widths: HashMap::new(),
             dw: 1000.0,
+            widths_y: HashMap::new(),
+            widths_v: HashMap::new(),
+            dwy: -1000.0,
+            dv: 880.0,
         }
     }
 }
@@ -101,7 +124,7 @@ fn load_widths(w: &PDFArray) -> HashMap<u32, f64> {
     let n = w.len();
     let mut i = 0;
     while i < n {
-        let obj1 = w.get(i).unwrap().as_i64().unwrap() as u32;
+        let obj1 = w.get(i).unwrap().as_u32().unwrap();
         let obj2 = w.get(i + 1).unwrap();
         match obj2 {
             PDFObject::Arrray(arr) => {
@@ -129,12 +152,50 @@ fn load_widths(w: &PDFArray) -> HashMap<u32, f64> {
     widths
 }
 
+fn load_widths_vertical(w: &PDFArray, font: &mut CompositeFont) {
+    let mut vs = HashMap::new();
+    let mut widths = HashMap::new();
+    let n = w.len();
+    let mut i = 0;
+    while i < n {
+        let cid = w.get(i).unwrap().as_u32().unwrap();
+        let obj2 = w.get(i + 1).unwrap();
+        match obj2 {
+            PDFObject::Arrray(arr) => {
+                let w1 = arr.first().unwrap().as_f64().unwrap();
+                let v0 = arr.get(1).unwrap().as_f64().unwrap();
+                let v1 = arr.get(2).unwrap().as_f64().unwrap();
+                widths.insert(cid, w1);
+                vs.insert(cid, (v0, v1));
+                i += 2;
+            }
+            PDFObject::Number(_) => {
+                let end = obj2.as_u32().unwrap();
+                let w1 = w.get(i + 2).unwrap().as_f64().unwrap();
+                let v0 = w.get(i + 3).unwrap().as_f64().unwrap();
+                let v1 = w.get(i + 4).unwrap().as_f64().unwrap();
+                for c in cid..=end {
+                    widths.insert(c, w1);
+                    vs.insert(c, (v0, v1));
+                }
+                i += 5;
+            }
+            _ => {}
+        }
+    }
+    font.widths_y = widths;
+    font.widths_v = vs;
+
+    //pass
+}
+
 pub fn load_encoding<T: Seek + Read>(
     font: &mut CompositeFont,
     obj: &PDFObject,
     doc: &Document<T>,
 ) -> PDFResult<()> {
     let enc = obj.get_value("Encoding");
+
     match enc {
         Some(o) => match o {
             PDFObject::Name(name) => {
@@ -175,6 +236,7 @@ fn load_unicode<T: Seek + Read>(
 ) -> PDFResult<()> {
     if let Some(tu) = obj.get_value("ToUnicode") {
         let tounicode = doc.get_object_without_indriect(tu)?;
+
         match tounicode {
             PDFObject::Stream(s) => {
                 let cmp = CMap::new_from_bytes(s.bytes().as_slice())?;
@@ -234,6 +296,16 @@ pub fn load_composite_font<T: Seek + Read>(
     doc: &Document<T>,
 ) -> PDFResult<CompositeFont> {
     let mut font = CompositeFont::default();
+
+    if let Some(s) = obj.get_value_as_string("BaseFont") {
+        let name = s?;
+        if name.find('+') == Some(6) {
+            font.basename = name.split_once('+').unwrap().1.to_string();
+        } else {
+            font.basename = name;
+        }
+    }
+
     let dfont: PDFObject = match obj.get_value("DescendantFonts") {
         Some(v) => {
             let vv = doc.get_object_without_indriect(v)?;
@@ -286,11 +358,20 @@ pub fn load_composite_font<T: Seek + Read>(
         let w_arr = doc.get_object_without_indriect(widtharray)?;
         font.widths = load_widths(w_arr.as_array()?);
     }
+    if let Some(dw_v) = dfont.get_value("DW2") {
+        let dw_v = dw_v.as_array()?;
+        font.dwy = dw_v.first().unwrap().as_f64()?;
+        font.dv = dw_v.last().unwrap().as_f64()?;
+    }
+
+    if let Some(widtharray) = dfont.get_value("W2") {
+        load_widths_vertical(widtharray.as_array()?, &mut font);
+    }
 
     Ok(font)
 }
 
 fn load_glyph(font: &mut CompositeFont, obj: &PDFObject) -> PDFResult<()> {
-    //
     unimplemented!()
+    //
 }

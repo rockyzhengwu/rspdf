@@ -16,6 +16,12 @@ pub enum Font {
 }
 
 impl Font {
+    pub fn is_vertical(&self) -> bool {
+        match self {
+            Font::Simple(_) => false,
+            Font::Composite(cf) => cf.is_vertical(),
+        }
+    }
     pub fn to_unicode(&self, bytes: &[u8]) -> Vec<String> {
         match self {
             Font::Simple(sf) => sf.decode_to_unicode(bytes),

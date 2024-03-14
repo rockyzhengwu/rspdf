@@ -10,11 +10,11 @@
 // this implement combine "cid" font cmap and charcode to  unicode cmap
 
 use std::io::{Read, Seek};
-use std::u8;
 
 use encoding_rs::UTF_16BE;
 
 use crate::errors::{PDFError, PDFResult};
+use crate::font::cmap::predefined::get_predefine_cmap;
 use crate::font::cmap::{CMap, CidRange, CodeSpaceRange};
 use crate::object::{PDFName, PDFNumber, PDFObject, PDFString};
 use crate::parser::character_set::hex_to_u8;
@@ -222,7 +222,8 @@ impl<T: Seek + Read> CMapParser<T> {
                         b"beginbfchar" => self.process_bf_char(&mut cmap)?,
                         b"usecmap" => {
                             if let Some(PDFObject::Name(name)) = objs.pop() {
-                                cmap.set_usecmap(name.name().to_string());
+                                let other_cmap = get_predefine_cmap(name.name());
+                                cmap.usecmap(other_cmap);
                             }
                             objs.clear();
                         }
@@ -335,9 +336,9 @@ endcmap CMapName currentdict /CMap defineresource pop end end";
 
     #[test]
     fn test_usecmap() {
-        let bytes = include_bytes!("../../../cmaps/Identity-V");
+        let bytes = include_bytes!("../../../cmaps/Identity-H");
         let cmap = CMap::new_from_bytes(bytes.as_slice()).unwrap();
-        assert_eq!(Some("Identity-H".to_string()), cmap.usecmap);
+        println!("{:?}", cmap);
     }
     #[test]
     fn test_hex_to_u32() {

@@ -78,7 +78,7 @@ impl Text {
         let word_spacing = self.graphics_state.text_state.word_space();
 
         for con in self.content.iter() {
-            let chars = font.decode_chars(&con.bytes);
+            let chars = font.decode_chars(con.bytes());
             let mut displacement = 0.0;
             let tj = con.adjust();
             let rm = Matrix::new_translation_matrix(-tj * 0.001, 0.0);
@@ -90,8 +90,14 @@ impl Text {
                 }
             }
             // TODO handler vertical
-            let trm = Matrix::new_translation_matrix(displacement, 0.0);
-            text_matrix = trm.mutiply(&text_matrix);
+            // println!("{:?}",font.wmode);
+            if font.is_vertical() {
+                let trm = Matrix::new_translation_matrix(0.0, displacement);
+                text_matrix = trm.mutiply(&text_matrix);
+            } else {
+                let trm = Matrix::new_translation_matrix(displacement, 0.0);
+                text_matrix = trm.mutiply(&text_matrix);
+            }
         }
         text_matrix
     }

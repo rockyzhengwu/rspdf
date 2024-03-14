@@ -71,7 +71,6 @@ pub struct CMap {
     name: String,
     wmode: Option<u8>,
     cmap_type: Option<u8>,
-    usecmap: Option<String>,
     code_space_range: Vec<CodeSpaceRange>,
     code_to_unicode_one: HashMap<u32, String>,
     code_to_unicode_two: HashMap<u32, String>,
@@ -80,12 +79,16 @@ pub struct CMap {
 }
 
 impl CMap {
-    pub fn set_name(&mut self, name: String) {
-        self.name = name;
+    pub fn usecmap(&mut self, other: CMap) {
+        self.code_space_range = other.code_space_range;
+        self.code_to_unicode_two = other.code_to_unicode_two;
+        self.code_to_unicode_one = other.code_to_unicode_one;
+        self.cid_ranges = other.cid_ranges;
+        self.code_to_cid = other.code_to_cid;
     }
 
-    pub fn set_usecmap(&mut self, other: String) {
-        self.usecmap = Some(other);
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 
     pub fn set_type(&mut self, cmap_type: Option<u8>) {
@@ -144,9 +147,9 @@ impl CMap {
         self.wmode
     }
 
-    pub fn charcode_to_unicode(&self, bytes: &[u8]) -> Option<&str> {
-        let n = bytes.len();
-        match n {
+    pub fn charcode_to_unicode(&self, bytes: &[u8], l: u8) -> Option<&str> {
+
+        match l {
             1 => self
                 .code_to_unicode_one
                 .get(&bytes_to_u32(bytes))
@@ -172,7 +175,7 @@ impl CMap {
         if self.code_space_range.is_empty() {
             for b in bytes {
                 let code = vec![b.to_owned()];
-                if let Some(s) = self.charcode_to_unicode(code.as_slice()) {
+                if let Some(s) = self.charcode_to_unicode(code.as_slice(), 1) {
                     res.push(s.to_string());
                 }
             }
@@ -181,8 +184,8 @@ impl CMap {
         let mut charcode: Vec<u8> = Vec::new();
         for b in bytes.iter() {
             charcode.push(b.to_owned());
-            if self.find_charsize(charcode.as_slice()).is_some() {
-                if let Some(s) = self.charcode_to_unicode(charcode.as_slice()) {
+            if let Some(l) = self.find_charsize(charcode.as_slice()) {
+                if let Some(s) = self.charcode_to_unicode(charcode.as_slice(), l) {
                     res.push(s.to_string());
                 } else {
                     warn!("notfound char:{:?}", charcode);
@@ -190,8 +193,8 @@ impl CMap {
                 charcode.clear();
                 continue;
             }
-            if charcode.len() == 4 {
-                if let Some(v) = self.charcode_to_unicode(charcode.as_slice()) {
+            if charcode.len() == 2 {
+                if let Some(v) = self.charcode_to_unicode(charcode.as_slice(), 2) {
                     res.push(v.to_string());
                 }
                 charcode.clear();

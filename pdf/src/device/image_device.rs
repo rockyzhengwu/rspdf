@@ -115,8 +115,13 @@ impl Device for ImageDevice {
                                 warn!("glyph is None: {:?}", gid);
                             }
                         }
-                        let mrm = Matrix::new_translation_matrix(displacement, 0.0);
-                        text_matrix = mrm.mutiply(&text_matrix);
+                        if font.is_vertical() {
+                            let trm = Matrix::new_translation_matrix(0.0, displacement);
+                            text_matrix = trm.mutiply(&text_matrix);
+                        } else {
+                            let mrm = Matrix::new_translation_matrix(displacement, 0.0);
+                            text_matrix = mrm.mutiply(&text_matrix);
+                        }
                         // move
                     }
                 }
