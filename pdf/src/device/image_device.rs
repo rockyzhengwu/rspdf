@@ -112,7 +112,7 @@ impl Device for ImageDevice {
                                 let y = y - glyph.bitmap_top() as u32;
                                 self.draw_char(x, y, &bitmap);
                             } else {
-                                warn!("glyph is None");
+                                warn!("glyph is None: {:?}", gid);
                             }
                         }
                         let mrm = Matrix::new_translation_matrix(displacement, 0.0);

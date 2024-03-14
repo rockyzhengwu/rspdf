@@ -47,7 +47,8 @@ impl CompositeFont {
     }
 
     pub fn glyph_index_from_charcode(&self, charcode: &CharCode) -> Option<u32> {
-        unimplemented!()
+        // just use cid as gid
+        self.encoding.charcode_to_cid(charcode)
     }
 
     pub fn get_glyph(&self, gid: u32, scale: u32) -> Option<GlyphSlot> {
@@ -248,23 +249,28 @@ pub fn load_composite_font<T: Seek + Read>(
     };
     let dfont = doc.get_object_without_indriect(&dfont)?;
     if let Some(desc) = dfont.get_value("FontDescriptor") {
-        font.desc = FontDescriptor::new_from_object(desc)?;
+        let desc = doc.get_object_without_indriect(desc)?;
+        font.desc = FontDescriptor::new_from_object(&desc)?;
     }
     if let Some(embeded) = font.desc.embeded() {
+        let embeded = doc.get_object_without_indriect(embeded)?;
         let ft_font = FTFont::try_new(embeded.bytes()?)?;
         font.ft_font = ft_font;
     } else {
+        println!("not embeded");
         // TODO
         // load builtin font
     }
     load_encoding(&mut font, obj, doc)?;
 
     font.font_type = font_type(&dfont)?;
+    // let collection = cid_collection(&dfont, doc)?;
+
     load_unicode(&mut font, obj, doc)?;
     if let Some(cidtogid) = dfont.get_value("CIDToGIDMap") {
         match &cidtogid {
             PDFObject::Stream(_) => {
-                //
+                println!("CIDToGIDMap: {:?}", cidtogid);
             }
             PDFObject::Name(_) => {
                 println!("cidgid:{:?}", cidtogid);
