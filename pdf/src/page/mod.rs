@@ -137,6 +137,18 @@ impl<'a, T: Seek + Read> Page<'a, T> {
         }
     }
 
+    pub fn bbox(&self) -> PDFResult<Rectangle> {
+        if let Some(bbox) = self.media_bbox()? {
+            return Ok(bbox);
+        }
+        if let Some(bbox) = self.crop_bbox()? {
+            return Ok(bbox);
+        }
+        Err(PDFError::ContentInterpret(
+            "page didn't has mediobox or cropb xo".to_string(),
+        ))
+    }
+
     pub fn media_bbox(&self) -> PDFResult<Option<Rectangle>> {
         self.noderef.borrow().media_bbox()
     }

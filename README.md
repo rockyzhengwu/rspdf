@@ -8,37 +8,30 @@ A PDF library written in Rust work in progress. Focus on extract content and ren
 # Motivation
 Write a PDF processiong library in pure Rust.
 
-# Usage
+# Tool Usage
 
 ## extract text as xml
-
+extract plain  text
 ```
-cargo run -- --filename <File> --start 0 --end 1 pdftotext --output page0.xml 
+cargo run -- --filename <File> pdftotext
 ```
 
 ## render text
 Can just render text on image now
 
 ```
-cargo run -- --filename <File> --start 0 --end 1 pdftopng 
+cargo run -- --filename <File> pdftopng 
 ```
 
 ## extract  fonts
+extract font info
 ```
-cargo run -- --filename pdffonts
+cargo run -- --filename <File> pdffonts
 ```
 
 
-## TODO
-- [ ] fonts
-  - [x] refactor font, just two font Struct Simple Font and Type0 Font.
-  - [x] default built in font, encoding, tounicode
-  - [ ] face optional , because face will never used when just extract text
-
-- [ ] text
-  - [ ] merge text chunk to line, program, and add label to text line like title ？
-
-- [ ] render
-  - [ ] path
-  - [ ] text render
-  - [ ] image
+## trace
+trace pdf object render info, char position , path , image
+```
+cargo run -- --filename <File> pdftrace
+```

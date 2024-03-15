@@ -53,9 +53,17 @@ fn main() {
     );
 
     match command {
-        Commands::Pdftotext(cfg) => commands::pdftotext::command(doc, start, end, cfg).unwrap(),
-        Commands::Pdftopng(cfg) => commands::pdftopng::command(doc, start, end, cfg).unwrap(),
-        Commands::Pdffonts(cfg) => commands::pdffonts::command(doc, start, end, cfg).unwrap(),
-        Commands::Pdftrace(cfg) => commands::pdftrace::command(doc, start, end, cfg).unwrap(),
+        Commands::Pdftotext(cfg) => {
+            commands::pdftotext::command(doc, start, end, cfg, filename).unwrap()
+        }
+        Commands::Pdftopng(cfg) => {
+            commands::pdftopng::command(doc, start, end, cfg, filename).unwrap()
+        }
+        Commands::Pdffonts(cfg) => {
+            commands::pdffonts::command(doc, start, end, cfg, filename).unwrap()
+        }
+        Commands::Pdftrace(cfg) => {
+            commands::pdftrace::command(doc, start, end, cfg, filename).unwrap()
+        }
     }
 }

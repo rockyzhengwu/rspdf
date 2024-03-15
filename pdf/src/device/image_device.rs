@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use freetype::Bitmap;
 use image::{Rgba, RgbaImage};
 use log::warn;
@@ -14,6 +16,7 @@ pub struct ImageDevice {
     ctm: Matrix,
     scale_x: f64,
     scale_y: f64,
+    current_page: u32,
 }
 
 impl ImageDevice {
@@ -25,6 +28,7 @@ impl ImageDevice {
             scale_y,
             ctm: Matrix::default(),
             image: RgbaImage::default(),
+            current_page: 0,
         }
     }
 }
@@ -45,13 +49,14 @@ impl ImageDevice {
             }
         }
     }
-    pub fn finish_page(&self) {
-        self.image.save(format!("page-{}.png", 3)).unwrap()
+    pub fn save_image(&self, path: PathBuf) {
+        self.image.save(path).unwrap()
     }
 }
 
 impl Device for ImageDevice {
-    fn start_page(&mut self, bbox: Rectangle) {
+    fn start_page(&mut self, num: u32, bbox: Rectangle) {
+        self.current_page = num;
         let pw = bbox.width();
         let ph = bbox.height();
         let w = ((pw + 1.0) * self.scale_x) as u32;

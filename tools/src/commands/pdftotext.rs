@@ -22,18 +22,24 @@ pub fn command<T: Seek + Read>(
     start: u32,
     end: u32,
     cfg: Config,
+    path: PathBuf,
 ) -> PDFResult<()> {
     let mut device = TextDevice::new();
+    let filename = path.file_name().unwrap();
     for p in start..end {
         info!("process page:{}", p);
         let page = doc.get_page(&p).unwrap();
+        device.start_page(p, page.bbox().unwrap());
         let objects = page.grapics_objects()?;
         for obj in objects {
-            device.process(&obj);
+            device.process(&obj).unwrap();
         }
+        let outname = cfg.output.clone().unwrap_or(PathBuf::from(format!(
+            "rspdf_{:?}_page_{}.txt",
+            filename, p
+        )));
+        let mut file = File::create(outname).unwrap();
+        file.write_all(device.result().as_bytes()).unwrap();
     }
-    let outname = cfg.output.unwrap_or(PathBuf::from("pdftotxt.xml"));
-    let mut file = File::create(outname).unwrap();
-    file.write_all(device.result().as_bytes()).unwrap();
     Ok(())
 }

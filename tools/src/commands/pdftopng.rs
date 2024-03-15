@@ -1,4 +1,5 @@
 use std::io::{Read, Seek};
+use std::path::PathBuf;
 
 use clap::Parser;
 
@@ -19,17 +20,20 @@ pub fn command<T: Seek + Read>(
     start: u32,
     end: u32,
     cfg: Config,
+    path: PathBuf,
 ) -> PDFResult<()> {
     let mut device = ImageDevice::new(cfg.resulotion);
+    let filename = path.file_name().unwrap();
     for p in start..end {
         info!("Process page: {}", p);
         let page = doc.get_page(&p).unwrap();
         let objects = page.grapics_objects()?;
-        device.start_page(page.media_bbox()?.unwrap());
+        device.start_page(p, page.bbox()?);
         for obj in objects {
             device.process(&obj)?;
         }
-        device.finish_page();
+        let outpath = format!("rspdf_render_{:?}_{}.png", filename, p);
+        device.save_image(PathBuf::from(outpath));
     }
     Ok(())
 }

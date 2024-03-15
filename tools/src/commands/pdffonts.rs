@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::io::{Read, Seek};
+use std::path::PathBuf;
 
 use clap::Parser;
 use log::info;
@@ -34,6 +35,7 @@ pub fn command<T: Seek + Read>(
     start: u32,
     end: u32,
     _cfg: Config,
+    _path: PathBuf,
 ) -> PDFResult<()> {
     let mut allfonts: HashMap<String, FontInfo> = HashMap::new();
     for p in start..end {
