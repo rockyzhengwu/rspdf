@@ -16,17 +16,21 @@ impl fmt::Debug for dyn Segment {
 
 #[derive(Default, Debug)]
 pub struct SubPath {
+    start: Point,
     closed: bool,
     segments: Vec<Box<dyn Segment>>,
 }
 
 impl SubPath {
-    pub fn new(seg: Box<dyn Segment>) -> Self {
-        let segments = vec![seg];
+    pub fn new(start: Point) -> Self {
         SubPath {
+            start,
             closed: false,
-            segments,
+            segments: Vec::new(),
         }
+    }
+    pub fn is_single_point(&self) -> bool {
+        self.segments.is_empty() && !self.closed
     }
 
     pub fn add_segment(&mut self, seg: Box<dyn Segment>) {
@@ -43,5 +47,9 @@ impl SubPath {
 
     pub fn segments(&self) -> &[Box<dyn Segment>] {
         self.segments.as_slice()
+    }
+
+    pub fn set_start(&mut self, start: Point) {
+        self.start = start
     }
 }

@@ -98,7 +98,9 @@ impl Device for TraceDevice {
                 self.xml.push_str("</text>\n")
             }
             GraphicsObject::Image(_) => {}
-            GraphicsObject::Path(_) => {}
+            GraphicsObject::Path(p) => {
+                println!("path: {:?}", p);
+            }
         }
         Ok(())
     }

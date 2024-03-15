@@ -224,7 +224,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         let mut path = std::mem::take(&mut self.current_path);
         path.close_last_subpath();
         // self.device.borrow_mut().paint_path(&path)?;
-        Ok(None)
+        Ok(Some(GraphicsObject::Path(path)))
     }
 
     // re

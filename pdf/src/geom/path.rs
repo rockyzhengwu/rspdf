@@ -19,31 +19,32 @@ impl Path {
     }
 
     pub fn move_to(&mut self, point: Point) {
-        self.close_last_subpath();
         self.current = point;
-    }
-
-    pub fn curve_to(&mut self, mut points: Vec<Point>) {
-        let p = std::mem::take(&mut self.current);
-        points.insert(0, p);
-        self.current = points.last().unwrap().clone();
-        let bezier = Bezier::new(points);
-        if self.sub_paths.is_empty() {
-            self.sub_paths.push(SubPath::new(Box::new(bezier)));
+        if let Some(sub) = self.sub_paths.last_mut() {
+            if sub.is_single_point() {
+                sub.set_start(self.current);
+            }
         } else {
-            self.sub_paths
-                .last_mut()
-                .unwrap()
-                .add_segment(Box::new(bezier));
+            self.sub_paths.push(SubPath::new(point));
         }
     }
 
+    pub fn curve_to(&mut self, mut points: Vec<Point>) {
+        let n = 4 - points.len();
+        for _ in 0..n {
+            points.insert(0, self.current);
+        }
+        self.current = points.last().unwrap().to_owned();
+        let bezier = Bezier::new(points);
+        self.sub_paths
+            .last_mut()
+            .unwrap()
+            .add_segment(Box::new(bezier));
+    }
+
     pub fn line_to(&mut self, target: Point) {
-        let l = Line::new(self.current.clone(), target.clone());
-        if !self.sub_paths.is_empty() && !self.sub_paths.last().unwrap().is_slosed() {
-            self.sub_paths.last_mut().unwrap().add_segment(Box::new(l));
-        } else {
-            self.sub_paths.push(SubPath::new(Box::new(l)));
+        if let Some(l) = self.sub_paths.last_mut() {
+            l.add_segment(Box::new(Line::new(self.current, target)));
         }
         self.current = target;
     }
@@ -54,11 +55,9 @@ impl Path {
     //  x ( y + height ) l
     pub fn rectangle(&mut self, rect: Rectangle) {
         self.move_to(rect.lower_left().to_owned());
-        // lower_right;
-        self.line_to(Point::new(rect.lx(), rect.uy()));
-        self.line_to(Point::new(rect.ux(), rect.uy()));
         self.line_to(Point::new(rect.ux(), rect.ly()));
-        self.line_to(Point::new(rect.lx(), rect.ly()));
+        self.line_to(Point::new(rect.ux(), rect.uy()));
+        self.line_to(Point::new(rect.lx(), rect.uy()));
         self.close_last_subpath();
     }
 
