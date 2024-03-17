@@ -51,6 +51,10 @@ impl CompositeFont {
         &self.basename
     }
 
+    pub fn ft_font(&self) -> &FTFont {
+        &self.ft_font
+    }
+
     pub fn glyph_index_from_charcode(&self, charcode: &CharCode) -> Option<u32> {
         // just use cid as gid
         self.encoding.charcode_to_cid(charcode)
@@ -152,28 +156,28 @@ fn load_widths(w: &PDFArray) -> HashMap<u32, f64> {
     widths
 }
 
-fn load_widths_vertical(w: &PDFArray, font: &mut CompositeFont) {
+fn load_widths_vertical(w: &PDFArray, font: &mut CompositeFont) -> PDFResult<()> {
     let mut vs = HashMap::new();
     let mut widths = HashMap::new();
     let n = w.len();
     let mut i = 0;
     while i < n {
-        let cid = w.get(i).unwrap().as_u32().unwrap();
+        let cid = w.get(i).unwrap().as_u32()?;
         let obj2 = w.get(i + 1).unwrap();
         match obj2 {
             PDFObject::Arrray(arr) => {
-                let w1 = arr.first().unwrap().as_f64().unwrap();
-                let v0 = arr.get(1).unwrap().as_f64().unwrap();
-                let v1 = arr.get(2).unwrap().as_f64().unwrap();
+                let w1 = arr.first().unwrap().as_f64()?;
+                let v0 = arr.get(1).unwrap().as_f64()?;
+                let v1 = arr.get(2).unwrap().as_f64()?;
                 widths.insert(cid, w1);
                 vs.insert(cid, (v0, v1));
                 i += 2;
             }
             PDFObject::Number(_) => {
-                let end = obj2.as_u32().unwrap();
-                let w1 = w.get(i + 2).unwrap().as_f64().unwrap();
-                let v0 = w.get(i + 3).unwrap().as_f64().unwrap();
-                let v1 = w.get(i + 4).unwrap().as_f64().unwrap();
+                let end = obj2.as_u32()?;
+                let w1 = w.get(i + 2).unwrap().as_f64()?;
+                let v0 = w.get(i + 3).unwrap().as_f64()?;
+                let v1 = w.get(i + 4).unwrap().as_f64()?;
                 for c in cid..=end {
                     widths.insert(c, w1);
                     vs.insert(c, (v0, v1));
@@ -185,8 +189,7 @@ fn load_widths_vertical(w: &PDFArray, font: &mut CompositeFont) {
     }
     font.widths_y = widths;
     font.widths_v = vs;
-
-    //pass
+    Ok(())
 }
 
 pub fn load_encoding<T: Seek + Read>(
@@ -365,7 +368,7 @@ pub fn load_composite_font<T: Seek + Read>(
     }
 
     if let Some(widtharray) = dfont.get_value("W2") {
-        load_widths_vertical(widtharray.as_array()?, &mut font);
+        load_widths_vertical(widtharray.as_array()?, &mut font)?;
     }
 
     Ok(font)

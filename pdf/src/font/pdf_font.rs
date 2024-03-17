@@ -1,6 +1,6 @@
 use std::io::{Read, Seek};
 
-use freetype::GlyphSlot;
+use freetype::{Face, GlyphSlot};
 
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
@@ -59,6 +59,12 @@ impl Font {
         match self {
             Font::Simple(sf) => sf.basename(),
             Font::Composite(cf) => cf.basename(),
+        }
+    }
+    pub fn ft_face(&self) -> Option<&Face> {
+        match self {
+            Font::Simple(sf) => sf.ft_font().ft_face(),
+            Font::Composite(cf) => cf.ft_font().ft_face(),
         }
     }
 }

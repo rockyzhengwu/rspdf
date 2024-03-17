@@ -1,6 +1,6 @@
 use std::io::{Read, Seek};
 
-use log::{debug, warn};
+use log::warn;
 
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
@@ -13,6 +13,7 @@ use crate::page::content_parser::ContentParser;
 use crate::page::graphics_object::GraphicsObject;
 use crate::page::graphics_state::GraphicsState;
 use crate::page::operation::Operation;
+use crate::page::page_path::PagePath;
 use crate::page::text::{Text, TextOpItem};
 use crate::page::Page;
 
@@ -49,9 +50,6 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         })
     }
     pub fn start(&mut self) -> PDFResult<()> {
-        let media = self.page.media_bbox()?;
-        let crop = self.page.crop_bbox()?;
-        // TODO set clip path
         let resource = self.page.resources()?;
         let state = GraphicsState::default();
         self.resource = Some(resource);
@@ -223,8 +221,9 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         // self.current_path.close_last_subpath();
         let mut path = std::mem::take(&mut self.current_path);
         path.close_last_subpath();
+        let page_path = PagePath::new(path, self.cur_state.clone());
         // self.device.borrow_mut().paint_path(&path)?;
-        Ok(Some(GraphicsObject::Path(path)))
+        Ok(Some(GraphicsObject::Path(page_path)))
     }
 
     // re

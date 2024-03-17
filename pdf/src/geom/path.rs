@@ -2,6 +2,7 @@ use crate::geom::bezier::Bezier;
 use crate::geom::line::Line;
 use crate::geom::point::Point;
 use crate::geom::rectangle::Rectangle;
+use crate::geom::subpath::Segment;
 use crate::geom::subpath::SubPath;
 
 #[derive(Debug, Default)]
@@ -39,12 +40,12 @@ impl Path {
         self.sub_paths
             .last_mut()
             .unwrap()
-            .add_segment(Box::new(bezier));
+            .add_segment(Segment::Curve(bezier));
     }
 
     pub fn line_to(&mut self, target: Point) {
         if let Some(l) = self.sub_paths.last_mut() {
-            l.add_segment(Box::new(Line::new(self.current, target)));
+            l.add_segment(Segment::Line(Line::new(self.current, target)));
         }
         self.current = target;
     }

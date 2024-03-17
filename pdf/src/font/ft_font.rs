@@ -34,6 +34,10 @@ impl FTFont {
         }
     }
 
+    pub fn ft_face(&self) -> Option<&Face> {
+        self.face.as_ref()
+    }
+
     pub fn is_loaded(&self) -> bool {
         self.face.is_some()
     }

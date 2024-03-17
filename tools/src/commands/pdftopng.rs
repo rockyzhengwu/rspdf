@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use clap::Parser;
 
 use log::info;
-use pdf::device::image_device::ImageDevice;
+use pdf::device::cairo::CairoRender;
 use pdf::device::Device;
 use pdf::document::Document;
 use pdf::errors::PDFResult;
@@ -22,7 +22,7 @@ pub fn command<T: Seek + Read>(
     cfg: Config,
     path: PathBuf,
 ) -> PDFResult<()> {
-    let mut device = ImageDevice::new(cfg.resulotion);
+    let mut device = CairoRender::new(cfg.resulotion);
     let filename = path.file_name().unwrap();
     for p in start..end {
         info!("Process page: {}", p);

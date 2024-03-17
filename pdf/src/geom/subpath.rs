@@ -1,24 +1,20 @@
-use std::fmt;
-
+use crate::geom::bezier::Bezier;
+use crate::geom::line::Line;
 use crate::geom::point::Point;
+use crate::geom::rectangle::Rectangle;
 
-pub trait Segment {
-    fn display(&self) -> String;
-    fn dump_xml(&self) -> String;
-    fn points(&self) -> Vec<Point>;
-}
-
-impl fmt::Debug for dyn Segment {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Segment:{:?}", self.display())
-    }
+#[derive(Debug)]
+pub enum Segment {
+    Rect(Rectangle),
+    Line(Line),
+    Curve(Bezier),
 }
 
 #[derive(Default, Debug)]
 pub struct SubPath {
     start: Point,
     closed: bool,
-    segments: Vec<Box<dyn Segment>>,
+    segments: Vec<Segment>,
 }
 
 impl SubPath {
@@ -33,7 +29,7 @@ impl SubPath {
         self.segments.is_empty() && !self.closed
     }
 
-    pub fn add_segment(&mut self, seg: Box<dyn Segment>) {
+    pub fn add_segment(&mut self, seg: Segment) {
         self.segments.push(seg);
     }
 
@@ -45,7 +41,7 @@ impl SubPath {
         self.closed = true;
     }
 
-    pub fn segments(&self) -> &[Box<dyn Segment>] {
+    pub fn segments(&self) -> &[Segment] {
         self.segments.as_slice()
     }
 

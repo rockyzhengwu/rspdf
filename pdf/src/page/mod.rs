@@ -24,6 +24,7 @@ pub mod graphics_state;
 pub mod image;
 pub mod object_iterator;
 pub mod operation;
+pub mod page_path;
 pub mod path_state;
 pub mod text;
 pub mod text_state;
