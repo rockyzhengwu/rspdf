@@ -1,4 +1,4 @@
-use crate::geom::{matrix::Matrix, path::Path,point::Point};
+use crate::geom::{matrix::Matrix, path::Path, point::Point};
 use crate::page::graphics_state::GraphicsState;
 
 #[derive(Debug)]
@@ -18,7 +18,12 @@ impl PagePath {
     pub fn ctm(&self) -> &Matrix {
         self.graphics_state.ctm()
     }
+
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    pub fn line_width(&self) -> &f64 {
+        self.graphics_state.path_state.line_width()
     }
 }

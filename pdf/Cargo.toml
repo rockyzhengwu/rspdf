@@ -6,7 +6,8 @@ edition = "2021"
 
 [dependencies]
 cairo-rs = { git = "https://github.com/gtk-rs/gtk-rs-core.git", features = [
-  "freetype","png"
+  "freetype",
+  "png",
 ] }
 encoding_rs = "0.8.33"
 env_logger = "0.10.1"
@@ -18,3 +19,4 @@ lazy_static = "1.4.0"
 log = "0.4.20"
 rand = "0.8.5"
 thiserror = "1.0.51"
+zune-jpeg = "0.4.11"

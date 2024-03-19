@@ -1,4 +1,5 @@
 use std::io::{Read, Seek};
+use std::u8;
 
 use log::warn;
 
@@ -12,6 +13,7 @@ use crate::object::{PDFNumber, PDFObject, PDFString};
 use crate::page::content_parser::ContentParser;
 use crate::page::graphics_object::GraphicsObject;
 use crate::page::graphics_state::GraphicsState;
+use crate::page::image::Image;
 use crate::page::operation::Operation;
 use crate::page::page_path::PagePath;
 use crate::page::text::{Text, TextOpItem};
@@ -150,7 +152,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
 
     // EI
     fn end_image(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
-        // println!("inline image {:?}", operation);
+        println!("inline image {:?}", operation);
         Ok(None)
     }
 
@@ -161,7 +163,6 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
     ) -> PDFResult<Option<GraphicsObject>> {
         let name = operation.operand(0)?.as_string()?;
         let _ext_state = self.find_resource("ExtGState", name.as_str())?;
-        // TODO update graphics state
         Ok(None)
     }
 
@@ -394,8 +395,32 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
                 return Err(PDFError::InvalidSyntax("xobjects not exist".to_string()));
             }
         };
-        let obj = xob.get_value(xobject_name.as_str()).unwrap();
-        let _obj_stream = self.doc.read_indirect(obj)?;
+        if let Some(obj) = xob.get_value(xobject_name.as_str()) {
+            let obj_stream = self.doc.get_object_without_indriect(obj)?;
+            let obj_type = obj_stream.get_value_as_string("Subtype").unwrap()?;
+            match obj_type.as_str() {
+                "Image" => {
+                    let width = obj_stream.get_value("Width").unwrap().as_f64()?;
+                    let height = obj_stream.get_value("Height").unwrap().as_f64()?;
+                    let bits_per_component =
+                        obj_stream.get_value("BitsPerComponent").unwrap().as_u32()?;
+                    let bytes = obj_stream.bytes()?;
+                    let image = Image::new(
+                        width,
+                        height,
+                        bits_per_component,
+                        bytes,
+                        self.cur_state.clone(),
+                    );
+                    return Ok(Some(GraphicsObject::Image(image)));
+                }
+                "Form" => {
+                    // TODO
+                    println!("form object");
+                }
+                _ => {}
+            }
+        }
         Ok(None)
     }
 

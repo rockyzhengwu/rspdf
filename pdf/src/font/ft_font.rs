@@ -4,6 +4,7 @@ use freetype::GlyphSlot;
 use freetype::{face::LoadFlag, Face, Library};
 
 use crate::errors::{PDFError, PDFResult};
+use crate::font::builtin::load_builitin_font;
 use crate::font::glyph_name::name_to_unicode;
 
 #[derive(Default, Debug, Clone)]
@@ -19,6 +20,10 @@ impl FTFont {
             Ok(face) => Ok(FTFont { face: Some(face) }),
             Err(e) => Err(PDFError::FontFreeType(format!("Load face error{:?}", e))),
         }
+    }
+    pub fn try_new_builtin(name: &str) -> PDFResult<Self> {
+        let face = load_builitin_font(name)?;
+        Ok(FTFont { face })
     }
 
     pub fn get_glyph(&self, gid: u32, scale: u32) -> Option<GlyphSlot> {

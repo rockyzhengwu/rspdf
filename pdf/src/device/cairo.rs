@@ -1,7 +1,9 @@
 use std::fs::File;
+use std::io::Write;
 use std::path::PathBuf;
 
 use cairo::{Context, FontFace, Format, Glyph, ImageSurface};
+use image::{GenericImage, GrayImage, Luma};
 
 use crate::device::Device;
 use crate::geom::matrix::Matrix;
@@ -72,7 +74,8 @@ impl Device for CairoRender {
     ) -> crate::errors::PDFResult<()> {
         match obj {
             GraphicsObject::Path(path) => {
-                self.context.set_line_width(6.0);
+                let line_width = path.line_width().to_owned();
+                self.context.set_line_width(line_width * self.scale);
                 self.context.set_source_rgba(0.0, 0.0, 0.0, 1.0);
                 // TODO set page state
                 let ctm = path.ctm().mutiply(&self.ctm);
@@ -104,7 +107,9 @@ impl Device for CairoRender {
                 let word_spacing = text.word_space();
                 let text_rise = text.text_rise();
                 let ctm = text.ctm().mutiply(&self.ctm);
-                let ft_face: &freetype::Face = font.ft_face().unwrap();
+                let ft_face: &freetype::Face = font
+                    .ft_face()
+                    .unwrap_or_else(|| panic!("not foun face:{:?}", font.name()));
                 let cairo_font_face = FontFace::create_from_ft(ft_face).unwrap();
 
                 self.context.set_source_rgba(0.0, 0.0, 0.0, 1.0);
@@ -156,7 +161,49 @@ impl Device for CairoRender {
                     }
                 }
             }
-            GraphicsObject::Image(image) => {}
+            GraphicsObject::Image(image) => {
+                let w = image.width();
+                let h = image.height();
+                let trm = Matrix::new(1.0 / w, 0.0, 0.0, -1.0 / h, 0.0, 1.0);
+                let userctm = trm.mutiply(image.ctm());
+                let ctm = userctm.mutiply(&self.ctm);
+
+                let _x = ctm.v31;
+                let _y = ctm.v32;
+                let data = image.data();
+                let mut im = GrayImage::new(w as u32, h as u32);
+                for i in 0..(w as u32) {
+                    for j in 0..(h as u32) {
+                        let index = j * (w as u32) + i;
+                        let pixel = data.get(index as usize).unwrap().to_owned();
+                        im.put_pixel(i, j, Luma([pixel]));
+                    }
+                }
+                im.save("test.png").unwrap();
+
+                //let mut bytes = Vec::new();
+                //for chunk in data.chunks(h as usize) {
+                //    let mut row = chunk.to_vec();
+                //    row.insert(0, 125);
+                //    bytes.append(&mut row);
+                //}
+                //let bits_per_component = image.bits_per_component();
+                //let stride = Format::A8.stride_for_width(w as u32).unwrap();
+                //println!(
+                //    "{:?},{:?},{:?},{:?},{:?}",
+                //    bits_per_component,
+                //    w,
+                //    h,
+                //    data.len(),
+                //    stride
+                //);
+
+                //let i_s =
+                //    ImageSurface::create_for_data(bytes, Format::A8, w as i32, h as i32, stride)
+                //        .unwrap();
+                //self.context.set_source_surface(i_s, x, y).unwrap();
+                //self.context.paint().unwrap();
+            }
         }
         Ok(())
     }

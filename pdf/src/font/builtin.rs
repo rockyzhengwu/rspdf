@@ -133,6 +133,7 @@ fn load_system_font(name: &str) -> PDFResult<Option<Face>> {
 pub fn load_builitin_font(name: &str) -> PDFResult<Option<Face>> {
     match BUILTINF_FONTS_NAME.get(name) {
         Some(n) => load_system_font(n),
-        None => Ok(None),
+        // TODO find substitute font instead of defalut
+        None => load_system_font("Helvetica"),
     }
 }

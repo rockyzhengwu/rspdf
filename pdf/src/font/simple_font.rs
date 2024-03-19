@@ -290,7 +290,7 @@ pub fn load_simple_font<T: Seek + Read>(
         let ft_font = FTFont::try_new(emb.bytes()?)?;
         font.ft_font = ft_font;
     } else {
-        // load builtin font
+        font.ft_font = FTFont::try_new_builtin(&font.basename)?;
     }
     load_width(&mut font, obj)?;
     load_encoding(obj, &mut font, doc)?;

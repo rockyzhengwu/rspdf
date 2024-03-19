@@ -1030,6 +1030,7 @@ dependencies = [
  "log",
  "rand 0.8.5",
  "thiserror",
+ "zune-jpeg",
 ]
 
 [[package]]

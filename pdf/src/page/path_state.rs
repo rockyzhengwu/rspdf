@@ -68,4 +68,8 @@ impl PathState {
     pub fn set_dash_array(&mut self, array: Vec<f64>) {
         self.dash_array = array
     }
+
+    pub fn line_width(&self) -> &f64 {
+        &self.line_width
+    }
 }

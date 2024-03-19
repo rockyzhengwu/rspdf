@@ -3,6 +3,7 @@ use crate::object::PDFDictionary;
 
 use ascii85_decode::ASCII85Decode;
 use asciihex_decode::ASCIIHexDecode;
+use dct_decode::DCTDecode;
 use flate_decode::FlateDecode;
 
 pub trait Filter {
@@ -14,10 +15,12 @@ pub fn new_filter(name: &str) -> PDFResult<Box<dyn Filter>> {
         "FlateDecode" => Ok(Box::<FlateDecode>::default()),
         "ASCII85Decode" => Ok(Box::<ASCII85Decode>::default()),
         "ASCIIHexDecode" => Ok(Box::<ASCIIHexDecode>::default()),
+        "DCTDecode" => Ok(Box::<DCTDecode>::default()),
         _ => Err(PDFError::Filter(format!("Filter {:?} not supported", name))),
     }
 }
 
 pub mod ascii85_decode;
 pub mod asciihex_decode;
+pub mod dct_decode;
 pub mod flate_decode;
