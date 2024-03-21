@@ -243,7 +243,8 @@ pub fn load_to_unicode(font: &mut SimpleFont, tu: &PDFObject) -> PDFResult<()> {
     match tu {
         PDFObject::Name(_) => {
             let name = tu.as_string()?;
-            let cmap = get_predefine_cmap(&name);
+            let cmap = get_predefine_cmap(&name)
+                .ok_or(PDFError::FontFailure(format!("{} cmap not found", name)))?;
             font.to_unicode = cmap;
         }
         PDFObject::Stream(_) => {

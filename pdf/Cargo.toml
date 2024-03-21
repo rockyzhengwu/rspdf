@@ -5,6 +5,7 @@ edition = "2021"
 
 
 [dependencies]
+font_data = { path = "../font-data/" }
 cairo-rs = { git = "https://github.com/gtk-rs/gtk-rs-core.git", features = [
   "freetype",
   "png",

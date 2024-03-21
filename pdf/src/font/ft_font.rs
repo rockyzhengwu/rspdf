@@ -4,7 +4,7 @@ use freetype::GlyphSlot;
 use freetype::{face::LoadFlag, Face, Library};
 
 use crate::errors::{PDFError, PDFResult};
-use crate::font::builtin::load_builitin_font;
+use crate::font::builtin::load_builtin_font;
 use crate::font::glyph_name::name_to_unicode;
 
 #[derive(Default, Debug, Clone)]
@@ -22,7 +22,7 @@ impl FTFont {
         }
     }
     pub fn try_new_builtin(name: &str) -> PDFResult<Self> {
-        let face = load_builitin_font(name)?;
+        let face = load_builtin_font(name)?;
         Ok(FTFont { face })
     }
 

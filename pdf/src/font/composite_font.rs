@@ -202,7 +202,9 @@ pub fn load_encoding<T: Seek + Read>(
     match enc {
         Some(o) => match o {
             PDFObject::Name(name) => {
-                font.encoding = get_predefine_cmap(name.name());
+                font.encoding = get_predefine_cmap(name.name()).ok_or(
+                    PDFError::FontCmapFailure(format!("get {} cmap not exist", name.name())),
+                )?;
                 Ok(())
             }
             PDFObject::Indirect(_) => {
@@ -246,8 +248,9 @@ fn load_unicode<T: Seek + Read>(
                 font.to_unicode = cmp;
             }
             PDFObject::Name(name) => {
-                let cmap = get_predefine_cmap(name.name());
-                font.to_unicode = cmap;
+                font.to_unicode = get_predefine_cmap(name.name()).ok_or(
+                    PDFError::FontCmapFailure(format!("cmap not found,{}", name.name())),
+                )?;
             }
             _ => {
                 //
@@ -257,16 +260,16 @@ fn load_unicode<T: Seek + Read>(
         let collection = cid_collection(obj, doc)?;
         match collection.as_str() {
             "Adobe-CNS1" => {
-                font.to_unicode = get_predefine_cmap("Adobe-CNS1-UCS2");
+                font.to_unicode = get_predefine_cmap("Adobe-CNS1-UCS2").unwrap();
             }
             "Adobe-GB1" => {
-                font.to_unicode = get_predefine_cmap("Adobe-GB1-UCS2");
+                font.to_unicode = get_predefine_cmap("Adobe-GB1-UCS2").unwrap();
             }
             "Adobe-Japan1" => {
-                font.to_unicode = get_predefine_cmap("Adobe-Japan1-UCS2");
+                font.to_unicode = get_predefine_cmap("Adobe-Japan1-UCS2").unwrap();
             }
             "Adobe-Korea1" => {
-                font.to_unicode = get_predefine_cmap("Adobe-Korea1-UCS2");
+                font.to_unicode = get_predefine_cmap("Adobe-Korea1-UCS2").unwrap();
             }
             _ => {}
         }

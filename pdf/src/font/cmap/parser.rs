@@ -222,7 +222,12 @@ impl<T: Seek + Read> CMapParser<T> {
                         b"beginbfchar" => self.process_bf_char(&mut cmap)?,
                         b"usecmap" => {
                             if let Some(PDFObject::Name(name)) = objs.pop() {
-                                let other_cmap = get_predefine_cmap(name.name());
+                                let other_cmap = get_predefine_cmap(name.name()).ok_or(
+                                    PDFError::FontCmapFailure(format!(
+                                        "{} cmap not found",
+                                        name.name()
+                                    )),
+                                )?;
                                 cmap.usecmap(other_cmap);
                             }
                             objs.clear();

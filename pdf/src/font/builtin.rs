@@ -130,10 +130,26 @@ fn load_system_font(name: &str) -> PDFResult<Option<Face>> {
     panic!("built in fonts not found:{:?}", name);
 }
 
-pub fn load_builitin_font(name: &str) -> PDFResult<Option<Face>> {
+pub fn load_memory_face(bytes: &[u8]) -> PDFResult<Face> {
+    let lib = Library::init().unwrap();
+    match lib.new_memory_face(bytes.to_vec(), 0) {
+        Ok(face) => Ok(face),
+        Err(e) => Err(PDFError::FontFreeType(format!("Load face error{:?}", e))),
+    }
+}
+
+pub fn load_base14_font(name: &str) -> PDFResult<Option<Face>> {
+    if let Some(font_data) = font_data::get_builtin_font_data(name) {
+        let face = load_memory_face(font_data)?;
+        return Ok(Some(face));
+    }
+    Ok(None)
+}
+
+pub fn load_builtin_font(name: &str) -> PDFResult<Option<Face>> {
     match BUILTINF_FONTS_NAME.get(name) {
-        Some(n) => load_system_font(n),
+        Some(n) => load_base14_font(n),
         // TODO find substitute font instead of defalut
-        None => load_system_font("Helvetica"),
+        None => load_base14_font("Helvetica"),
     }
 }
