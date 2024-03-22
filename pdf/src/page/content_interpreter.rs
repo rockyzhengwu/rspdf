@@ -187,6 +187,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
     fn set_color_space_fill(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let ope = operation.operand(0)?.as_string()?;
         let _color_space = self.find_resource("ColorSpace", &ope)?;
+        println!("colorspace operation {:?}", _color_space);
         Ok(None)
     }
     // K
@@ -401,6 +402,15 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
             match obj_type.as_str() {
                 "Image" => {
                     let width = obj_stream.get_value("Width").unwrap().as_f64()?;
+                    let color_space = match obj_stream.get_value("ColorSpace") {
+                        Some(sc) => {
+                            let cos = self.doc.get_object_without_indriect(sc)?;
+                            println!("{:?}", cos);
+                            //Some(cos.as_string()?)
+                            None
+                        }
+                        None => None,
+                    };
                     let height = obj_stream.get_value("Height").unwrap().as_f64()?;
                     let bits_per_component =
                         obj_stream.get_value("BitsPerComponent").unwrap().as_u32()?;
@@ -408,6 +418,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
                     let image = Image::new(
                         width,
                         height,
+                        color_space,
                         bits_per_component,
                         bytes,
                         self.cur_state.clone(),

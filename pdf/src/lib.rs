@@ -9,3 +9,4 @@ pub mod object;
 pub mod page;
 pub mod pagetree;
 pub mod parser;
+pub mod color;

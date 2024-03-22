@@ -340,12 +340,6 @@ endcmap CMapName currentdict /CMap defineresource pop end end";
     }
 
     #[test]
-    fn test_usecmap() {
-        let bytes = include_bytes!("../../../cmaps/Identity-H");
-        let cmap = CMap::new_from_bytes(bytes.as_slice()).unwrap();
-        println!("{:?}", cmap);
-    }
-    #[test]
     fn test_hex_to_u32() {
         let bytes = b"ff";
         let value = hex_bytes_to_u32(bytes);

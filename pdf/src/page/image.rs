@@ -6,6 +6,7 @@ use crate::page::graphics_state::GraphicsState;
 pub struct Image {
     width: f64,
     height: f64,
+    color_space: Option<String>,
     bits_per_component: u32,
     data: Vec<u8>,
     graphics_state: GraphicsState,
@@ -15,6 +16,7 @@ impl Image {
     pub fn new(
         width: f64,
         height: f64,
+        color_space: Option<String>,
         bits_per_component: u32,
         data: Vec<u8>,
         graphics_state: GraphicsState,
@@ -22,6 +24,7 @@ impl Image {
         Image {
             width,
             height,
+            color_space,
             bits_per_component,
             data,
             graphics_state,
@@ -43,5 +46,9 @@ impl Image {
 
     pub fn bits_per_component(&self) -> u32 {
         self.bits_per_component
+    }
+
+    pub fn color_sapce(&self) -> Option<&str> {
+        self.color_space.as_ref().map(|x| x.as_str())
     }
 }

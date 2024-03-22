@@ -92,6 +92,8 @@ fn generate_font_data() {
 
 fn main() {
     // TODO just exec once
+    println!("cargo::rerun-if-changed=cmaps");
     generate_cmap_data();
+    println!("cargo::rerun-if-changed=fonts");
     generate_font_data();
 }
