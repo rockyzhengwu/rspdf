@@ -49,6 +49,6 @@ impl Image {
     }
 
     pub fn color_sapce(&self) -> Option<&str> {
-        self.color_space.as_ref().map(|x| x.as_str())
+        self.color_space.as_deref()
     }
 }

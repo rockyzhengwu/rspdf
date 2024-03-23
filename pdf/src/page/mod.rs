@@ -13,11 +13,10 @@ use crate::page::content_interpreter::ContentInterpreter;
 use crate::page::object_iterator::ObjectIterator;
 use crate::pagetree::PageNodeRef;
 
-pub mod color;
-pub mod color_space;
 pub mod content_interpreter;
 pub mod content_parser;
 pub mod context;
+pub mod function;
 pub mod general_state;
 pub mod graphics_object;
 pub mod graphics_state;

@@ -3,7 +3,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum PDFError {
-    #[error("IO:{msg}")]
+    #[error("IO:{msg}, source{source}")]
     IO { source: io::Error, msg: String },
 
     #[error("Eof:{msg}")]
@@ -50,6 +50,12 @@ pub enum PDFError {
 
     #[error("PathCreatError `{0}`")]
     PathCreatError(String),
+
+    #[error("ColorEror `{0}`")]
+    ColorError(String),
+
+    #[error("Function `{0}`")]
+    FunctionError(String),
 }
 
 pub type PDFResult<T> = std::result::Result<T, PDFError>;

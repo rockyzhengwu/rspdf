@@ -204,6 +204,13 @@ impl PDFNumber {
         }
     }
 
+    pub fn as_u8(&self) -> u8 {
+        match *self {
+            PDFNumber::Real(r) => r as u8,
+            PDFNumber::Integer(i) => i as u8,
+        }
+    }
+
     pub fn as_i32(&self) -> i32 {
         match *self {
             PDFNumber::Real(r) => r as i32,
@@ -263,6 +270,9 @@ impl PDFObject {
     pub fn get_value_as_u32(&self, key: &str) -> Option<PDFResult<u32>> {
         self.get_value(key).map(|obj| obj.as_u32())
     }
+    pub fn get_value_as_u8(&self, key: &str) -> Option<PDFResult<u8>> {
+        self.get_value(key).map(|obj| obj.as_u8())
+    }
 
     pub fn get_value_as_f32(&self, key: &str) -> Option<PDFResult<f32>> {
         self.get_value(key).map(|obj| obj.as_f32())
@@ -313,6 +323,15 @@ impl PDFObject {
     pub fn as_u32(&self) -> PDFResult<u32> {
         match self {
             PDFObject::Number(v) => Ok(v.as_u32()),
+            _ => Err(PDFError::ObjectConvertFailure(
+                "can't convert to number".to_string(),
+            )),
+        }
+    }
+
+    pub fn as_u8(&self) -> PDFResult<u8> {
+        match self {
+            PDFObject::Number(v) => Ok(v.as_u8()),
             _ => Err(PDFError::ObjectConvertFailure(
                 "can't convert to number".to_string(),
             )),

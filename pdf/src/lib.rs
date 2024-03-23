@@ -1,4 +1,5 @@
 pub mod catalog;
+pub mod color;
 pub mod device;
 pub mod document;
 pub mod errors;
@@ -9,4 +10,3 @@ pub mod object;
 pub mod page;
 pub mod pagetree;
 pub mod parser;
-pub mod color;
