@@ -1,3 +1,8 @@
+use std::io::{Read, Seek};
+
+use crate::document::Document;
+use crate::object::PDFObject;
+
 pub mod cal_gray;
 pub mod cal_rgb;
 pub mod device_cmyk;
@@ -25,4 +30,19 @@ pub enum ColorSpace {
     DeviceN(devicen::DeviceN),
     Indexed(indexed::Indexed),
     Pattern(pattern::Pattern),
+}
+
+pub fn careate_colorspace<T: Seek + Read>(obj: &PDFObject, doc: &Document<T>) {
+    match obj {
+        PDFObject::Arrray(arr) => {
+            if arr.len() == 4 {
+                let alternate_space = doc.get_object_without_indriect(arr.get(2).unwrap());
+
+                let tint_transform = doc.get_object_without_indriect(arr.get(3).unwrap());
+                println!("{:?},{:?}", alternate_space, tint_transform);
+            }
+        }
+        PDFObject::Dictionary(d) => {}
+        _ => {}
+    }
 }

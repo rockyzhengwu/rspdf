@@ -3,6 +3,7 @@ use std::u8;
 
 use log::warn;
 
+use crate::color::careate_colorspace;
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::geom::matrix::Matrix;
@@ -405,8 +406,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
                     let color_space = match obj_stream.get_value("ColorSpace") {
                         Some(sc) => {
                             let cos = self.doc.get_object_without_indriect(sc)?;
-                            println!("{:?}", cos);
-                            //Some(cos.as_string()?)
+                            careate_colorspace(&cos, self.doc);
                             None
                         }
                         None => None,
