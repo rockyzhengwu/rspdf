@@ -2,6 +2,7 @@ use std::io::{Read, Seek};
 
 use crate::document::Document;
 use crate::object::PDFObject;
+use crate::page::function::simple::SimpleFunction;
 
 pub mod cal_gray;
 pub mod cal_rgb;
@@ -37,9 +38,11 @@ pub fn careate_colorspace<T: Seek + Read>(obj: &PDFObject, doc: &Document<T>) {
         PDFObject::Arrray(arr) => {
             if arr.len() == 4 {
                 let alternate_space = doc.get_object_without_indriect(arr.get(2).unwrap());
-
-                let tint_transform = doc.get_object_without_indriect(arr.get(3).unwrap());
-                println!("{:?},{:?}", alternate_space, tint_transform);
+                let tint_transform = doc
+                    .get_object_without_indriect(arr.get(3).unwrap())
+                    .unwrap();
+                let transform = SimpleFunction::try_new(&tint_transform);
+                println!("{:?},tinttransform {:?}", transform, alternate_space);
             }
         }
         PDFObject::Dictionary(d) => {}
