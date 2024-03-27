@@ -1,6 +1,9 @@
 use std::io::{Read, Seek};
 
+use crate::color::iccbased::IccBased;
+use crate::color::separation::Separation;
 use crate::document::Document;
+use crate::errors::{PDFError, PDFResult};
 use crate::object::PDFObject;
 use crate::page::function::simple::SimpleFunction;
 
@@ -33,19 +36,30 @@ pub enum ColorSpace {
     Pattern(pattern::Pattern),
 }
 
-pub fn careate_colorspace<T: Seek + Read>(obj: &PDFObject, doc: &Document<T>) {
+pub fn careate_colorspace<T: Seek + Read>(
+    obj: &PDFObject,
+    doc: &Document<T>,
+) -> PDFResult<ColorSpace> {
     match obj {
         PDFObject::Arrray(arr) => {
-            if arr.len() == 4 {
-                let alternate_space = doc.get_object_without_indriect(arr.get(2).unwrap());
-                let tint_transform = doc
-                    .get_object_without_indriect(arr.get(3).unwrap())
-                    .unwrap();
-                let transform = SimpleFunction::try_new(&tint_transform);
-                println!("{:?},tinttransform {:?}", transform, alternate_space);
+            let first = arr.first().unwrap().as_string().unwrap();
+            match first.as_str() {
+                "ICCBased" => {
+                    let stream = arr.get(1).unwrap();
+                    let stream = doc.get_object_without_indriect(stream).unwrap();
+                    let iccbased = IccBased::try_new(&stream)?;
+                    Ok(ColorSpace::ICCBased(iccbased))
+                }
+                "Separation" => {
+                    let separation = Separation::try_new(arr, doc)?;
+                    Ok(ColorSpace::Separation(separation))
+                }
+                _ => Err(PDFError::ColorError("colorspace not implement".to_string())),
             }
         }
-        PDFObject::Dictionary(d) => {}
-        _ => {}
+        PDFObject::Dictionary(d) => {
+            Err(PDFError::ColorError("colorspace not implement".to_string()))
+        }
+        _ => Err(PDFError::ColorError("colorspace not implement".to_string())),
     }
 }

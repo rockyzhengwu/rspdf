@@ -1,5 +1,4 @@
 use std::io::{Read, Seek};
-use std::u8;
 
 use log::warn;
 
@@ -187,8 +186,9 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
     // cs
     fn set_color_space_fill(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let ope = operation.operand(0)?.as_string()?;
-        let _color_space = self.find_resource("ColorSpace", &ope)?;
-        println!("colorspace operation {:?}", _color_space);
+        if let Some(cs) = self.find_resource("ColorSpace", &ope)? {
+            let colorspace = careate_colorspace(&cs, self.doc);
+        }
         Ok(None)
     }
     // K
