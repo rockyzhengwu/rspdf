@@ -1,7 +1,7 @@
 use crate::color::device_gray::DeviceGray;
 use crate::color::ColorSpace;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Indexed {
     base: Box<ColorSpace>,
     hival: u8,
@@ -18,6 +18,4 @@ impl Default for Indexed {
     }
 }
 
-impl Indexed {
-    
-}
+impl Indexed {}

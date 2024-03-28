@@ -1,5 +1,4 @@
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DeviceCMYK {
     c: f32,
     m: f32,

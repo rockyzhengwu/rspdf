@@ -2,7 +2,7 @@ use crate::errors::{PDFError, PDFResult};
 use crate::object::PDFObject;
 use crate::page::function::CommonFunction;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SimpleFunction {
     common: CommonFunction,
     size: Vec<u32>,

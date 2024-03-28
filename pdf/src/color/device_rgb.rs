@@ -1,5 +1,4 @@
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DeviceRGB {
     r: f32,
     g: f32,

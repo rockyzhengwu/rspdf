@@ -1,10 +1,10 @@
 use crate::errors::{PDFError, PDFResult};
 use crate::object::PDFObject;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct IccProfile {}
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IccBased {
     n: u8,
     profile: IccProfile,

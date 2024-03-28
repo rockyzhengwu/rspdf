@@ -171,6 +171,7 @@ impl Device for CairoRender {
                 let _x = ctm.v31;
                 let _y = ctm.v32;
                 let data = image.data();
+                println!("imagecolorspace: {:?}", image.color_sapce());
                 let mut im = GrayImage::new(w as u32, h as u32);
                 for i in 0..(w as u32) {
                     for j in 0..(h as u32) {

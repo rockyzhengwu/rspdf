@@ -6,7 +6,7 @@ pub mod postscript;
 pub mod simple;
 pub mod stiching;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FunctionType {
     Simple,
     Exponential,
@@ -14,7 +14,7 @@ pub enum FunctionType {
     PostScript,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CommonFunction {
     function_type: FunctionType,
     domain: Vec<f32>,

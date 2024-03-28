@@ -1,7 +1,6 @@
 use crate::font::cmap::CMap;
 use font_data::cmap::get_predefine_cmap_data;
 
-
 pub fn get_predefine_cmap(name: &str) -> Option<CMap> {
     if let Some(cmap_data) = get_predefine_cmap_data(name) {
         let cmap = CMap::new_from_bytes(cmap_data).unwrap();

@@ -1,4 +1,2 @@
-#[derive(Debug)]
-pub struct Pattern {
-
-}
+#[derive(Debug, Clone)]
+pub struct Pattern {}

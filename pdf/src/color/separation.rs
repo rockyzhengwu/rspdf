@@ -7,7 +7,7 @@ use crate::errors::PDFResult;
 use crate::object::{PDFArray, PDFObject};
 use crate::page::function::simple::SimpleFunction;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Separation {
     alternate_space: Box<ColorSpace>,
     tint_transform: SimpleFunction,

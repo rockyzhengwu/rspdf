@@ -2,7 +2,7 @@ use crate::color::common::decode_point;
 use crate::errors::{PDFError, PDFResult};
 use crate::object::PDFObject;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CalRGB {
     gamma: [f32; 3],
     white_point: [f32; 3],

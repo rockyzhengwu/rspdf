@@ -1,5 +1,2 @@
-
-#[derive(Debug)]
-pub struct DeviceN{
-
-}
+#[derive(Debug, Clone)]
+pub struct DeviceN {}

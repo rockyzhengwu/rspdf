@@ -5,7 +5,6 @@ use crate::color::separation::Separation;
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::object::PDFObject;
-use crate::page::function::simple::SimpleFunction;
 
 pub mod cal_gray;
 pub mod cal_rgb;
@@ -21,7 +20,7 @@ pub mod separation;
 
 mod common;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ColorSpace {
     DeviceGray(device_gray::DeviceGray),
     DeviceRGB(device_rgb::DeviceRGB),

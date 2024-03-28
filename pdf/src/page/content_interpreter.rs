@@ -406,8 +406,8 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
                     let color_space = match obj_stream.get_value("ColorSpace") {
                         Some(sc) => {
                             let cos = self.doc.get_object_without_indriect(sc)?;
-                            careate_colorspace(&cos, self.doc);
-                            None
+                            let colorspace = careate_colorspace(&cos, self.doc)?;
+                            Some(colorspace)
                         }
                         None => None,
                     };

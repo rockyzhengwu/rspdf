@@ -1,3 +1,4 @@
+use crate::color::ColorSpace;
 use crate::geom::matrix::Matrix;
 use crate::page::graphics_state::GraphicsState;
 
@@ -6,7 +7,7 @@ use crate::page::graphics_state::GraphicsState;
 pub struct Image {
     width: f64,
     height: f64,
-    color_space: Option<String>,
+    color_space: Option<ColorSpace>,
     bits_per_component: u32,
     data: Vec<u8>,
     graphics_state: GraphicsState,
@@ -16,7 +17,7 @@ impl Image {
     pub fn new(
         width: f64,
         height: f64,
-        color_space: Option<String>,
+        color_space: Option<ColorSpace>,
         bits_per_component: u32,
         data: Vec<u8>,
         graphics_state: GraphicsState,
@@ -48,7 +49,7 @@ impl Image {
         self.bits_per_component
     }
 
-    pub fn color_sapce(&self) -> Option<&str> {
-        self.color_space.as_deref()
+    pub fn color_sapce(&self) -> Option<&ColorSpace> {
+        self.color_space.as_ref()
     }
 }

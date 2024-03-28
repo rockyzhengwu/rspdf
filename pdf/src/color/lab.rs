@@ -2,7 +2,7 @@ use crate::color::common::decode_point;
 use crate::errors::{PDFError, PDFResult};
 use crate::object::PDFObject;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Lab {
     white_point: [f32; 3],
     black_point: [f32; 3],
