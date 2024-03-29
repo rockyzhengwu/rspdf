@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use cairo::{Context, FontFace, Format, Glyph, ImageSurface};
-use image::{GenericImage, GrayImage, Luma};
+use image::{GrayImage, Luma};
 
 use crate::device::Device;
 use crate::geom::matrix::Matrix;
@@ -162,16 +162,23 @@ impl Device for CairoRender {
                 }
             }
             GraphicsObject::Image(image) => {
-                let w = image.width();
-                let h = image.height();
+                let w = image.width()?;
+                let h = image.height()?;
                 let trm = Matrix::new(1.0 / w, 0.0, 0.0, -1.0 / h, 0.0, 1.0);
                 let userctm = trm.mutiply(image.ctm());
                 let ctm = userctm.mutiply(&self.ctm);
 
                 let _x = ctm.v31;
                 let _y = ctm.v32;
-                let data = image.data();
-                println!("imagecolorspace: {:?}", image.color_sapce());
+                let data = image.data()?;
+                println!(
+                    "imagecolorspace: {:?},{:?},{:?},{:?}",
+                    image.colorsapce(),
+                    data.len(),
+                    w,
+                    h
+                );
+
                 let mut im = GrayImage::new(w as u32, h as u32);
                 for i in 0..(w as u32) {
                     for j in 0..(h as u32) {

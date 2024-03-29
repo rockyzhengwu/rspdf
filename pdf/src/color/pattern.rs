@@ -1,2 +1,4 @@
 #[derive(Debug, Clone)]
-pub struct Pattern {}
+pub struct Pattern {
+    // TODO
+}

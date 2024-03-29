@@ -35,11 +35,19 @@ pub enum ColorSpace {
     Pattern(pattern::Pattern),
 }
 
-pub fn careate_colorspace<T: Seek + Read>(
+pub fn create_colorspace<T: Seek + Read>(
     obj: &PDFObject,
     doc: &Document<T>,
 ) -> PDFResult<ColorSpace> {
     match obj {
+        PDFObject::Name(name) => match name.name() {
+            "DeviceGray" => Ok(ColorSpace::DeviceGray(device_gray::DeviceGray::default())),
+            "DeviceRGB" => Ok(ColorSpace::DeviceRGB(device_rgb::DeviceRGB::default())),
+            _ => Err(PDFError::ColorError(format!(
+                "colorspace {:?} not implement ",
+                name
+            ))),
+        },
         PDFObject::Arrray(arr) => {
             let first = arr.first().unwrap().as_string().unwrap();
             match first.as_str() {

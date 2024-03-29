@@ -1,6 +1,6 @@
 use crate::errors::{PDFError, PDFResult};
 use crate::object::PDFObject;
-use crate::page::function::CommonFunction;
+use crate::page::function::common::CommonFunction;
 
 #[derive(Debug, Clone)]
 pub struct SimpleFunction {
@@ -14,8 +14,7 @@ pub struct SimpleFunction {
 }
 
 impl SimpleFunction {
-    pub fn try_new(stream: &PDFObject) -> PDFResult<Self> {
-        let common = CommonFunction::try_new(stream)?;
+    pub fn try_new(stream: &PDFObject, common: CommonFunction) -> PDFResult<Self> {
         let size = stream
             .get_value("Size")
             .ok_or(PDFError::FunctionError(format!(

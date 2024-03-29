@@ -2,7 +2,7 @@ use std::io::{Read, Seek};
 
 use log::warn;
 
-use crate::color::careate_colorspace;
+use crate::color::create_colorspace;
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::geom::matrix::Matrix;
@@ -187,7 +187,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
     fn set_color_space_fill(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let ope = operation.operand(0)?.as_string()?;
         if let Some(cs) = self.find_resource("ColorSpace", &ope)? {
-            let colorspace = careate_colorspace(&cs, self.doc);
+            let colorspace = create_colorspace(&cs, self.doc);
         }
         Ok(None)
     }
@@ -402,27 +402,15 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
             let obj_type = obj_stream.get_value_as_string("Subtype").unwrap()?;
             match obj_type.as_str() {
                 "Image" => {
-                    let width = obj_stream.get_value("Width").unwrap().as_f64()?;
                     let color_space = match obj_stream.get_value("ColorSpace") {
                         Some(sc) => {
                             let cos = self.doc.get_object_without_indriect(sc)?;
-                            let colorspace = careate_colorspace(&cos, self.doc)?;
+                            let colorspace = create_colorspace(&cos, self.doc)?;
                             Some(colorspace)
                         }
                         None => None,
                     };
-                    let height = obj_stream.get_value("Height").unwrap().as_f64()?;
-                    let bits_per_component =
-                        obj_stream.get_value("BitsPerComponent").unwrap().as_u32()?;
-                    let bytes = obj_stream.bytes()?;
-                    let image = Image::new(
-                        width,
-                        height,
-                        color_space,
-                        bits_per_component,
-                        bytes,
-                        self.cur_state.clone(),
-                    );
+                    let image = Image::new(obj_stream, color_space, self.cur_state.clone());
                     return Ok(Some(GraphicsObject::Image(image)));
                 }
                 "Form" => {

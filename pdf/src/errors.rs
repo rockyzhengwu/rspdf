@@ -56,6 +56,9 @@ pub enum PDFError {
 
     #[error("Function `{0}`")]
     FunctionError(String),
+
+    #[error("Page Error `{0}`")]
+    PageError(String),
 }
 
 pub type PDFResult<T> = std::result::Result<T, PDFError>;
