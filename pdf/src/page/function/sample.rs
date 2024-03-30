@@ -3,17 +3,17 @@ use crate::object::PDFObject;
 use crate::page::function::common::CommonFunction;
 
 #[derive(Debug, Clone)]
-pub struct SimpleFunction {
+pub struct SampleFunction {
     common: CommonFunction,
     size: Vec<u32>,
     bits_per_sample: u8,
     order: Option<u8>,
     encode: Vec<f32>,
     decode: Vec<f32>,
-    simples: Vec<f32>,
+    samples: Vec<f32>,
 }
 
-impl SimpleFunction {
+impl SampleFunction {
     pub fn try_new(stream: &PDFObject, common: CommonFunction) -> PDFResult<Self> {
         let size = stream
             .get_value("Size")
@@ -30,14 +30,14 @@ impl SimpleFunction {
                     "BitsPerSample is need in SimpleFunction{:?}",
                     stream,
                 )))??;
-        let mut simple_function = SimpleFunction {
+        let mut simple_function = SampleFunction {
             common,
             size,
             bits_per_sample,
             order: None,
             encode: Vec::new(),
             decode: Vec::new(),
-            simples: Vec::new(),
+            samples: Vec::new(),
         };
         if let Some(Ok(o)) = stream.get_value_as_u8("Order") {
             simple_function.order = Some(o);
@@ -64,5 +64,10 @@ impl SimpleFunction {
 
     pub fn size(&self) -> &[u32] {
         self.size.as_slice()
+    }
+
+    pub fn eval(&self, input: &[f32])->Vec<f32>{
+        //
+        unimplemented!()
     }
 }

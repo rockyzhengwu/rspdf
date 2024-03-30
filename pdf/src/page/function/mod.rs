@@ -3,18 +3,18 @@ use crate::object::PDFObject;
 use crate::page::function::common::CommonFunction;
 use crate::page::function::exponential::ExponentialFunction;
 use crate::page::function::postscript::PostScriptFunction;
-use crate::page::function::simple::SimpleFunction;
+use crate::page::function::sample::SampleFunction;
 use crate::page::function::stiching::StichingFunction;
 
 pub mod common;
 pub mod exponential;
 pub mod postscript;
-pub mod simple;
+pub mod sample;
 pub mod stiching;
 
 #[derive(Debug, Clone)]
 pub enum PDFFunction {
-    Simple(simple::SimpleFunction),
+    Simple(sample::SampleFunction),
     Exponential(exponential::ExponentialFunction),
     Stitching(stiching::StichingFunction),
     PostScript(postscript::PostScriptFunction),
@@ -57,7 +57,7 @@ impl PDFFunction {
         let common = CommonFunction::new(domain, range);
         match t {
             0 => {
-                let s = SimpleFunction::try_new(obj, common)?;
+                let s = SampleFunction::try_new(obj, common)?;
                 Ok(PDFFunction::Simple(s))
             }
             2 => {
