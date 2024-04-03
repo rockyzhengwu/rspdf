@@ -9,7 +9,7 @@ use crate::page::function::common::CommonFunction;
 pub struct SampleFunction {
     common: CommonFunction,
     size: Vec<u32>,
-    bits_per_sample: u8,
+    bps: u8,
     order: Option<u8>,
     encode: Vec<f32>,
     decode: Vec<f32>,
@@ -26,17 +26,16 @@ impl SampleFunction {
             )))?
             .as_array()?;
         let size: Vec<u32> = size.iter().map(|x| x.as_u32().unwrap()).collect();
-        let bits_per_sample =
-            stream
-                .get_value_as_u8("BitsPerSample")
-                .ok_or(PDFError::FunctionError(format!(
-                    "BitsPerSample is need in SampleFunction{:?}",
-                    stream,
-                )))??;
+        let bps = stream
+            .get_value_as_u8("BitsPerSample")
+            .ok_or(PDFError::FunctionError(format!(
+                "BitsPerSample is need in SampleFunction{:?}",
+                stream,
+            )))??;
         let mut sample_function = SampleFunction {
             common,
             size,
-            bits_per_sample,
+            bps,
             order: None,
             encode: Vec::new(),
             decode: Vec::new(),
@@ -53,16 +52,106 @@ impl SampleFunction {
             let enc = enc.as_array()?;
             sample_function.decode = enc.iter().map(|x| x.as_f32().unwrap()).collect()
         }
-        sample_function.samples = stream.bytes()?;
-        println!(
-            "{:?},{:?},{:?},{:?}, {:?}",
-            sample_function.samples.len(),
-            sample_function.common.output_number(),
-            sample_function.common().input_number(),
-            sample_function.bits_per_sample,
-            sample_function.encode,
-        );
-
+        let bytes = stream.bytes()?;
+        let n = sample_function.common.output_number();
+        let mut samples: Vec<f32> = Vec::new();
+        // TODO too ugly
+        match sample_function.bps {
+            1 => {
+                for byte in bytes {
+                    for i in 1..=8 {
+                        let s = 8 - i;
+                        let mask = 1 << s;
+                        let v = (byte & mask) >> s;
+                        samples.push(v as f32);
+                    }
+                }
+            }
+            2 => {
+                for byte in bytes {
+                    samples.push(((byte & (0b11 << 6)) >> 6) as f32);
+                    samples.push(((byte & (0b11 << 4)) >> 4) as f32);
+                    samples.push(((byte & (0b11 << 2)) >> 2) as f32);
+                    samples.push((byte & 0b11) as f32);
+                }
+            }
+            4 => {
+                for byte in bytes {
+                    samples.push((byte & (0b1111 << 4)) as f32);
+                    samples.push((byte & 0b1111) as f32);
+                }
+            }
+            8 => {
+                for byte in bytes {
+                    samples.push(byte as f32);
+                }
+            }
+            12 => {
+                let mut last: u16 = 0;
+                let mut bits: u8 = 0;
+                for byte in bytes {
+                    let b = byte.to_owned() as u16;
+                    if bits == 8 {
+                        let v = (last << 4 | (b >> 4)) as f32;
+                        samples.push(v);
+                        last = b << 4 & 0b0000000011110000 >> 4;
+                        bits = 4;
+                    } else if bits == 4 {
+                        let v = ((last << 8) | b) as f32;
+                        bits = 0;
+                        last = 0;
+                        samples.push(v);
+                    } else if bits == 0 {
+                        last = b;
+                        bits = 8;
+                    } else {
+                        return Err(PDFError::FunctionError(
+                            "Sampled Function sampels error".to_string(),
+                        ));
+                    }
+                }
+            }
+            16 => {
+                let mut v: u16 = 0;
+                let mut bits = 0;
+                for byte in bytes {
+                    v = v << 8 | (byte.to_owned() as u16);
+                    bits += 8;
+                    if bits == 16 {
+                        samples.push(v as f32);
+                        bits = 0;
+                        v = 0;
+                    }
+                }
+            }
+            24 => {
+                let mut v: u16 = 0;
+                let mut bits = 0;
+                for byte in bytes {
+                    v = v << 8 | (byte.to_owned() as u16);
+                    bits += 8;
+                    if bits == 24 {
+                        samples.push(v as f32);
+                        bits = 0;
+                        v = 0;
+                    }
+                }
+            }
+            32 => {
+                let mut v: u16 = 0;
+                let mut bits = 0;
+                for byte in bytes {
+                    v = v << 8 | (byte.to_owned() as u16);
+                    bits += 8;
+                    if bits == 32 {
+                        samples.push(v as f32);
+                        bits = 0;
+                        v = 0;
+                    }
+                }
+            }
+            _ => {}
+        }
         Ok(sample_function)
     }
 
@@ -71,7 +160,7 @@ impl SampleFunction {
     }
 
     pub fn bits_per_sample(&self) -> u8 {
-        self.bits_per_sample
+        self.bps
     }
 
     pub fn size(&self) -> &[u32] {
@@ -92,7 +181,6 @@ impl SampleFunction {
             let x = self.interpolate(x, low, up, elow, eup);
             let size = self.size.get(i).unwrap().to_owned() as f32;
             let x = x.max(0.0).min(size);
-
         }
         output
     }

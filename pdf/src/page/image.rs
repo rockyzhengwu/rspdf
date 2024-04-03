@@ -1,3 +1,4 @@
+use crate::color::device_gray::DeviceGray;
 use crate::color::ColorSpace;
 use crate::errors::{PDFError, PDFResult};
 use crate::geom::matrix::Matrix;
@@ -62,8 +63,18 @@ impl Image {
     }
 
     pub fn rgb_image(&self) -> PDFResult<Vec<u8>> {
+        let bytes = self.obj.bytes()?;
+        let image = Vec::new();
+        match self.colorspace {
+            Some(ColorSpace::Separation(ref sc)) => for b in bytes {},
+            None => {
+                println!("colorspace is NOne")
+            }
+            _ => {
+                println!("others");
+            }
+        }
         //pass
-
-        unimplemented!()
+        Ok(image)
     }
 }

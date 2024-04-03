@@ -171,6 +171,7 @@ impl Device for CairoRender {
                 let _x = ctm.v31;
                 let _y = ctm.v32;
                 let data = image.data()?;
+                let rgb_iamge = image.rgb_image()?;
                 //println!(
                 //    "imagecolorspace: {:?},{:?},{:?},{:?}",
                 //    image.colorsapce(),
