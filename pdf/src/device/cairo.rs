@@ -3,8 +3,9 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use cairo::{Context, FontFace, Format, Glyph, ImageSurface};
-use image::{GrayImage, Luma};
+use image::{GrayImage, Luma, Rgb, RgbImage};
 
+use crate::color::ColorRGBValue;
 use crate::device::Device;
 use crate::geom::matrix::Matrix;
 use crate::geom::point::Point;
@@ -170,22 +171,14 @@ impl Device for CairoRender {
 
                 let _x = ctm.v31;
                 let _y = ctm.v32;
-                let data = image.data()?;
                 let rgb_iamge = image.rgb_image()?;
-                //println!(
-                //    "imagecolorspace: {:?},{:?},{:?},{:?}",
-                //    image.colorsapce(),
-                //    data.len(),
-                //    w,
-                //    h
-                //);
 
-                let mut im = GrayImage::new(w as u32, h as u32);
-                for i in 0..(w as u32) {
-                    for j in 0..(h as u32) {
-                        let index = j * (w as u32) + i;
-                        let pixel = data.get(index as usize).unwrap().to_owned();
-                        im.put_pixel(i, j, Luma([pixel]));
+                let mut im = RgbImage::new(w as u32, h as u32);
+                for i in 0..(h as u32) {
+                    for j in 0..(w as u32) {
+                        let index = i * (w as u32) + j;
+                        let pixel: &ColorRGBValue = rgb_iamge.get(index as usize).unwrap();
+                        im.put_pixel(j, i, Rgb([pixel.r(), pixel.g(), pixel.b()]));
                     }
                 }
                 im.save("test.png").unwrap();

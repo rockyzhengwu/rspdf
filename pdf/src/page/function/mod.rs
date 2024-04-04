@@ -14,7 +14,7 @@ pub mod stiching;
 
 #[derive(Debug, Clone)]
 pub enum PDFFunction {
-    Simple(sample::SampleFunction),
+    Sample(sample::SampleFunction),
     Exponential(exponential::ExponentialFunction),
     Stitching(stiching::StichingFunction),
     PostScript(postscript::PostScriptFunction),
@@ -58,7 +58,7 @@ impl PDFFunction {
         match t {
             0 => {
                 let s = SampleFunction::try_new(obj, common)?;
-                Ok(PDFFunction::Simple(s))
+                Ok(PDFFunction::Sample(s))
             }
             2 => {
                 // PDFFunction::Exponential
@@ -77,6 +77,15 @@ impl PDFFunction {
                 "Invalid functiontype :{:?}",
                 t
             ))),
+        }
+    }
+
+    pub fn eval(&self, inputs: &[f32]) -> PDFResult<Vec<f32>> {
+        match self {
+            PDFFunction::Sample(s) => s.eval(inputs),
+            PDFFunction::Exponential(e) => e.eval(inputs),
+            PDFFunction::Stitching(s) => s.eval(inputs),
+            PDFFunction::PostScript(p) => p.eval(inputs),
         }
     }
 }

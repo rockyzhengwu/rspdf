@@ -1,7 +1,7 @@
 use std::io::{Read, Seek};
 
-use crate::color::create_colorspace;
 use crate::color::ColorSpace;
+use crate::color::{create_colorspace, ColorRGBValue};
 use crate::document::Document;
 use crate::errors::PDFResult;
 use crate::object::PDFArray;
@@ -28,5 +28,10 @@ impl Separation {
             alternate_space: Box::new(alternate_space),
             tint_transform: transform,
         })
+    }
+
+    pub fn to_rgb(&self, inputs: &[f32]) -> PDFResult<ColorRGBValue> {
+        let alter_color = self.tint_transform.eval(inputs)?;
+        self.alternate_space.to_rgb(alter_color.as_slice())
     }
 }

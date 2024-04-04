@@ -1,5 +1,5 @@
-use std::cmp;
 use std::cmp::Ord;
+use std::{cmp, usize};
 
 use crate::errors::{PDFError, PDFResult};
 use crate::object::PDFObject;
@@ -13,7 +13,7 @@ pub struct SampleFunction {
     order: Option<u8>,
     encode: Vec<f32>,
     decode: Vec<f32>,
-    samples: Vec<u8>,
+    samples: Vec<f32>,
 }
 
 impl SampleFunction {
@@ -83,7 +83,8 @@ impl SampleFunction {
             }
             8 => {
                 for byte in bytes {
-                    samples.push(byte as f32);
+                    let v = byte as f32 / 255.0;
+                    samples.push(v);
                 }
             }
             12 => {
@@ -152,6 +153,7 @@ impl SampleFunction {
             }
             _ => {}
         }
+        sample_function.samples = samples;
         Ok(sample_function)
     }
 
@@ -170,8 +172,12 @@ impl SampleFunction {
         ymin + ((x - xmin) * (ymax - ymin) / (xmax - xmin))
     }
 
-    pub fn eval(&self, inputs: &[f32]) -> Vec<f32> {
+    pub fn eval(&self, inputs: &[f32]) -> PDFResult<Vec<f32>> {
         let mut output = Vec::new();
+        let mut e = Vec::new();
+        let mut prev = Vec::new();
+        let mut next = Vec::new();
+        let mut efrac: Vec<f32> = Vec::new();
         for (i, v) in inputs.iter().enumerate() {
             let low = self.common().get_domain(i * 2).to_owned();
             let up = self.common().get_domain(i * 2 + 1).to_owned();
@@ -181,7 +187,41 @@ impl SampleFunction {
             let x = self.interpolate(x, low, up, elow, eup);
             let size = self.size.get(i).unwrap().to_owned() as f32;
             let x = x.max(0.0).min(size);
+            prev.push(x.floor());
+            next.push(x.ceil());
+            efrac.push(x - x.floor());
+            e.push(x);
         }
-        output
+        let n = self.common.output_number();
+        let m = self.common.input_number();
+        for i in 0..n {
+            match m {
+                1 => {
+                    let pos = prev.first().unwrap().to_owned() as usize * n + i;
+                    let a = self.samples.get(pos).unwrap();
+                    let pos = next.first().unwrap().to_owned() as usize * n + i;
+                    let b = self.samples.get(pos).unwrap();
+                    let ab = a + (b - a) * efrac.first().unwrap();
+                    let o = self.interpolate(
+                        ab,
+                        0.0,
+                        1.0,
+                        self.decode.get(2 * i).unwrap().to_owned(),
+                        self.decode.get(2 * i + 1).unwrap().to_owned(),
+                    );
+                    let rl = self.common().get_range(2 * i).to_owned();
+                    let ru = self.common().get_range(2 * i + 1).to_owned();
+                    let ov = o.max(rl).min(ru);
+                    output.push(ov)
+                }
+                2 => {
+                    // TODO
+                }
+                _ => {
+                    // TODO
+                }
+            }
+        }
+        Ok(output)
     }
 }

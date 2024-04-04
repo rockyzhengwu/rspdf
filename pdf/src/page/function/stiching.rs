@@ -9,7 +9,11 @@ pub struct StichingFunction {
 
 impl StichingFunction {
     pub fn try_new(obj: &PDFObject, common: CommonFunction) -> PDFResult<Self> {
-        // TODO 
+        // TODO
         Ok(StichingFunction { common })
+    }
+
+    pub fn eval(&self, inputs: &[f32]) -> PDFResult<Vec<f32>> {
+        unimplemented!()
     }
 }

@@ -35,6 +35,22 @@ pub enum ColorSpace {
     Pattern(pattern::Pattern),
 }
 
+#[derive(Debug)]
+pub struct ColorRGBValue(u32, u32, u32);
+
+impl ColorRGBValue {
+    pub fn r(&self) -> u8 {
+        self.0 as u8
+    }
+    pub fn g(&self) -> u8 {
+        self.1 as u8
+    }
+
+    pub fn b(&self) -> u8 {
+        self.2 as u8
+    }
+}
+
 pub fn create_colorspace<T: Seek + Read>(
     obj: &PDFObject,
     doc: &Document<T>,
@@ -68,5 +84,16 @@ pub fn create_colorspace<T: Seek + Read>(
             Err(PDFError::ColorError("colorspace not implement".to_string()))
         }
         _ => Err(PDFError::ColorError("colorspace not implement".to_string())),
+    }
+}
+impl ColorSpace {
+    pub fn to_rgb(&self, values: &[f32]) -> PDFResult<ColorRGBValue> {
+        match self {
+            &ColorSpace::Separation(ref s) => s.to_rgb(values),
+            &ColorSpace::ICCBased(ref c) => c.to_rgb(values),
+            _ => {
+                panic!("not implement")
+            }
+        }
     }
 }

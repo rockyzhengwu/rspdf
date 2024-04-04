@@ -22,4 +22,8 @@ impl ExponentialFunction {
             n: 0,
         })
     }
+    pub fn eval(&self, inputs: &[f32]) -> PDFResult<Vec<f32>> {
+
+        unimplemented!()
+    }
 }

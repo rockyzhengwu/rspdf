@@ -1,5 +1,5 @@
 use crate::color::device_gray::DeviceGray;
-use crate::color::ColorSpace;
+use crate::color::{ColorRGBValue, ColorSpace};
 use crate::errors::{PDFError, PDFResult};
 use crate::geom::matrix::Matrix;
 use crate::object::PDFObject;
@@ -62,11 +62,17 @@ impl Image {
         self.colorspace.as_ref()
     }
 
-    pub fn rgb_image(&self) -> PDFResult<Vec<u8>> {
+    pub fn rgb_image(&self) -> PDFResult<Vec<ColorRGBValue>> {
         let bytes = self.obj.bytes()?;
-        let image = Vec::new();
+        let mut image = Vec::new();
         match self.colorspace {
-            Some(ColorSpace::Separation(ref sc)) => for b in bytes {},
+            Some(ColorSpace::Separation(ref sc)) => {
+                for b in bytes {
+                    let inputs = vec![b as f32];
+                    let rgb = sc.to_rgb(inputs.as_slice())?;
+                    image.push(rgb);
+                }
+            }
             None => {
                 println!("colorspace is NOne")
             }
@@ -74,6 +80,7 @@ impl Image {
                 println!("others");
             }
         }
+        println!("rgb: {:?}", image.len());
         //pass
         Ok(image)
     }

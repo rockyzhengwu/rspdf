@@ -38,16 +38,8 @@ impl CommonFunction {
     pub fn get_domain(&self, index: usize) -> &f32 {
         self.domain.get(index).unwrap()
     }
-
-    pub fn clip_input(&self, index: usize, input: f32) -> f32 {
-        let min = self.get_domain(2 * index).to_owned();
-        let max = self.get_domain(2 * index + 1).to_owned();
-        if input < min {
-            return min;
-        }
-        if input > max {
-            return max;
-        }
-        input
+    pub fn get_range(&self, index: usize) -> &f32 {
+        // TODO fix this
+        self.range.as_ref().unwrap().get(index).unwrap()
     }
 }
