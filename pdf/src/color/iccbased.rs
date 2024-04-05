@@ -44,7 +44,7 @@ impl IccBased {
                 let r = (inputs.first().unwrap().to_owned() * 255.0) as u32;
                 let g = (inputs.get(1).unwrap().to_owned() * 255.0) as u32;
                 let b = (inputs.last().unwrap().to_owned() * 255.0) as u32;
-                Ok(ColorRGBValue(255-r , 255-g  , 255-b ))
+                Ok(ColorRGBValue(r, g, b))
             }
             4 => {
                 panic!("not implement");

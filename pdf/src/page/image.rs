@@ -51,7 +51,7 @@ impl Image {
 
     pub fn bits_per_component(&self) -> PDFResult<u8> {
         self.obj
-            .get_value("")
+            .get_value("BitsPerComponent")
             .ok_or(PDFError::PageError(
                 "BitsPerComponent not in Image object".to_string(),
             ))?
@@ -68,7 +68,8 @@ impl Image {
         match self.colorspace {
             Some(ColorSpace::Separation(ref sc)) => {
                 for b in bytes {
-                    let inputs = vec![b as f32];
+                    let p = (b as f32) / 255.0;
+                    let inputs = vec![p];
                     let rgb = sc.to_rgb(inputs.as_slice())?;
                     image.push(rgb);
                 }
@@ -80,7 +81,6 @@ impl Image {
                 println!("others");
             }
         }
-        println!("rgb: {:?}", image.len());
         //pass
         Ok(image)
     }
