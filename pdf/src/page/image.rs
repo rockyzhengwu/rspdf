@@ -1,4 +1,3 @@
-use crate::color::device_gray::DeviceGray;
 use crate::color::{ColorRGBValue, ColorSpace};
 use crate::errors::{PDFError, PDFResult};
 use crate::geom::matrix::Matrix;
@@ -72,6 +71,17 @@ impl Image {
                     let inputs = vec![p];
                     let rgb = sc.to_rgb(inputs.as_slice())?;
                     image.push(rgb);
+                }
+            }
+            Some(ColorSpace::ICCBased(ref sc)) => {
+                for chunk in bytes.chunks(3) {
+                    let inputs: Vec<f32> = chunk
+                        .to_owned()
+                        .iter()
+                        .map(|x| (x.to_owned() as f32) / 255.0)
+                        .collect();
+                    let rgb = sc.to_rgb(inputs.as_slice())?;
+                    image.push(rgb)
                 }
             }
             None => {

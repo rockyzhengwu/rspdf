@@ -1,4 +1,7 @@
-use crate::color::{ColorRGBValue, ColorSpace};
+use std::io::{Read, Seek};
+
+use crate::color::{create_colorspace, ColorRGBValue, ColorSpace};
+use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::object::PDFObject;
 use std::io::Write;
@@ -14,7 +17,7 @@ pub struct IccBased {
 }
 
 impl IccBased {
-    pub fn try_new(obj: &PDFObject) -> PDFResult<Self> {
+    pub fn try_new<T: Seek + Read>(obj: &PDFObject, doc: &Document<T>) -> PDFResult<Self> {
         let n = obj
             .get_value_as_u8("N")
             .ok_or(PDFError::ColorError("IccBased need N".to_string()))??;
@@ -24,12 +27,15 @@ impl IccBased {
                 n
             )));
         }
+        let alternate = obj.get_value("Alternate").unwrap();
+        let alternate = doc.get_object_without_indriect(alternate)?;
+        let alternate_space = create_colorspace(&alternate, doc)?;
         let mut file = std::fs::File::create("test_color.icc").unwrap();
         file.write_all(obj.bytes().unwrap().as_slice()).unwrap();
         // TODO parse ICCProfile
         Ok(IccBased {
             n,
-            alternate: None,
+            alternate: Some(Box::new(alternate_space)),
             profile: IccProfile::default(),
         })
     }

@@ -70,7 +70,7 @@ pub fn create_colorspace<T: Seek + Read>(
                 "ICCBased" => {
                     let stream = arr.get(1).unwrap();
                     let stream = doc.get_object_without_indriect(stream).unwrap();
-                    let iccbased = IccBased::try_new(&stream)?;
+                    let iccbased = IccBased::try_new(&stream, doc)?;
                     Ok(ColorSpace::ICCBased(iccbased))
                 }
                 "Separation" => {
@@ -89,8 +89,8 @@ pub fn create_colorspace<T: Seek + Read>(
 impl ColorSpace {
     pub fn to_rgb(&self, values: &[f32]) -> PDFResult<ColorRGBValue> {
         match self {
-            &ColorSpace::Separation(ref s) => s.to_rgb(values),
-            &ColorSpace::ICCBased(ref c) => c.to_rgb(values),
+            ColorSpace::Separation(ref s) => s.to_rgb(values),
+            ColorSpace::ICCBased(ref c) => c.to_rgb(values),
             _ => {
                 panic!("not implement")
             }
