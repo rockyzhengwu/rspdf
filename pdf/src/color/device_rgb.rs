@@ -1,3 +1,6 @@
+use crate::color::ColorRGBValue;
+use crate::errors::PDFResult;
+
 #[derive(Debug, Clone)]
 pub struct DeviceRGB {
     r: f32,
@@ -20,5 +23,12 @@ impl DeviceRGB {
         self.r = r;
         self.g = g;
         self.b = b;
+    }
+
+    pub fn to_rgb(&self, inputs: &[f32]) -> PDFResult<ColorRGBValue> {
+        let r = inputs.first().unwrap().to_owned() as u32;
+        let g = inputs.get(1).unwrap().to_owned() as u32;
+        let b = inputs.last().unwrap().to_owned() as u32;
+        Ok(ColorRGBValue(r, g, b))
     }
 }

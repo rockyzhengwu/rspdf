@@ -11,7 +11,7 @@ use pdf::errors::PDFResult;
 
 #[derive(Debug, Parser)]
 pub struct Config {
-    #[arg(short, long, default_value_t = 300.0)]
+    #[arg(short, long, default_value_t = 72.0)]
     resulotion: f64,
 }
 

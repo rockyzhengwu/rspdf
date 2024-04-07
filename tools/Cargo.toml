@@ -8,5 +8,6 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.4.11", features = ["derive"] }
 env_logger = "0.10.1"
+image = "0.25.1"
 log = "0.4.20"
 pdf = {path='../pdf/'}

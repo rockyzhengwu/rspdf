@@ -1,5 +1,10 @@
+use std::io::{Read, Seek};
+
 use crate::color::device_gray::DeviceGray;
 use crate::color::ColorSpace;
+use crate::document::Document;
+use crate::errors::PDFResult;
+use crate::object::PDFArray;
 
 #[derive(Debug, Clone)]
 pub struct Indexed {
@@ -18,4 +23,8 @@ impl Default for Indexed {
     }
 }
 
-impl Indexed {}
+impl Indexed {
+    pub fn try_new<T: Seek + Read>(obj: &PDFArray, doc: &Document<T>) -> PDFResult<Self> {
+        unimplemented!()
+    }
+}

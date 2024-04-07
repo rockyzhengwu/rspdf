@@ -1,6 +1,9 @@
+use std::io::{Read, Seek};
+
 use crate::color::common::decode_point;
+use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
-use crate::object::PDFObject;
+use crate::object::PDFArray;
 
 #[derive(Debug, Clone)]
 pub struct Lab {
@@ -20,12 +23,13 @@ impl Default for Lab {
 }
 
 impl Lab {
-    pub fn try_new(obj: &PDFObject) -> PDFResult<Self> {
+    pub fn try_new<T: Seek + Read>(obj: &PDFArray, doc: &Document<T>) -> PDFResult<Self> {
         let mut color = Lab::default();
-        if let Some(wp) = decode_point(obj, "WhitePoint")? {
+        let obj = doc.get_object_without_indriect(obj.last().unwrap())?;
+        if let Some(wp) = decode_point(&obj, "WhitePoint")? {
             color.white_point = wp;
         }
-        if let Some(bp) = decode_point(obj, "BlackPoint")? {
+        if let Some(bp) = decode_point(&obj, "BlackPoint")? {
             color.black_point = bp;
         }
         if let Some(range) = obj.get_value("Range") {

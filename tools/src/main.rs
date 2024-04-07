@@ -29,6 +29,7 @@ enum Commands {
     Pdftopng(commands::pdftopng::Config),
     Pdffonts(commands::pdffonts::Config),
     Pdftrace(commands::pdftrace::Config),
+    Pdfimages(commands::pdfimages::Config),
 }
 
 fn main() {
@@ -64,6 +65,9 @@ fn main() {
         }
         Commands::Pdftrace(cfg) => {
             commands::pdftrace::command(doc, start, end, cfg, filename).unwrap()
+        }
+        Commands::Pdfimages(cfg) => {
+            commands::pdfimages::command(doc, start, end, cfg, filename).unwrap()
         }
     }
 }

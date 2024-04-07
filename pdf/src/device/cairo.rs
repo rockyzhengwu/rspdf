@@ -1,5 +1,4 @@
 use std::fs::File;
-use std::io::Write;
 use std::path::PathBuf;
 
 use cairo::{Context, FontFace, Format, Glyph, ImageSurface};

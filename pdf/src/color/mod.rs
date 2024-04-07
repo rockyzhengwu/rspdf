@@ -1,6 +1,8 @@
 use std::io::{Read, Seek};
 
 use crate::color::iccbased::IccBased;
+use crate::color::indexed::Indexed;
+use crate::color::lab::Lab;
 use crate::color::separation::Separation;
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
@@ -57,8 +59,9 @@ pub fn create_colorspace<T: Seek + Read>(
 ) -> PDFResult<ColorSpace> {
     match obj {
         PDFObject::Name(name) => match name.name() {
-            "DeviceGray" => Ok(ColorSpace::DeviceGray(device_gray::DeviceGray::default())),
-            "DeviceRGB" => Ok(ColorSpace::DeviceRGB(device_rgb::DeviceRGB::default())),
+            "DeviceGray" | "G" => Ok(ColorSpace::DeviceGray(device_gray::DeviceGray::default())),
+            "DeviceRGB" | "RGB" => Ok(ColorSpace::DeviceRGB(device_rgb::DeviceRGB::default())),
+            "DeviceCMYK" => Ok(ColorSpace::DeviceCMYK(device_cmyk::DeviceCMYK::default())),
             _ => Err(PDFError::ColorError(format!(
                 "colorspace {:?} not implement ",
                 name
@@ -67,6 +70,10 @@ pub fn create_colorspace<T: Seek + Read>(
         PDFObject::Arrray(arr) => {
             let first = arr.first().unwrap().as_string().unwrap();
             match first.as_str() {
+                "Lab" => {
+                    let lab = Lab::try_new(arr, doc)?;
+                    Ok(ColorSpace::Lab(lab))
+                }
                 "ICCBased" => {
                     let stream = arr.get(1).unwrap();
                     let stream = doc.get_object_without_indriect(stream).unwrap();
@@ -77,15 +84,23 @@ pub fn create_colorspace<T: Seek + Read>(
                     let separation = Separation::try_new(arr, doc)?;
                     Ok(ColorSpace::Separation(separation))
                 }
+                "Indexed" => {
+                    let indexed = Indexed::try_new(arr, doc)?;
+                    Ok(ColorSpace::Indexed(indexed))
+                }
+                "DeviceGray" => Ok(ColorSpace::DeviceGray(device_gray::DeviceGray::default())),
+                "DeviceRGB" => Ok(ColorSpace::DeviceRGB(device_rgb::DeviceRGB::default())),
+                "DeviceCMYK" => Ok(ColorSpace::DeviceCMYK(device_cmyk::DeviceCMYK::default())),
+
                 _ => Err(PDFError::ColorError("colorspace not implement".to_string())),
             }
         }
-        PDFObject::Dictionary(d) => {
-            Err(PDFError::ColorError("colorspace not implement".to_string()))
-        }
-        _ => Err(PDFError::ColorError("colorspace not implement".to_string())),
+        _ => Err(PDFError::ColorError(
+            "create_colorspace need a Name or Array".to_string(),
+        )),
     }
 }
+
 impl ColorSpace {
     pub fn to_rgb(&self, values: &[f32]) -> PDFResult<ColorRGBValue> {
         match self {
