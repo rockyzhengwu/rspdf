@@ -27,4 +27,8 @@ impl Indexed {
     pub fn try_new<T: Seek + Read>(obj: &PDFArray, doc: &Document<T>) -> PDFResult<Self> {
         unimplemented!()
     }
+
+    pub fn number_of_components(&self) -> u8 {
+        unimplemented!()
+    }
 }

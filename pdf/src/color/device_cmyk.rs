@@ -24,4 +24,7 @@ impl DeviceCMYK {
         self.y = y;
         self.k = k;
     }
+    pub fn number_of_components(&self) -> u8 {
+        4
+    }
 }

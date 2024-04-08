@@ -15,7 +15,6 @@ pub struct Separation {
 
 impl Separation {
     pub fn try_new<T: Seek + Read>(arr: &PDFArray, doc: &Document<T>) -> PDFResult<Self> {
-        let name = arr.get(1).unwrap();
         let alternate_space = doc
             .get_object_without_indriect(arr.get(2).unwrap())
             .unwrap();
@@ -33,5 +32,9 @@ impl Separation {
     pub fn to_rgb(&self, inputs: &[f32]) -> PDFResult<ColorRGBValue> {
         let alter_color = self.tint_transform.eval(inputs)?;
         self.alternate_space.to_rgb(alter_color.as_slice())
+    }
+
+    pub fn number_of_components(&self) -> u8 {
+        1
     }
 }

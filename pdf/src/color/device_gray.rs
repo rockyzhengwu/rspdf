@@ -11,4 +11,7 @@ impl DeviceGray {
     pub fn set_gray(&mut self, gray: f32) {
         self.gray = gray;
     }
+    pub fn number_of_components(&self) -> u8 {
+        1
+    }
 }

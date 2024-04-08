@@ -2,7 +2,6 @@ use std::fs::File;
 use std::path::PathBuf;
 
 use cairo::{Context, FontFace, Format, Glyph, ImageSurface};
-use image::{Rgb, RgbImage};
 
 use crate::color::ColorRGBValue;
 use crate::device::Device;
@@ -172,7 +171,6 @@ impl Device for CairoRender {
                 let y = ctm.v32;
                 let rgb_iamge = image.rgb_image()?;
 
-                let mut im = RgbImage::new(w as u32, h as u32);
                 let mut data = Vec::new();
                 for i in 0..(h as u32) {
                     for j in 0..(w as u32) {
@@ -182,13 +180,10 @@ impl Device for CairoRender {
                         data.push(pixel.g());
                         data.push(pixel.b());
                         data.push(0);
-                        im.put_pixel(j, i, Rgb([pixel.r(), pixel.g(), pixel.b()]));
                     }
                 }
-                // im.save("test.png").unwrap();
-                //let mut bytes = Vec::new();
                 // TODO other image format
-                let stride = Format::Rgb24.stride_for_width(w as u32).unwrap();
+                let stride = Format::ARgb32.stride_for_width(w as u32).unwrap();
                 let i_s =
                     ImageSurface::create_for_data(data, Format::Rgb24, w as i32, h as i32, stride)
                         .unwrap();

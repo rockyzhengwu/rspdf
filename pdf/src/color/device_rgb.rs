@@ -31,4 +31,8 @@ impl DeviceRGB {
         let b = inputs.last().unwrap().to_owned() as u32;
         Ok(ColorRGBValue(r, g, b))
     }
+
+    pub fn number_of_components(&self) -> u8 {
+        3
+    }
 }

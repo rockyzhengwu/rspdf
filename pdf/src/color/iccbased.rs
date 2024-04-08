@@ -57,4 +57,8 @@ impl IccBased {
             }
         }
     }
+
+    pub fn number_of_components(&self) -> u8 {
+        self.n
+    }
 }
