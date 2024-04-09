@@ -10,6 +10,7 @@ pub struct Image {
     obj: PDFObject,
     colorspace: Option<ColorSpace>,
     graphics_state: GraphicsState,
+    is_inline: bool
 }
 
 impl Image {
@@ -17,11 +18,13 @@ impl Image {
         obj: PDFObject,
         colorspace: Option<ColorSpace>,
         graphics_state: GraphicsState,
+        is_inline: bool
     ) -> Self {
         Image {
             obj,
             colorspace,
             graphics_state,
+            is_inline,
         }
     }
     pub fn ctm(&self) -> &Matrix {

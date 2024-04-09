@@ -411,7 +411,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
                         }
                         None => None,
                     };
-                    let image = Image::new(obj_stream, color_space, self.cur_state.clone());
+                    let image = Image::new(obj_stream, color_space, self.cur_state.clone(), false);
                     return Ok(Some(GraphicsObject::Image(image)));
                 }
                 "Form" => {

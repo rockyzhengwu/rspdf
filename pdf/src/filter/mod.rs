@@ -13,7 +13,7 @@ pub trait Filter {
 pub fn new_filter(name: &str) -> PDFResult<Box<dyn Filter>> {
     match name {
         "FlateDecode" => Ok(Box::<FlateDecode>::default()),
-        "ASCII85Decode" => Ok(Box::<ASCII85Decode>::default()),
+        "ASCII85Decode" | "A85" => Ok(Box::<ASCII85Decode>::default()),
         "ASCIIHexDecode" => Ok(Box::<ASCIIHexDecode>::default()),
         "DCTDecode" => Ok(Box::<DCTDecode>::default()),
         _ => Err(PDFError::Filter(format!("Filter {:?} not supported", name))),
