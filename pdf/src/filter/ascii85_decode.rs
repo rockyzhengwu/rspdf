@@ -19,6 +19,9 @@ impl Filter for ASCII85Decode {
             if *c == b'~' {
                 break;
             }
+            if c.is_ascii_whitespace() {
+                continue;
+            }
             if *c == b'z' && pos == 0 {
                 res.push(0);
                 res.push(0);
