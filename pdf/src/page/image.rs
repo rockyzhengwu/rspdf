@@ -10,7 +10,7 @@ pub struct Image {
     obj: PDFObject,
     colorspace: Option<ColorSpace>,
     graphics_state: GraphicsState,
-    is_inline: bool
+    is_inline: bool,
 }
 
 impl Image {
@@ -18,7 +18,7 @@ impl Image {
         obj: PDFObject,
         colorspace: Option<ColorSpace>,
         graphics_state: GraphicsState,
-        is_inline: bool
+        is_inline: bool,
     ) -> Self {
         Image {
             obj,
@@ -102,6 +102,15 @@ impl Image {
             }
             Some(ColorSpace::DeviceGray(ref sc)) => {
                 println!("gray: {:?}", self.bits_per_component());
+            }
+
+            Some(ColorSpace::Indexed(ref sc)) => {
+                for byte in bytes {
+                    let p = byte as f32;
+                    let inputs = vec![p];
+                    let rgb = sc.to_rgb(inputs.as_slice())?;
+                    image.push(rgb);
+                }
             }
             None => {
                 println!("colorspace is NOne")

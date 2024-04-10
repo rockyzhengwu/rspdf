@@ -1,7 +1,7 @@
 use std::io::{Read, Seek};
 
 use crate::color::device_gray::DeviceGray;
-use crate::color::{create_colorspace, ColorSpace};
+use crate::color::{create_colorspace, ColorRGBValue, ColorSpace};
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::object::PDFArray;
@@ -38,14 +38,23 @@ impl Indexed {
         let base = Box::new(base);
         let hival = obj.get(2).unwrap().as_u8()?;
         let lookup_stream = doc.get_object_without_indriect(obj.last().unwrap())?;
-        let lengths = doc.get_object_without_indriect(lookup_stream.get_value("Length").unwrap());
-        // TODO: lookup table
-        let lookup_bytes = lookup_stream.bytes();
-
-        unimplemented!()
+        let lookup = lookup_stream.bytes()?;
+        Ok(Indexed {
+            base,
+            hival,
+            lookup,
+        })
     }
 
     pub fn number_of_components(&self) -> u8 {
-        unimplemented!()
+        1
+    }
+
+    pub fn to_rgb(&self, inputs: &[f32]) -> PDFResult<ColorRGBValue> {
+        let index = inputs[0].to_owned() as usize;
+        let r = self.lookup[index] as u32;
+        let g = self.lookup[index + 1] as u32;
+        let b = self.lookup[index + 2] as u32;
+        Ok(ColorRGBValue(r, g, b))
     }
 }
