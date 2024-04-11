@@ -35,4 +35,19 @@ impl DeviceRGB {
     pub fn number_of_components(&self) -> u8 {
         3
     }
+
+    pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<ColorRGBValue>> {
+        let mut image = Vec::new();
+
+        for chunk in bytes.chunks(3) {
+            let inputs: Vec<f32> = chunk
+                .to_owned()
+                .iter()
+                .map(|x| (x.to_owned() as f32))
+                .collect();
+            let rgb = self.to_rgb(inputs.as_slice())?;
+            image.push(rgb)
+        }
+        Ok(image)
+    }
 }

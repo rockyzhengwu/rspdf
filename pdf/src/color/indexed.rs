@@ -57,4 +57,14 @@ impl Indexed {
         let b = self.lookup[index + 2] as u32;
         Ok(ColorRGBValue(r, g, b))
     }
+    pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<ColorRGBValue>> {
+        let mut image = Vec::new();
+        for byte in bytes {
+            let p = byte.to_owned() as f32;
+            let inputs = vec![p];
+            let rgb = self.to_rgb(inputs.as_slice())?;
+            image.push(rgb);
+        }
+        Ok(image)
+    }
 }

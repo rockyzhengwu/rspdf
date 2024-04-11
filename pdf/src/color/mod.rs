@@ -115,6 +115,13 @@ impl ColorSpace {
 
     pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<ColorRGBValue>> {
         //pass
-        unimplemented!()
+        match self {
+            ColorSpace::Separation(ref s) => s.to_rgb_image(bytes),
+            ColorSpace::ICCBased(ref c) => c.to_rgb_image(bytes),
+            ColorSpace::Indexed(ref sc) => sc.to_rgb_image(bytes),
+            _ => {
+                panic!("not implement")
+            }
+        }
     }
 }

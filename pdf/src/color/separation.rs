@@ -37,4 +37,15 @@ impl Separation {
     pub fn number_of_components(&self) -> u8 {
         1
     }
+
+    pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<ColorRGBValue>> {
+        let mut image = Vec::new();
+        for b in bytes {
+            let p = (b.to_owned() as f32) / 255.0;
+            let inputs = vec![p];
+            let rgb = self.to_rgb(inputs.as_slice())?;
+            image.push(rgb);
+        }
+        Ok(image)
+    }
 }
