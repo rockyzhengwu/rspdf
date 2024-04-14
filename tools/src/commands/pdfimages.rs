@@ -32,6 +32,10 @@ pub fn command<T: Seek + Read>(
 
         for obj in objects {
             if let GraphicsObject::Image(image) = obj {
+                // TODO ignore mask now
+                if image.is_mask() {
+                    continue;
+                }
                 let outpath = format!("rspdf_render_{:?}_{}_{}.png", filename, p, n);
                 let w = image.width()?;
                 let h = image.height()?;

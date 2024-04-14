@@ -31,6 +31,13 @@ impl Image {
         self.graphics_state.ctm()
     }
 
+    pub fn is_mask(&self) -> bool {
+        if let Some(mask) = self.obj.get_value("ImageMask") {
+            return mask.as_bool().unwrap();
+        }
+        false
+    }
+
     pub fn width(&self) -> PDFResult<f64> {
         self.obj
             .get_value("Width")

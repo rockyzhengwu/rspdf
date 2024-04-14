@@ -162,7 +162,7 @@ impl PDFStream {
             _ => {}
         }
         let mut buffer = self.buffer.to_owned();
-        println!("{:?}",buffer);
+        println!("{:?}", buffer);
         for fname in filters {
             let filter = new_filter(fname.as_str()).unwrap();
             buffer = filter.decode(buffer.as_slice(), None).unwrap();
@@ -375,6 +375,15 @@ impl PDFObject {
 
     pub fn is_indirect(&self) -> bool {
         matches!(self, PDFObject::Indirect(_))
+    }
+
+    pub fn as_bool(&self) -> PDFResult<bool> {
+        match self {
+            PDFObject::Bool(b) => Ok(b.to_owned()),
+            _ => Err(PDFError::ObjectConvertFailure(
+                "can't convert to bool".to_string(),
+            )),
+        }
     }
 }
 

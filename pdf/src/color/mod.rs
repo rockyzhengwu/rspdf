@@ -119,8 +119,9 @@ impl ColorSpace {
             ColorSpace::Separation(ref s) => s.to_rgb_image(bytes),
             ColorSpace::ICCBased(ref c) => c.to_rgb_image(bytes),
             ColorSpace::Indexed(ref sc) => sc.to_rgb_image(bytes),
+            ColorSpace::DeviceRGB(ref sc) => sc.to_rgb_image(bytes),
             _ => {
-                panic!("not implement")
+                panic!("not implement:{:?}", self)
             }
         }
     }
