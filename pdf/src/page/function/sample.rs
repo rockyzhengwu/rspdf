@@ -1,6 +1,3 @@
-use std::cmp::Ord;
-use std::{cmp, usize};
-
 use crate::errors::{PDFError, PDFResult};
 use crate::object::PDFObject;
 use crate::page::function::common::CommonFunction;

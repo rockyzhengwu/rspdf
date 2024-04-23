@@ -162,7 +162,6 @@ impl PDFStream {
             _ => {}
         }
         let mut buffer = self.buffer.to_owned();
-        println!("{:?}", buffer);
         for fname in filters {
             let filter = new_filter(fname.as_str()).unwrap();
             buffer = filter.decode(buffer.as_slice(), None).unwrap();

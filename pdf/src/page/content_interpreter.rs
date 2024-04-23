@@ -152,7 +152,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
 
     // EI
     fn end_image(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
-        println!("inline image {:?}", operation);
+        // println!("inline image {:?}", operation);
         Ok(None)
     }
 
@@ -163,7 +163,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
     ) -> PDFResult<Option<GraphicsObject>> {
         let name = operation.operand(0)?.as_string()?;
         let _ext_state = self.find_resource("ExtGState", name.as_str())?;
-        println!("extstate: {:?}", _ext_state);
+        // println!("extstate: {:?}", _ext_state);
         Ok(None)
     }
 
