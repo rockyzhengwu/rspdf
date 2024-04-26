@@ -84,60 +84,169 @@ impl SampleFunction {
     pub fn size(&self) -> &[u32] {
         self.size.as_slice()
     }
-    fn interpolate(&self, x: f32, xmin: f32, xmax: f32, ymin: f32, ymax: f32) -> f32 {
-        ymin + ((x - xmin) * (ymax - ymin) / (xmax - xmin))
+
+    fn normalize(&self, values: &[f32], limits: &[f32]) -> PDFResult<Vec<f32>> {
+        if values.len() * 2 != limits.len() {
+            return Err(PDFError::FunctionError(
+                "SampleFunction normalize values size errror".to_string(),
+            ));
+        }
+        let mut res = Vec::new();
+        for (i, v) in values.iter().enumerate() {
+            // TODO this need to be done at other place
+            let v = v / 255.0;
+            let lowerbound: f32 = limits
+                .get(i * 2)
+                .ok_or(PDFError::FunctionError(
+                    "SampleFunction normailize get lowerbound error".to_string(),
+                ))?
+                .to_owned();
+            let upperbound: f32 = limits
+                .get(i * 2 + 1)
+                .ok_or(PDFError::FunctionError(
+                    "SampleFunction normailize get upperbound error".to_string(),
+                ))?
+                .to_owned();
+            let normal = ((v - lowerbound) / (upperbound - lowerbound)).max(0.0);
+            let normal = normal.min(1.0);
+            res.push(normal);
+        }
+        Ok(res)
+    }
+
+    fn encodef(&self, normal: &f32, encode_min: &f32, encode_max: &f32) -> f32 {
+        encode_min + normal * (encode_max - encode_min)
+    }
+
+    fn get_floor(&self, normal: &[f32], encode: &[f32]) -> PDFResult<Vec<u32>> {
+        let mut res = Vec::new();
+        for (i, v) in normal.iter().enumerate() {
+            let j = i << 1;
+            let floor = self.encodef(v, &encode[j], &encode[j + 1]);
+            let m = (encode[j + 1] - 1.0).min(0.0);
+            let vv = floor.max(m);
+            res.push(vv as u32);
+        }
+        Ok(res)
+    }
+
+    fn get_sample_position(&self, sample: &[u32], size: &[u32]) -> PDFResult<u32> {
+        let mut pos = sample
+            .last()
+            .ok_or(PDFError::FunctionError(
+                "SampleFunction get_sample_position error".to_string(),
+            ))?
+            .to_owned();
+        let last = size.len() - 1;
+        for i in 1..last {
+            let j = last - i;
+            pos = sample[j] + size[j] * pos;
+        }
+        Ok(pos)
+    }
+
+    fn get_floor_weight(&self, normal: &[f32], encode: &[f32]) -> PDFResult<Vec<f32>> {
+        let mut res = Vec::new();
+        for (i, v) in normal.iter().enumerate() {
+            let j = i * 2;
+            let encode_min = encode[j];
+            let encode_max = encode[j + 1];
+            let r = self.encodef(v, &encode_min, &encode_max);
+            let value = r - r.min(encode_max - 1.0).floor();
+            res.push(value)
+        }
+        Ok(res)
+    }
+
+    fn get_input_dimension_steps(&self) -> PDFResult<Vec<u32>> {
+        let mut steps = Vec::new();
+        steps.push(1);
+        for i in 1..self.size.len() {
+            let v = steps[i - 1] & self.size[i - 1];
+            steps.push(v)
+        }
+        Ok(steps)
+    }
+
+    fn decode(&self, x: &f32, dim: usize) -> PDFResult<f32> {
+        let index = dim * 2;
+        let decode_limit: u32 = (1 << self.bps) - 1;
+        let v = self.decode[index]
+            + (self.decode[index + 1] - self.decode[index]) * (x / (decode_limit as f32));
+        Ok(v)
+    }
+
+    fn get_value(&self, dim: usize, pos: u32) -> PDFResult<f32> {
+        let pos = dim + (pos as usize);
+        let x = self.samples.get(pos).ok_or(PDFError::FunctionError(
+            "SampleFunction get_value error".to_string(),
+        ))?;
+        self.decode(x, dim)
+    }
+
+    fn linear_interpolation(&self, x: f32, f0: f32, f1: f32) -> f32 {
+        (1.0 - x) * f0 + x * f1
+    }
+
+    fn interpolate_order1(
+        &self,
+        x: &[f32],
+        floor_pos: u32,
+        steps: &[u32],
+        in_number: usize,
+        out_number: usize,
+    ) -> PDFResult<f32> {
+        if in_number == 0 {
+            return self.get_value(out_number, floor_pos);
+        }
+        let in_number = in_number - 1;
+        let step = steps[in_number];
+        let encode_index = in_number << 1;
+        let value_0 = self.interpolate_order1(x, floor_pos, steps, in_number, out_number)?;
+        if self.encode[encode_index] == self.encode[encode_index + 1] {
+            return Ok(value_0);
+        }
+        let ceil_pos = floor_pos + step;
+        let value_1 = self.interpolate_order1(x, ceil_pos, steps, in_number, out_number)?;
+        let value = self.linear_interpolation(x[in_number], value_0, value_1);
+        Ok(value)
+    }
+
+    fn interpolate(&self, normal: &[f32], floor: &[u32]) -> PDFResult<Vec<f32>> {
+        let floor_position = self.get_sample_position(floor, &self.size)?;
+        let x = self.get_floor_weight(normal, &self.encode)?;
+        let steps = self.get_input_dimension_steps()?;
+        let mut res = Vec::with_capacity(self.common().output_number());
+        for dim in 0..self.common().output_number() {
+            let v = self.interpolate_order1(
+                x.as_slice(),
+                floor_position,
+                steps.as_slice(),
+                steps.len(),
+                dim,
+            )?;
+            res.push(v);
+        }
+        self.clip(res.as_slice(), self.common.range().unwrap())
+    }
+
+    fn clip(&self, inputs: &[f32], limits: &[f32]) -> PDFResult<Vec<f32>> {
+        let mut res = Vec::with_capacity(inputs.len());
+        for (i, v) in inputs.iter().enumerate() {
+            let j = 2 * i;
+            let floor = limits[j];
+            let upper = limits[j + 1];
+            let r = v.to_owned().min(upper);
+            let r = r.max(floor);
+            res.push(r);
+        }
+        Ok(res)
     }
 
     pub fn eval(&self, inputs: &[f32]) -> PDFResult<Vec<f32>> {
-        let mut output = Vec::new();
-        let mut e = Vec::new();
-        let mut prev = Vec::new();
-        let mut next = Vec::new();
-        let mut efrac: Vec<f32> = Vec::new();
-        for (i, v) in inputs.iter().enumerate() {
-            let low = self.common().get_domain(i * 2).to_owned();
-            let up = self.common().get_domain(i * 2 + 1).to_owned();
-            let elow = self.encode.get(i * 2).unwrap().to_owned();
-            let eup = self.encode.get(i * 2 + 1).unwrap().to_owned();
-            let x = v.max(low).min(up);
-            let x = self.interpolate(x, low, up, elow, eup);
-            let size = self.size.get(i).unwrap().to_owned() as f32;
-            let x = x.max(0.0).min(size);
-            prev.push(x.floor());
-            next.push(x.ceil());
-            efrac.push(x - x.floor());
-            e.push(x);
-        }
-        let n = self.common.output_number();
-        let m = self.common.input_number();
-        for i in 0..n {
-            match m {
-                1 => {
-                    let pos = prev.first().unwrap().to_owned() as usize * n + i;
-                    let a = self.samples.get(pos).unwrap();
-                    let pos = next.first().unwrap().to_owned() as usize * n + i;
-                    let b = self.samples.get(pos).unwrap();
-                    let ab = a + (b - a) * efrac.first().unwrap();
-                    let o = self.interpolate(
-                        ab,
-                        0.0,
-                        1.0,
-                        self.decode.get(2 * i).unwrap().to_owned(),
-                        self.decode.get(2 * i + 1).unwrap().to_owned(),
-                    );
-                    let rl = self.common().get_range(2 * i).to_owned();
-                    let ru = self.common().get_range(2 * i + 1).to_owned();
-                    let ov = o.max(rl).min(ru);
-                    output.push(ov)
-                }
-                2 => {
-                    // TODO
-                }
-                _ => {
-                    // TODO
-                }
-            }
-        }
-        Ok(output)
+        let normal = self.normalize(inputs, self.common().domain())?;
+        let floor = self.get_floor(normal.as_slice(), self.encode.as_slice())?;
+        // TODO order = 3 cube 
+        self.interpolate(normal.as_slice(), floor.as_slice())
     }
 }
