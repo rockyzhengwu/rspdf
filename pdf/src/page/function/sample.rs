@@ -10,7 +10,7 @@ pub struct SampleFunction {
     common: CommonFunction,
     size: Vec<u32>,
     bps: u8,
-    order: Option<u8>,
+    order: u8,
     encode: Vec<f32>,
     decode: Vec<f32>,
     samples: Vec<f32>,
@@ -36,13 +36,13 @@ impl SampleFunction {
             common,
             size,
             bps,
-            order: None,
+            order: 1,
             encode: Vec::new(),
             decode: Vec::new(),
             samples: Vec::new(),
         };
         if let Some(Ok(o)) = stream.get_value_as_u8("Order") {
-            sample_function.order = Some(o);
+            sample_function.order = o;
         }
         if let Some(enc) = stream.get_value("Encode") {
             let enc = enc.as_array()?;
@@ -207,10 +207,6 @@ impl SampleFunction {
         let ceil_pos = floor_pos + step;
         let value_1 = self.interpolate_order1(x, ceil_pos, steps, in_number, out_dim)?;
         let value = self.linear_interpolation(x[in_number], value_0, value_1);
-        println!(
-            "{:?},{:?},{:?},{:?},{:?}",
-            value_0, value_1, value, floor_pos, ceil_pos
-        );
         Ok(value)
     }
 
@@ -249,6 +245,14 @@ impl SampleFunction {
         let normal = self.normalize(inputs, self.common().domain())?;
         let floor = self.get_floor(normal.as_slice(), self.encode.as_slice())?;
         // TODO order = 3 cube
-        self.interpolate(normal.as_slice(), floor.as_slice())
+        match self.order {
+            1 => self.interpolate(normal.as_slice(), floor.as_slice()),
+            3 => Err(PDFError::FunctionError(
+                "order 3 not implement for sampled function".to_string(),
+            )),
+            _ => {
+                panic!("SampleFunction Invalid order");
+            }
+        }
     }
 }
