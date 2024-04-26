@@ -93,8 +93,6 @@ impl SampleFunction {
         }
         let mut res = Vec::new();
         for (i, v) in values.iter().enumerate() {
-            // TODO this need to be done at other place
-            let v = v / 255.0;
             let lowerbound: f32 = limits
                 .get(i * 2)
                 .ok_or(PDFError::FunctionError(
@@ -121,10 +119,10 @@ impl SampleFunction {
     fn get_floor(&self, normal: &[f32], encode: &[f32]) -> PDFResult<Vec<u32>> {
         let mut res = Vec::new();
         for (i, v) in normal.iter().enumerate() {
-            let j = i << 1;
-            let floor = self.encodef(v, &encode[j], &encode[j + 1]);
-            let m = (encode[j + 1] - 1.0).min(0.0);
-            let vv = floor.max(m);
+            let j = i * 2;
+            let floor = self.encodef(v, &encode[j], &encode[j + 1]).floor();
+            let m = (encode[j + 1] - 1.0).max(0.0);
+            let vv = floor.min(m);
             res.push(vv as u32);
         }
         Ok(res)
@@ -177,7 +175,7 @@ impl SampleFunction {
     }
 
     fn get_value(&self, dim: usize, pos: u32) -> PDFResult<f32> {
-        let pos = dim + (pos as usize);
+        let pos = dim + (pos as usize) * self.common().output_number();
         let x = self.samples.get(pos).ok_or(PDFError::FunctionError(
             "SampleFunction get_value error".to_string(),
         ))?;
@@ -194,21 +192,25 @@ impl SampleFunction {
         floor_pos: u32,
         steps: &[u32],
         in_number: usize,
-        out_number: usize,
+        out_dim: usize,
     ) -> PDFResult<f32> {
         if in_number == 0 {
-            return self.get_value(out_number, floor_pos);
+            return self.get_value(out_dim, floor_pos);
         }
         let in_number = in_number - 1;
         let step = steps[in_number];
         let encode_index = in_number << 1;
-        let value_0 = self.interpolate_order1(x, floor_pos, steps, in_number, out_number)?;
+        let value_0 = self.interpolate_order1(x, floor_pos, steps, in_number, out_dim)?;
         if self.encode[encode_index] == self.encode[encode_index + 1] {
             return Ok(value_0);
         }
         let ceil_pos = floor_pos + step;
-        let value_1 = self.interpolate_order1(x, ceil_pos, steps, in_number, out_number)?;
+        let value_1 = self.interpolate_order1(x, ceil_pos, steps, in_number, out_dim)?;
         let value = self.linear_interpolation(x[in_number], value_0, value_1);
+        println!(
+            "{:?},{:?},{:?},{:?},{:?}",
+            value_0, value_1, value, floor_pos, ceil_pos
+        );
         Ok(value)
     }
 
@@ -246,7 +248,7 @@ impl SampleFunction {
     pub fn eval(&self, inputs: &[f32]) -> PDFResult<Vec<f32>> {
         let normal = self.normalize(inputs, self.common().domain())?;
         let floor = self.get_floor(normal.as_slice(), self.encode.as_slice())?;
-        // TODO order = 3 cube 
+        // TODO order = 3 cube
         self.interpolate(normal.as_slice(), floor.as_slice())
     }
 }

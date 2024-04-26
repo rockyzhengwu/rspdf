@@ -30,7 +30,10 @@ impl Separation {
     }
 
     pub fn to_rgb(&self, inputs: &[f32]) -> PDFResult<ColorRGBValue> {
-        let alter_color = self.tint_transform.eval(inputs)?;
+        let inputs: Vec<f32> = inputs.iter().map(|x| x / 255.0).collect();
+        let alter_color = self.tint_transform.eval(inputs.as_slice())?;
+        let alter_color: Vec<f32> = alter_color.iter().map(|x| x * 1.0).collect();
+        println!("{:?}",alter_color);
         self.alternate_space.to_rgb(alter_color.as_slice())
     }
 
