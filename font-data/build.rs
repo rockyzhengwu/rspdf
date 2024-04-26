@@ -66,6 +66,9 @@ fn read_font(path: &PathBuf) -> Vec<u8> {
 fn generate_font_data() {
     let fonts = std::fs::read_dir("./fonts/").unwrap();
     let outdir = PathBuf::from("./src/fonts");
+    if !outdir.exists() {
+        std::fs::create_dir(outdir.as_path()).unwrap();
+    }
     let mut all_font = Vec::new();
     for font in fonts {
         let font = font.unwrap();
