@@ -7,27 +7,27 @@ use crate::errors::{PDFError, PDFResult};
 use crate::font::pdf_font::Font;
 use crate::object::{PDFDictionary, PDFObject};
 use crate::page::Page;
+use crate::parser::cross_ref_table::CrossRefTable;
 use crate::parser::document_parser::DocumentParser;
 
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct Document<T: Seek + Read> {
     parser: RefCell<DocumentParser<T>>,
-    root: PDFDictionary,
     catalog: Catalog,
     fonts: RefCell<HashMap<String, Font>>,
+    crosstable: CrossRefTable,
 }
 
 impl<T: Seek + Read> Document<T> {
     pub fn open(input: T) -> PDFResult<Self> {
         let mut parser = DocumentParser::new(input)?;
-        parser.load_xref()?;
-        let root = parser.get_root_obj()?.try_into()?;
+        let crosstable = parser.load_xref()?;
         let mut doc = Document {
             parser: RefCell::new(parser),
             catalog: Catalog::default(),
-            root,
             fonts: RefCell::new(HashMap::new()),
+            crosstable,
         };
         doc.load_catalog()?;
         Ok(doc)
@@ -50,15 +50,50 @@ impl<T: Seek + Read> Document<T> {
         self.catalog.page_count()
     }
 
+    pub fn get_root_obj(&mut self) -> PDFResult<PDFObject> {
+        if let Some(root) = self.crosstable.trailer().get("Root") {
+            self.read_indirect(root)
+        } else {
+            Err(PDFError::InvalidFileStructure(
+                "faild read root".to_string(),
+            ))
+        }
+    }
+
     fn load_catalog(&mut self) -> PDFResult<()> {
-        let root: PDFDictionary = self.parser.borrow_mut().get_root_obj()?.try_into()?;
+        let root: PDFDictionary = self.get_root_obj()?.try_into()?;
         self.catalog = Catalog::try_new(root, self)?;
         Ok(())
     }
 
     pub fn read_indirect(&self, indirect: &PDFObject) -> PDFResult<PDFObject> {
         match indirect {
-            PDFObject::Indirect(i) => self.parser.borrow_mut().read_indirect_object(&i.number()),
+            PDFObject::Indirect(i) => {
+                if let Some(entryinfo) = self.crosstable.get_entry(&i.number()) {
+                    let mut obj = self
+                        .parser
+                        .borrow_mut()
+                        .read_indirect_object(entryinfo.pos())?;
+                    match obj {
+                        // TODO fix this ugly method
+                        PDFObject::Stream(_) => {
+                            if let Some(o) = obj.get_value("DecodeParms") {
+                                let o = self.get_object_without_indriect(o)?;
+                                obj.set_value("DecodeParms", o)?;
+                            }
+                        }
+                        _ => {
+                            //
+                        }
+                    }
+                    Ok(obj)
+                } else {
+                    Err(PDFError::InvalidFileStructure(format!(
+                        "faild found obj:{:?}",
+                        i
+                    )))
+                }
+            }
             _ => Err(PDFError::ObjectConvertFailure(format!(
                 "need a indirect in read_indirect:{:?}",
                 indirect

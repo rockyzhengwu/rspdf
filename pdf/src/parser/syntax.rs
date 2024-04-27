@@ -293,6 +293,7 @@ impl<T: Seek + Read> SyntaxParser<T> {
                     let obj = self.read_object()?;
                     dict.insert(keyword.to_string()?, obj);
                 }
+
                 if self.check_next_token(&Token::Other(b"stream".to_vec()))? {
                     let st = self.read_stream(dict)?;
                     return Ok(PDFObject::Stream(st));

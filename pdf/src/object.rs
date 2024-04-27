@@ -149,22 +149,30 @@ impl PDFStream {
 
     pub fn bytes(&self) -> Vec<u8> {
         let filter = self.attribute("Filter");
+        let decode_params = self.attribute("DecodeParms");
+
         let mut filters = Vec::new();
+        let mut params = Vec::new();
         match filter {
             Some(PDFObject::Name(name)) => {
                 filters.push(name.to_string());
+                params.push(decode_params.to_owned());
             }
             Some(PDFObject::Arrray(arr)) => {
-                for a in arr.iter() {
+                for (i, a) in arr.iter().enumerate() {
                     filters.push(a.as_string().unwrap());
+                    if let Some(PDFObject::Arrray(arr)) = decode_params {
+                        params.push(arr.get(i))
+                    }
                 }
             }
             _ => {}
         }
         let mut buffer = self.buffer.to_owned();
-        for fname in filters {
+        for (i, fname) in filters.iter().enumerate() {
+            let param = params.get(i).unwrap().to_owned();
             let filter = new_filter(fname.as_str()).unwrap();
-            buffer = filter.decode(buffer.as_slice(), None).unwrap();
+            buffer = filter.decode(buffer.as_slice(), param).unwrap();
         }
         buffer
     }
@@ -249,6 +257,18 @@ impl PDFObject {
             PDFObject::Stream(s) => s.attribute(key),
             _ => None,
         }
+    }
+    pub fn set_value(&mut self, key: &str, obj: PDFObject) -> PDFResult<()> {
+        match self {
+            PDFObject::Dictionary(d) => d.insert(key.to_string(), obj),
+            PDFObject::Stream(s) => s.dict.insert(key.to_string(), obj),
+            _ => {
+                return Err(PDFError::ObjectConvertFailure(
+                    "Only stream and dict has set".to_string(),
+                ));
+            }
+        };
+        Ok(())
     }
 
     pub fn get_value_as_string(&self, key: &str) -> Option<PDFResult<String>> {

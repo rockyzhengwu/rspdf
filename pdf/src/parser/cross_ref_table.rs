@@ -42,6 +42,7 @@ impl CrossRefTable {
     pub fn new(trailer: PDFDictionary, entries: HashMap<u32, EntryInfo>) -> Self {
         CrossRefTable { trailer, entries }
     }
+
     pub fn set_trailer(&mut self, trailer: PDFDictionary) {
         self.trailer = trailer;
     }

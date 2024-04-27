@@ -2,16 +2,13 @@ use std::i64;
 
 use crate::errors::PDFError;
 use crate::filter::Filter;
+use crate::object::PDFObject;
 
 #[derive(Default)]
 pub struct ASCII85Decode {}
 
 impl Filter for ASCII85Decode {
-    fn decode(
-        &self,
-        buf: &[u8],
-        _param: Option<crate::object::PDFDictionary>,
-    ) -> crate::errors::PDFResult<Vec<u8>> {
+    fn decode(&self, buf: &[u8], _param: Option<&PDFObject>) -> crate::errors::PDFResult<Vec<u8>> {
         let mut res: Vec<u8> = Vec::new();
         let mut chunk: [u8; 5] = [0; 5];
         let mut pos: usize = 0;

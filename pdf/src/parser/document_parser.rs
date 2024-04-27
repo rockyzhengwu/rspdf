@@ -9,37 +9,15 @@ use crate::parser::syntax::{SyntaxParser, Token};
 #[derive(Debug)]
 pub struct DocumentParser<T: Seek + Read> {
     syntax_parser: SyntaxParser<T>,
-    crosstable: CrossRefTable,
 }
 
 impl<T: Seek + Read> DocumentParser<T> {
     pub fn new(stream: T) -> PDFResult<Self> {
         let syntax_parser = SyntaxParser::try_new(stream)?;
-        Ok(DocumentParser {
-            syntax_parser,
-            crosstable: CrossRefTable::default(),
-        })
-    }
-    pub fn get_root_obj(&mut self) -> PDFResult<PDFObject> {
-        match self.crosstable.trailer().get("Root") {
-            Some(PDFObject::Indirect(rf)) => self.read_indirect_object(&rf.number()),
-            _ => Err(PDFError::InvalidFileStructure(
-                "faild read root".to_string(),
-            )),
-        }
+        Ok(DocumentParser { syntax_parser })
     }
 
-    pub fn read_indirect_object(&mut self, objnum: &u32) -> PDFResult<PDFObject> {
-        if let Some(entryinfo) = self.crosstable.get_entry(objnum) {
-            return self.read_indirect_object_at(entryinfo.pos());
-        }
-        Err(PDFError::InvalidFileStructure(format!(
-            "faild found obj:{:?}",
-            objnum
-        )))
-    }
-
-    fn read_indirect_object_at(&mut self, pos: u64) -> PDFResult<PDFObject> {
+    pub fn read_indirect_object(&mut self, pos: u64) -> PDFResult<PDFObject> {
         self.syntax_parser.seek_to(pos)?;
         let number = self.syntax_parser.next_token()?;
         if !number.is_number() {
@@ -48,6 +26,7 @@ impl<T: Seek + Read> DocumentParser<T> {
                 number
             )));
         }
+
         let gen = self.syntax_parser.next_token()?;
         if !gen.is_number() {
             return Err(PDFError::InvalidFileStructure(format!(
@@ -88,18 +67,17 @@ impl<T: Seek + Read> DocumentParser<T> {
         }
     }
 
-    pub fn load_xref(&mut self) -> PDFResult<()> {
+    pub fn load_xref(&mut self) -> PDFResult<CrossRefTable> {
         let startxref = self.find_startxref()?;
         self.syntax_parser.seek_to(startxref)?;
         if self
             .syntax_parser
             .check_next_token(&Token::new_other("xref"))?
         {
-            self.crosstable = self.load_xref_v4(startxref)?;
+            self.load_xref_v4(startxref)
         } else {
-            self.crosstable = self.load_xref_v5(startxref)?;
+            self.load_xref_v5(startxref)
         }
-        Ok(())
     }
 
     fn load_xref_v4(&mut self, start: u64) -> PDFResult<CrossRefTable> {
@@ -384,18 +362,5 @@ mod tests {
         let buffer = read_file(fname);
         let mut parser = create_memory_reader(buffer.as_slice());
         parser.load_xref().unwrap();
-    }
-
-    #[test]
-    fn test_parse_start_one_xref() {
-        let fname = peek_filename("xref_num_start_one.pdf");
-        let buffer = read_file(fname);
-        let mut parser = create_memory_reader(buffer.as_slice());
-        parser.load_xref().unwrap();
-        let obj = parser.read_indirect_object(&1).unwrap();
-        match obj {
-            PDFObject::Dictionary(dict) => assert!(dict.get("Type").is_some()),
-            _ => panic!("parse filed"),
-        }
     }
 }

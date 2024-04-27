@@ -1,5 +1,6 @@
 use crate::errors::{PDFError, PDFResult};
 use crate::filter::Filter;
+use crate::object::PDFObject;
 use crate::parser::character_set::is_whitespace;
 
 #[derive(Default)]
@@ -18,11 +19,7 @@ fn hex_to_decimal(c: &u8) -> PDFResult<i32> {
 }
 
 impl Filter for ASCIIHexDecode {
-    fn decode(
-        &self,
-        buf: &[u8],
-        _param: Option<crate::object::PDFDictionary>,
-    ) -> crate::errors::PDFResult<Vec<u8>> {
+    fn decode(&self, buf: &[u8], _param: Option<&PDFObject>) -> crate::errors::PDFResult<Vec<u8>> {
         let mut first = 0;
         let mut f = false;
         let mut result: Vec<u8> = Vec::new();

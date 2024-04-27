@@ -45,6 +45,7 @@ impl Catalog {
 
         if let Some(ot) = root.get("Outlines") {
             let outlines: PDFDictionary = doc.read_indirect(ot)?.try_into()?;
+            catalog.outlines = Some(outlines);
         }
         let pagetree = PageTree::try_new(root, doc)?;
         catalog.page_tree = pagetree;
