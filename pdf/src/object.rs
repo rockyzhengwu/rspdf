@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::fmt;
 
 use crate::errors::{PDFError, PDFResult};
-use crate::filter::asciihex_decode::ASCIIHexDecode;
-use crate::filter::{new_filter, Filter};
+use crate::filter::asciihex_decode;
+use crate::filter::decode;
 
 #[derive(Clone, Debug)]
 pub struct PDFIndirect {
@@ -79,10 +79,7 @@ impl PDFString {
     // decode hex to binary
     pub fn binary_bytes(&self) -> PDFResult<Vec<u8>> {
         match self {
-            Self::HexString(bytes) => {
-                let decoder = ASCIIHexDecode::default();
-                decoder.decode(bytes, None)
-            }
+            Self::HexString(bytes) => asciihex_decode::asciihex_decode(bytes),
             Self::Literial(v) => Ok(v.to_owned()),
         }
     }
@@ -152,7 +149,7 @@ impl PDFStream {
         let decode_params = self.attribute("DecodeParms");
 
         let mut filters = Vec::new();
-        let mut params = Vec::new();
+        let mut params: Vec<Option<&PDFObject>> = Vec::new();
         match filter {
             Some(PDFObject::Name(name)) => {
                 filters.push(name.to_string());
@@ -163,6 +160,8 @@ impl PDFStream {
                     filters.push(a.as_string().unwrap());
                     if let Some(PDFObject::Arrray(arr)) = decode_params {
                         params.push(arr.get(i))
+                    } else {
+                        params.push(None);
                     }
                 }
             }
@@ -171,8 +170,7 @@ impl PDFStream {
         let mut buffer = self.buffer.to_owned();
         for (i, fname) in filters.iter().enumerate() {
             let param = params.get(i).unwrap().to_owned();
-            let filter = new_filter(fname.as_str()).unwrap();
-            buffer = filter.decode(buffer.as_slice(), param).unwrap();
+            buffer = decode(fname, buffer.as_slice(), param).unwrap();
         }
         buffer
     }

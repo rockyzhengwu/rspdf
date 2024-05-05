@@ -356,6 +356,7 @@ pub fn load_composite_font<T: Seek + Read>(
             _ => {}
         }
     }
+
     if let Some(dw) = dfont.get_value("DW") {
         let dw = dw.as_f64()?;
         font.dw = dw;
