@@ -120,7 +120,8 @@ impl ColorSpace {
             ColorSpace::ICCBased(ref c) => c.to_rgb_image(bytes),
             ColorSpace::Indexed(ref sc) => sc.to_rgb_image(bytes),
             ColorSpace::DeviceRGB(ref sc) => sc.to_rgb_image(bytes),
-            ColorSpace::DeviceGray(ref sc)=>sc.to_rgb_image(bytes),
+            ColorSpace::DeviceGray(ref sc) => sc.to_rgb_image(bytes),
+            ColorSpace::DeviceCMYK(ref sc) => sc.to_rgb_image(bytes),
             _ => {
                 panic!("not implement:{:?}", self)
             }

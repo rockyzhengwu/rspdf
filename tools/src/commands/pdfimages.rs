@@ -24,6 +24,7 @@ pub fn command<T: Seek + Read>(
     path: PathBuf,
 ) -> PDFResult<()> {
     let filename = path.file_name().unwrap();
+    println!("{:?},{:?}", start, end);
     for p in start..end {
         info!("Process page: {}", p);
         let page = doc.get_page(&p).unwrap();

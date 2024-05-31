@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::{Read, Seek};
+use std::io::{Read, Seek, Write};
 use std::path::PathBuf;
 
 use clap::Parser;
@@ -53,17 +53,30 @@ pub fn command<T: Seek + Read>(
             for (key, obj) in fonts_dict.iter() {
                 let font_obj = doc.read_indirect(obj).unwrap();
                 let enc_obj = font_obj.get_value("Encoding");
+                if let Some(enc_obj) = font_obj.get_value("Encoding") {
+                    let encoding = doc.read_indirect(enc_obj);
+                }
+
                 let encoding = match enc_obj {
                     Some(&PDFObject::Indirect(_)) => "Embedding".to_string(),
                     Some(PDFObject::Name(n)) => n.to_string(),
                     _ => "".to_string(),
                 };
+                let desc = font_obj.get_value("FontDescriptor").unwrap();
+                let desc = doc.get_object_without_indriect(desc).unwrap();
+                let name = key.to_string();
+                if let Some(fontfile) = desc.get_value("FontFile") {
+                    let fontfile = doc.get_object_without_indriect(fontfile).unwrap();
+                    let mut outf =
+                        std::fs::File::create(PathBuf::from(format!("{}.otf", name))).unwrap();
+                    outf.write_all(fontfile.bytes().unwrap().as_slice())
+                        .unwrap();
+                }
 
                 let font_type = font_obj.get_value("Subtype").unwrap().as_string().unwrap();
                 let base_font = font_obj.get_value("BaseFont").unwrap().as_string().unwrap();
                 let base_font = parse_basefont(base_font);
                 let tounicode = font_obj.get_value("ToUnicode");
-                let name = key.to_string();
                 let finfo = FontInfo {
                     base_font,
                     font_type,
@@ -77,7 +90,7 @@ pub fn command<T: Seek + Read>(
             }
         }
     }
-    for (name, info) in allfonts {
+    for (name, info) in allfonts.iter() {
         println!("{:?},{:?}", name, info);
     }
     Ok(())

@@ -101,16 +101,16 @@ impl<'a, T: Seek + Read> Page<'a, T> {
     fn contents(&self) -> PDFResult<Vec<PDFStream>> {
         let mut content_streams = Vec::new();
         if let Some(contents) = self.data.get("Contents") {
+            let contents = self.doc.get_object_without_indriect(contents)?;
             match contents {
-                PDFObject::Indirect(_) => {
-                    let cs: PDFObject = self.doc.read_indirect(contents)?;
-                    content_streams.push(cs.try_into()?)
-                }
                 PDFObject::Arrray(vals) => {
                     for ci in vals {
-                        let cs: PDFStream = self.doc.read_indirect(ci)?.try_into()?;
+                        let cs: PDFStream = self.doc.read_indirect(&ci)?.try_into()?;
                         content_streams.push(cs)
                     }
+                }
+                PDFObject::Stream(s) => {
+                    content_streams.push(s);
                 }
                 _ => {
                     return Err(PDFError::InvalidContentSyntax(format!(
