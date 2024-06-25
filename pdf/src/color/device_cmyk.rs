@@ -1,5 +1,5 @@
 use crate::color::ColorRGBValue;
-use crate::errors::PDFResult;
+use crate::errors::{PDFError, PDFResult};
 
 #[derive(Debug, Clone)]
 pub struct DeviceCMYK {
@@ -33,12 +33,21 @@ impl DeviceCMYK {
     }
 
     pub fn to_rgb(&self, bytes: &[f32]) -> PDFResult<ColorRGBValue> {
+        if bytes.len() != 4 {
+            //return Err(PDFError::ColorError(format!(
+            //    "device cmykk params error:{:?}",
+            //    bytes
+            //)));
+            return Ok(ColorRGBValue(0,  0, 0));
+        }
         let c = bytes.first().unwrap().to_owned();
         let m = bytes.get(1).unwrap().to_owned();
         let y = bytes.get(2).unwrap().to_owned();
         let k = bytes.last().unwrap().to_owned();
-        println!("{},{},{},{}", c, m, y, k);
-        unimplemented!()
+        let r = (255.0 * (1.0 - c / 100.0) * (1.0 - k / 100.0)) as u32;
+        let g = (255.0 * (1.0 - m / 100.0) * (1.0 - k / 100.0)) as u32;
+        let b = (255.0 * (1.0 - y / 100.0) * (1.0 - k / 100.0)) as u32;
+        Ok(ColorRGBValue(r, g, b))
     }
 
     pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<ColorRGBValue>> {
