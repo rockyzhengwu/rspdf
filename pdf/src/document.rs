@@ -107,6 +107,7 @@ impl<T: Seek + Read> Document<T> {
         }
     }
 
+
     pub fn get_page(&self, i: &u32) -> PDFResult<Page<T>> {
         if let Some(noderef) = self.catalog.get_page(i) {
             Page::try_new(i, noderef.clone(), self)

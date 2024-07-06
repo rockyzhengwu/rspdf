@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::fmt;
+use std::fmt::{self, Display};
 
 use crate::errors::{PDFError, PDFResult};
 use crate::filter::asciihex_decode;
@@ -41,9 +41,9 @@ impl PDFName {
     }
 }
 
-impl ToString for PDFName {
-    fn to_string(&self) -> String {
-        self.name.to_string()
+impl Display for PDFName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name)
     }
 }
 
@@ -85,12 +85,14 @@ impl PDFString {
     }
 }
 
-impl ToString for PDFString {
-    fn to_string(&self) -> String {
+impl Display for PDFString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PDFString::HexString(hex) => String::from_utf8_lossy(hex.as_slice()).to_string(),
+            PDFString::HexString(hex) => {
+                write!(f, "{}", String::from_utf8_lossy(hex.as_slice()))
+            }
             PDFString::Literial(literial) => {
-                String::from_utf8_lossy(literial.as_slice()).to_string()
+                write!(f, "{}", String::from_utf8_lossy(literial.as_slice()))
             }
         }
     }
@@ -267,6 +269,10 @@ impl PDFObject {
             }
         };
         Ok(())
+    }
+
+    pub fn has_dict(&self) -> bool {
+        matches!(self, PDFObject::Dictionary(_) | PDFObject::Stream(_))
     }
 
     pub fn get_value_as_string(&self, key: &str) -> Option<PDFResult<String>> {

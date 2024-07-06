@@ -34,19 +34,21 @@ impl DeviceCMYK {
 
     pub fn to_rgb(&self, bytes: &[f32]) -> PDFResult<ColorRGBValue> {
         if bytes.len() != 4 {
-            //return Err(PDFError::ColorError(format!(
-            //    "device cmykk params error:{:?}",
-            //    bytes
-            //)));
-            return Ok(ColorRGBValue(0,  0, 0));
+            return Err(PDFError::ColorError(format!(
+                "device cmykk params error:{:?}",
+                bytes
+            )));
         }
-        let c = bytes.first().unwrap().to_owned();
-        let m = bytes.get(1).unwrap().to_owned();
-        let y = bytes.get(2).unwrap().to_owned();
-        let k = bytes.last().unwrap().to_owned();
-        let r = (255.0 * (1.0 - c / 100.0) * (1.0 - k / 100.0)) as u32;
-        let g = (255.0 * (1.0 - m / 100.0) * (1.0 - k / 100.0)) as u32;
-        let b = (255.0 * (1.0 - y / 100.0) * (1.0 - k / 100.0)) as u32;
+        let c = bytes.first().unwrap().to_owned() / 255.0;
+        let m = bytes.get(1).unwrap().to_owned() / 255.0;
+        let y = bytes.get(2).unwrap().to_owned() / 255.0;
+        let k = bytes.last().unwrap().to_owned() / 255.0;
+        let c = c * (1.0 - k) + k;
+        let m = m * (1.0 - k) + k;
+        let y = y * (1.0 - k) + k;
+        let r = ((1.0 - c) * 255.0) as u32;
+        let g = ((1.0 - m) * 255.0) as u32;
+        let b = ((1.0 - y) * 255.0) as u32;
         Ok(ColorRGBValue(r, g, b))
     }
 

@@ -51,6 +51,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
             current_path: Path::default(),
         })
     }
+
     pub fn start(&mut self) -> PDFResult<()> {
         let resource = self.page.resources()?;
         let state = GraphicsState::default();
