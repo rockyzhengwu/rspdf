@@ -43,18 +43,14 @@ impl DeviceCMYK {
         let m = bytes.get(1).unwrap().to_owned() / 255.0;
         let y = bytes.get(2).unwrap().to_owned() / 255.0;
         let k = bytes.last().unwrap().to_owned() / 255.0;
-        let c = c * (1.0 - k) + k;
-        let m = m * (1.0 - k) + k;
-        let y = y * (1.0 - k) + k;
-        let r = ((1.0 - c) * 255.0) as u32;
-        let g = ((1.0 - m) * 255.0) as u32;
-        let b = ((1.0 - y) * 255.0) as u32;
+        let r = ((1.0 - c) * 255.0 * (1.0 - k)) as u32;
+        let g = ((1.0 - m) * 255.0 * (1.0 - k)) as u32;
+        let b = ((1.0 - y) * 255.0 * (1.0 - k)) as u32;
         Ok(ColorRGBValue(r, g, b))
     }
 
     pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<ColorRGBValue>> {
         let mut image = Vec::new();
-
         for chunk in bytes.chunks(4) {
             let inputs: Vec<f32> = chunk
                 .to_owned()
