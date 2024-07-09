@@ -163,12 +163,9 @@ impl Device for CairoRender {
             GraphicsObject::Image(image) => {
                 let w = image.width()?;
                 let h = image.height()?;
-                let trm = Matrix::new(1.0 / w, 0.0, 0.0, 1.0 / h, 0.0, 1.0);
+                let trm = Matrix::new(1.0, 0.0, 0.0, -1.0, 0.0, 1.0);
                 let userctm = trm.mutiply(image.ctm());
                 let ctm = userctm.mutiply(&self.ctm);
-
-                let x = ctm.v31;
-                let y = ctm.v32;
                 let rgb_iamge = image.rgb_image()?;
 
                 let mut data = Vec::new();
@@ -176,19 +173,29 @@ impl Device for CairoRender {
                     for j in 0..(w as u32) {
                         let index = i * (w as u32) + j;
                         let pixel: &ColorRGBValue = rgb_iamge.get(index as usize).unwrap();
-                        data.push(pixel.r());
-                        data.push(pixel.g());
                         data.push(pixel.b());
-                        data.push(0);
+                        data.push(pixel.g());
+                        data.push(pixel.r());
+                        data.push(255);
                     }
                 }
-                // TODO other image format
-                let stride = Format::ARgb32.stride_for_width(w as u32).unwrap();
+                let xmax = (ctm.v11 + ctm.v31).round();
+                let xmin = ctm.v31.round();
+                let ymax = (ctm.v22 + ctm.v32).round();
+                let ymin = ctm.v32.round();
+                let width = xmax - xmin;
+                let height = ymax - ymin;
+                let x = xmin * (w / width);
+                let y = ymin * (h / height);
+
+                let stride = Format::Rgb24.stride_for_width(w as u32).unwrap();
                 let i_s =
                     ImageSurface::create_for_data(data, Format::Rgb24, w as i32, h as i32, stride)
                         .unwrap();
+                self.context.scale(width / w, height / h);
                 self.context.set_source_surface(i_s, x, y).unwrap();
                 self.context.paint().unwrap();
+                self.context.scale(w / width, h / height);
             }
         }
         Ok(())
