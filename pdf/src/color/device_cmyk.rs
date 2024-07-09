@@ -43,9 +43,9 @@ impl DeviceCMYK {
         let m = bytes.get(1).unwrap().to_owned() / 255.0;
         let y = bytes.get(2).unwrap().to_owned() / 255.0;
         let k = bytes.last().unwrap().to_owned() / 255.0;
-        let r = ((1.0 - c) * 255.0 * (1.0 - k)) as u32;
-        let g = ((1.0 - m) * 255.0 * (1.0 - k)) as u32;
-        let b = ((1.0 - y) * 255.0 * (1.0 - k)) as u32;
+        let r = (255.0 * (1.0 - (c + k).min(1.0))) as u32;
+        let g = (255.0 * (1.0 - (m + k).min(1.0))) as u32;
+        let b = (255.0 * (1.0 - (y + k).min(1.0))) as u32;
         Ok(ColorRGBValue(r, g, b))
     }
 
