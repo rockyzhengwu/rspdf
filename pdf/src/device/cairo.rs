@@ -179,10 +179,10 @@ impl Device for CairoRender {
                         data.push(255);
                     }
                 }
-                let xmax = (ctm.v11 + ctm.v31).round();
-                let xmin = ctm.v31.round();
-                let ymax = (ctm.v22 + ctm.v32).round();
-                let ymin = ctm.v32.round();
+                let xmax = ctm.v11 + ctm.v31;
+                let xmin = ctm.v31;
+                let ymax = ctm.v22 + ctm.v32;
+                let ymin = ctm.v32;
                 let width = xmax - xmin;
                 let height = ymax - ymin;
                 let x = xmin * (w / width);
