@@ -51,16 +51,32 @@ impl Indexed {
     }
 
     pub fn to_rgb(&self, inputs: &[f32]) -> PDFResult<ColorRGBValue> {
-        let index = inputs[0].to_owned() as usize;
-        let r = self.lookup[index] as u32;
-        let g = self.lookup[index + 1] as u32;
-        let b = self.lookup[index + 2] as u32;
-        Ok(ColorRGBValue(r, g, b))
+        match self.base.as_ref() {
+            ColorSpace::DeviceRGB(rgb) => {
+                let index = inputs[0].to_owned() as usize;
+                let r = self.lookup[index] as f32;
+                let g = self.lookup[index + 1] as f32;
+                let b = self.lookup[index + 2] as f32;
+                rgb.to_rgb(&[r, g, b])
+            }
+            ColorSpace::DeviceCMYK(cmyk) => {
+                let index = inputs[0].to_owned() as usize;
+                let c = self.lookup[index] as f32;
+                let m = self.lookup[index + 1] as f32;
+                let y = self.lookup[index + 2] as f32;
+                let k = self.lookup[index + 3] as f32;
+                cmyk.to_rgb(&[c, m, y, k])
+            }
+            _ => Err(PDFError::ColorError(
+                "Indexed color not suport space".to_string(),
+            )),
+        }
     }
     pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<ColorRGBValue>> {
         let mut image = Vec::new();
         for byte in bytes {
             let p = byte.to_owned() as f32;
+            let p = p * self.base.number_of_components() as f32;
             let inputs = vec![p];
             let rgb = self.to_rgb(inputs.as_slice())?;
             image.push(rgb);

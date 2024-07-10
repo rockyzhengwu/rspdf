@@ -127,4 +127,16 @@ impl ColorSpace {
             }
         }
     }
+    pub fn number_of_components(&self) -> u8 {
+        match self {
+            ColorSpace::ICCBased(ref c) => c.number_of_components(),
+            ColorSpace::Indexed(ref sc) => sc.number_of_components(),
+            ColorSpace::DeviceRGB(ref sc) => sc.number_of_components(),
+            ColorSpace::DeviceGray(ref sc) => sc.number_of_components(),
+            ColorSpace::DeviceCMYK(ref cmyk) => cmyk.number_of_components(),
+            _ => {
+                panic!("not implement:{:?}", self)
+            }
+        }
+    }
 }

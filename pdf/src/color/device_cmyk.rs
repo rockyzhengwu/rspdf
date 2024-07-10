@@ -39,10 +39,11 @@ impl DeviceCMYK {
                 bytes
             )));
         }
+
         let c = bytes.first().unwrap().to_owned() / 255.0;
         let m = bytes.get(1).unwrap().to_owned() / 255.0;
         let y = bytes.get(2).unwrap().to_owned() / 255.0;
-        let k = bytes.last().unwrap().to_owned() / 255.0;
+        let k = bytes.get(3).unwrap().to_owned() / 255.0;
         let r = (255.0 * (1.0 - (c + k).min(1.0))) as u32;
         let g = (255.0 * (1.0 - (m + k).min(1.0))) as u32;
         let b = (255.0 * (1.0 - (y + k).min(1.0))) as u32;
