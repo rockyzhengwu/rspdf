@@ -115,9 +115,15 @@ impl Device for CairoRender {
                 self.context.set_font_face(&cairo_font_face);
 
                 for con in text.text_items() {
-                    let tj = (-con.adjust() * 0.001) * font_size * horz_scale;
-                    let mrm = Matrix::new_translation_matrix(tj, 0.0);
-                    text_matrix = mrm.mutiply(&text_matrix);
+                    if font.is_vertical() {
+                        let tj = (-con.adjust() * 0.001) * font_size * horz_scale;
+                        let mrm = Matrix::new_translation_matrix(0.0, tj);
+                        text_matrix = mrm.mutiply(&text_matrix);
+                    } else {
+                        let tj = (-con.adjust() * 0.001) * font_size * horz_scale;
+                        let mrm = Matrix::new_translation_matrix(tj, 0.0);
+                        text_matrix = mrm.mutiply(&text_matrix);
+                    }
 
                     let chars = font.decode_chars(con.bytes());
                     for char in chars.iter() {
@@ -134,10 +140,10 @@ impl Device for CairoRender {
                             0.0,
                             text_rise,
                         );
+
                         let user_matrix = trm.mutiply(&text_matrix).mutiply(&ctm);
                         let x = user_matrix.v31;
                         let y = user_matrix.v32;
-
                         let scale_x = user_matrix.v11;
                         let scale_y = user_matrix.v22;
                         let scale = ((scale_y * scale_y + scale_x * scale_x) * 0.5).sqrt();

@@ -164,7 +164,6 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
     ) -> PDFResult<Option<GraphicsObject>> {
         let name = operation.operand(0)?.as_string()?;
         let _ext_state = self.find_resource("ExtGState", name.as_str())?;
-        // println!("extstate: {:?}", _ext_state);
         Ok(None)
     }
 

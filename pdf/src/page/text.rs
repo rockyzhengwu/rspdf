@@ -74,15 +74,19 @@ impl Text {
         let font_size = self.graphics_state.text_state.font_size();
         let font = self.graphics_state.text_state.font();
         let char_spacing = self.graphics_state.text_state.char_space();
-        let horz_scale = self.graphics_state.text_state.text_horz_scale();
         let word_spacing = self.graphics_state.text_state.word_space();
 
         for con in self.content.iter() {
             let chars = font.decode_chars(con.bytes());
             let mut displacement = 0.0;
             let tj = con.adjust();
-            let rm = Matrix::new_translation_matrix(-tj * 0.001, 0.0);
-            text_matrix = rm.mutiply(&text_matrix);
+            if font.is_vertical() {
+                let rm = Matrix::new_translation_matrix(0.0, -tj * 0.001);
+                text_matrix = rm.mutiply(&text_matrix);
+            } else {
+                let rm = Matrix::new_translation_matrix(-tj * 0.001, 0.0);
+                text_matrix = rm.mutiply(&text_matrix);
+            }
             for char in chars.iter() {
                 displacement += font.get_char_width(char) * 0.001 * font_size + char_spacing;
                 if char.is_space() {
