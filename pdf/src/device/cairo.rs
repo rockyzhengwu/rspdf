@@ -90,7 +90,10 @@ impl Device for CairoRender {
                                 self.context.move_to(start.x(), start.y());
                                 self.context.line_to(end.x(), end.y());
                             }
-                            Segment::Curve(c) => {}
+                            Segment::Curve(_c) => {
+                                // TODO
+                                //println!("draw curve not implement");
+                            }
                         }
                     }
                 }
@@ -115,8 +118,9 @@ impl Device for CairoRender {
                 self.context.set_font_face(&cairo_font_face);
 
                 for con in text.text_items() {
+                    let unicode = font.to_unicode(con.bytes());
                     if font.is_vertical() {
-                        let tj = (-con.adjust() * 0.001) * font_size * horz_scale;
+                        let tj = (-con.adjust() * 0.001) * font_size + char_spacing;
                         let mrm = Matrix::new_translation_matrix(0.0, tj);
                         text_matrix = mrm.mutiply(&text_matrix);
                     } else {
@@ -136,9 +140,9 @@ impl Device for CairoRender {
                             font_size * horz_scale,
                             0.0,
                             0.0,
-                            font_size,
+                            1.0 * font_size,
                             0.0,
-                            text_rise,
+                            1.0 * text_rise,
                         );
 
                         let user_matrix = trm.mutiply(&text_matrix).mutiply(&ctm);
@@ -156,7 +160,8 @@ impl Device for CairoRender {
                             println!("gid is not found");
                         }
                         if font.is_vertical() {
-                            let trm = Matrix::new_translation_matrix(0.0, displacement);
+                            // TODO position is error
+                            let trm = Matrix::new_translation_matrix(0.0, displacement * -1.0);
                             text_matrix = trm.mutiply(&text_matrix);
                         } else {
                             let mrm = Matrix::new_translation_matrix(displacement, 0.0);
