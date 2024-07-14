@@ -1,3 +1,4 @@
+use crate::color::ColorSpace;
 use crate::font::pdf_font::Font;
 use crate::geom::matrix::Matrix;
 use crate::page::graphics_state::GraphicsState;
@@ -32,6 +33,13 @@ impl Text {
             content,
             graphics_state,
         }
+    }
+    pub fn fill_color(&self) -> &ColorSpace {
+        &self.graphics_state.general_state.fill_color
+    }
+
+    pub fn stroke_color(&self) -> &ColorSpace {
+        &self.graphics_state.general_state.stroke_color
     }
 
     pub fn text_items(&self) -> &[TextOpItem] {

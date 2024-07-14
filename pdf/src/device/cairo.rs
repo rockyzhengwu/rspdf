@@ -101,6 +101,7 @@ impl Device for CairoRender {
             }
 
             GraphicsObject::Text(text) => {
+                // TODO  handle text render mode and pattern
                 let font = text.font();
                 let font_size = text.font_size();
                 let mut text_matrix = text.text_matrix().to_owned();
@@ -118,7 +119,7 @@ impl Device for CairoRender {
                 self.context.set_font_face(&cairo_font_face);
 
                 for con in text.text_items() {
-                    let unicode = font.to_unicode(con.bytes());
+                    //let unicode = font.to_unicode(con.bytes());
                     if font.is_vertical() {
                         let tj = (-con.adjust() * 0.001) * font_size + char_spacing;
                         let mrm = Matrix::new_translation_matrix(0.0, tj);

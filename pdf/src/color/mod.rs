@@ -37,6 +37,12 @@ pub enum ColorSpace {
     Pattern(pattern::Pattern),
 }
 
+impl Default for ColorSpace {
+    fn default() -> Self {
+        ColorSpace::DeviceGray(device_gray::DeviceGray::default())
+    }
+}
+
 #[derive(Debug)]
 pub struct ColorRGBValue(u32, u32, u32);
 

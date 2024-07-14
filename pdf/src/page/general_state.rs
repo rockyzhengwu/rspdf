@@ -1,10 +1,14 @@
+use crate::color::ColorSpace;
+
 #[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct GeneralState {
-    blend_mode: Option<String>,
-    strok_alpha: f64,
-    fill_alpha: f64,
-    render_indent: f64,
-    stroke_adjust: bool,
-    alpha_source: bool,
+    pub blend_mode: Option<String>,
+    pub strok_alpha: f64,
+    pub fill_alpha: f64,
+    pub render_indent: f64,
+    pub stroke_adjust: bool,
+    pub alpha_source: bool,
+    pub fill_color: ColorSpace,
+    pub stroke_color: ColorSpace,
 }

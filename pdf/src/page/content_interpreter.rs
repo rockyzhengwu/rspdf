@@ -3,6 +3,8 @@ use std::io::{Read, Seek};
 use log::warn;
 
 use crate::color::create_colorspace;
+use crate::color::device_cmyk::DeviceCMYK;
+use crate::color::ColorSpace;
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::geom::matrix::Matrix;
@@ -187,25 +189,40 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
     // cs
     fn set_color_space_fill(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let ope = operation.operand(0)?.as_string()?;
+        println!("CS:{:?}", operation);
         if let Some(cs) = self.find_resource("ColorSpace", &ope)? {
             let colorspace = create_colorspace(&cs, self.doc);
         }
         Ok(None)
     }
     // K
-    fn set_cmyk_stroke(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+    fn set_cmyk_stroke(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        let c = operation.operand(0)?.as_f32()?;
+        let m = operation.operand(1)?.as_f32()?;
+        let y = operation.operand(2)?.as_f32()?;
+        let k = operation.operand(3)?.as_f32()?;
+        let cmyk = DeviceCMYK::new(c, m, y, k);
+        self.cur_state.general_state.stroke_color = ColorSpace::DeviceCMYK(cmyk);
         Ok(None)
     }
     // k
-    fn set_cmyk_fill(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+    fn set_cmyk_fill(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        let c = operation.operand(0)?.as_f32()?;
+        let m = operation.operand(1)?.as_f32()?;
+        let y = operation.operand(2)?.as_f32()?;
+        let k = operation.operand(3)?.as_f32()?;
+        let cmyk = DeviceCMYK::new(c, m, y, k);
+        self.cur_state.general_state.fill_color = ColorSpace::DeviceCMYK(cmyk);
         Ok(None)
     }
     //RG
     fn set_rgb_stroke(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        println!("rgb stroke:{:?}", _operation);
         Ok(None)
     }
     // rg
     fn set_rgb_fill(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        println!("rgb_fill:{:?}", _operation);
         Ok(None)
     }
     // G
@@ -578,6 +595,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         let text_codes = TextOpItem::new(bytes, None);
         let obj = Text::new(vec![text_codes], self.cur_state.clone());
         let matrix = obj.get_text_matrix();
+        println!("{:?}", self.cur_state.text_state.render_mode());
         self.cur_state.text_state.set_text_matrix(matrix);
         Ok(Some(GraphicsObject::Text(obj)))
     }

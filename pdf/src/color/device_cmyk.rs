@@ -21,6 +21,10 @@ impl Default for DeviceCMYK {
 }
 
 impl DeviceCMYK {
+    pub fn new(c: f32, m: f32, y: f32, k: f32) -> Self {
+        Self { c, m, y, k }
+    }
+
     pub fn set_cmyk(&mut self, c: f32, m: f32, y: f32, k: f32) {
         self.c = c;
         self.m = m;
