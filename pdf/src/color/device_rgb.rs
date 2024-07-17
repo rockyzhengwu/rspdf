@@ -19,6 +19,10 @@ impl Default for DeviceRGB {
 }
 
 impl DeviceRGB {
+    pub fn new(r: f32, g: f32, b: f32) -> Self {
+        Self { r, g, b }
+    }
+
     pub fn set_rgb(&mut self, r: f32, g: f32, b: f32) {
         self.r = r;
         self.g = g;

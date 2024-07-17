@@ -4,6 +4,7 @@ use log::warn;
 
 use crate::color::create_colorspace;
 use crate::color::device_cmyk::DeviceCMYK;
+use crate::color::device_rgb::DeviceRGB;
 use crate::color::ColorSpace;
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
@@ -216,13 +217,21 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         Ok(None)
     }
     //RG
-    fn set_rgb_stroke(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
-        println!("rgb stroke:{:?}", _operation);
+    fn set_rgb_stroke(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        let r = operation.operand(0)?.as_f32()?;
+        let g = operation.operand(1)?.as_f32()?;
+        let b = operation.operand(2)?.as_f32()?;
+        let color = ColorSpace::DeviceRGB(DeviceRGB::new(r, g, b));
+        self.cur_state.general_state.stroke_color = color;
         Ok(None)
     }
     // rg
-    fn set_rgb_fill(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
-        println!("rgb_fill:{:?}", _operation);
+    fn set_rgb_fill(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        let r = operation.operand(0)?.as_f32()?;
+        let g = operation.operand(1)?.as_f32()?;
+        let b = operation.operand(2)?.as_f32()?;
+        let color = ColorSpace::DeviceRGB(DeviceRGB::new(r, g, b));
+        self.cur_state.general_state.fill_color = color;
         Ok(None)
     }
     // G
