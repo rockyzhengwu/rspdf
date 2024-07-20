@@ -4,6 +4,7 @@ use log::warn;
 
 use crate::color::create_colorspace;
 use crate::color::device_cmyk::DeviceCMYK;
+use crate::color::device_gray::DeviceGray;
 use crate::color::device_rgb::DeviceRGB;
 use crate::color::ColorSpace;
 use crate::document::Document;
@@ -235,12 +236,18 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         Ok(None)
     }
     // G
-    fn set_gray_stroke(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+    fn set_gray_stroke(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         //pass
+        let gray = operation.operand(0)?.as_f32()?;
+        let color = ColorSpace::DeviceGray(DeviceGray::new(gray));
+        self.cur_state.general_state.stroke_color = color;
         Ok(None)
     }
     // g
-    fn set_gray_fill(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+    fn set_gray_fill(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        let gray = operation.operand(0)?.as_f32()?;
+        let color = ColorSpace::DeviceGray(DeviceGray::new(gray));
+        self.cur_state.general_state.fill_color = color;
         Ok(None)
     }
 

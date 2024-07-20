@@ -72,7 +72,7 @@ impl TextState {
             _ => {}
         }
     }
-    pub fn render_mode(&mut self) -> &TextRenderingMode {
+    pub fn render_mode(&self) -> &TextRenderingMode {
         &self.render_mode
     }
 

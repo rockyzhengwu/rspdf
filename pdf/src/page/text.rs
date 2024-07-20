@@ -2,6 +2,7 @@ use crate::color::ColorSpace;
 use crate::font::pdf_font::Font;
 use crate::geom::matrix::Matrix;
 use crate::page::graphics_state::GraphicsState;
+use crate::page::text_state::TextRenderingMode;
 
 #[derive(Debug)]
 pub struct TextOpItem {
@@ -112,5 +113,9 @@ impl Text {
             }
         }
         text_matrix
+    }
+
+    pub fn render_mode(&self) -> &TextRenderingMode {
+        self.graphics_state.text_state.render_mode()
     }
 }

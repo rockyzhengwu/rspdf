@@ -11,6 +11,9 @@ impl Default for DeviceGray {
     }
 }
 impl DeviceGray {
+    pub fn new(gray: f32) -> Self {
+        Self { gray }
+    }
     pub fn set_gray(&mut self, gray: f32) {
         self.gray = gray;
     }

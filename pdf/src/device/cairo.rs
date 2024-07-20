@@ -9,6 +9,7 @@ use crate::geom::matrix::Matrix;
 use crate::geom::point::Point;
 use crate::geom::subpath::Segment;
 use crate::page::graphics_object::GraphicsObject;
+use crate::page::text_state::TextRenderingMode;
 
 pub struct CairoRender {
     surface: ImageSurface,
@@ -110,6 +111,8 @@ impl Device for CairoRender {
                 let word_spacing = text.word_space();
                 let text_rise = text.text_rise();
                 let ctm = text.ctm().mutiply(&self.ctm);
+                let text_rending_mode = text.render_mode();
+                println!("{:?}", text_rending_mode);
                 let ft_face: &freetype::Face = font
                     .ft_face()
                     .unwrap_or_else(|| panic!("not foun face:{:?}", font.name()));
@@ -156,7 +159,19 @@ impl Device for CairoRender {
                         if let Some(gid) = font.glyph_index_from_charcode(char) {
                             let g = Glyph::new(gid as u64, x, y);
                             let glyphs = vec![g];
-                            self.context.show_glyphs(glyphs.as_slice()).unwrap();
+                            match text_rending_mode {
+                                TextRenderingMode::Fill => {
+                                    self.context.show_glyphs(glyphs.as_slice()).unwrap();
+                                    //self.context.paint().unwrap();
+                                }
+                                TextRenderingMode::Clip => {
+                                    self.context.glyph_path(glyphs.as_slice());
+                                    //self.context.stroke().unwrap();
+                                }
+                                _ => {
+                                    println!("unsupported text render mode");
+                                }
+                            }
                         } else {
                             println!("gid is not found");
                         }
