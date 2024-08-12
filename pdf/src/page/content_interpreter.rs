@@ -204,7 +204,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         let y = operation.operand(2)?.as_f32()?;
         let k = operation.operand(3)?.as_f32()?;
         let cmyk = DeviceCMYK::new(c, m, y, k);
-        self.cur_state.general_state.stroke_color = ColorSpace::DeviceCMYK(cmyk);
+        self.cur_state.stroke_color = ColorSpace::DeviceCMYK(cmyk);
         Ok(None)
     }
     // k
@@ -214,7 +214,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         let y = operation.operand(2)?.as_f32()?;
         let k = operation.operand(3)?.as_f32()?;
         let cmyk = DeviceCMYK::new(c, m, y, k);
-        self.cur_state.general_state.fill_color = ColorSpace::DeviceCMYK(cmyk);
+        self.cur_state.fill_color = ColorSpace::DeviceCMYK(cmyk);
         Ok(None)
     }
     //RG
@@ -223,7 +223,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         let g = operation.operand(1)?.as_f32()?;
         let b = operation.operand(2)?.as_f32()?;
         let color = ColorSpace::DeviceRGB(DeviceRGB::new(r, g, b));
-        self.cur_state.general_state.stroke_color = color;
+        self.cur_state.stroke_color = color;
         Ok(None)
     }
     // rg
@@ -232,7 +232,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         let g = operation.operand(1)?.as_f32()?;
         let b = operation.operand(2)?.as_f32()?;
         let color = ColorSpace::DeviceRGB(DeviceRGB::new(r, g, b));
-        self.cur_state.general_state.fill_color = color;
+        self.cur_state.fill_color = color;
         Ok(None)
     }
     // G
@@ -240,14 +240,14 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         //pass
         let gray = operation.operand(0)?.as_f32()?;
         let color = ColorSpace::DeviceGray(DeviceGray::new(gray));
-        self.cur_state.general_state.stroke_color = color;
+        self.cur_state.stroke_color = color;
         Ok(None)
     }
     // g
     fn set_gray_fill(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let gray = operation.operand(0)?.as_f32()?;
         let color = ColorSpace::DeviceGray(DeviceGray::new(gray));
-        self.cur_state.general_state.fill_color = color;
+        self.cur_state.fill_color = color;
         Ok(None)
     }
 
@@ -351,35 +351,35 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         for v in pattern {
             dash.push(v.as_f64()?);
         }
-        self.cur_state.path_state.set_dash_array(dash);
+        self.cur_state.set_dash_array(dash);
         Ok(None)
     }
 
     // M
     fn set_miter_limit(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let limit = operation.operand(0)?;
-        self.cur_state.path_state.set_miter_limit(limit.as_f64()?);
+        self.cur_state.miter_limit = limit.as_f64()?;
         Ok(None)
     }
 
     // w
     fn set_line_width(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let w = operation.operand(0)?;
-        self.cur_state.path_state.set_line_width(w.as_f64()?);
+        self.cur_state.line_width = w.as_f64()?;
         Ok(None)
     }
 
     // J
     fn set_line_cap(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let w = operation.operand(0)?;
-        self.cur_state.path_state.set_line_cap(w.as_i64()?);
+        self.cur_state.set_line_cap(w.as_i64()?);
         Ok(None)
     }
 
     // j
     fn set_line_join(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let j = operation.operand(0)?;
-        self.cur_state.path_state.set_line_join(j.as_i64()?);
+        self.cur_state.set_line_join(j.as_i64()?);
         Ok(None)
     }
 
@@ -476,11 +476,8 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
     // Text operation
     // BT
     fn begin_text(&mut self) -> PDFResult<Option<GraphicsObject>> {
-        self.cur_state.text_state.set_text_matrix(Matrix::default());
-        self.cur_state
-            .text_state
-            .set_text_line_matrix(Matrix::default());
-        // self.device.borrow_mut().start_text();
+        self.cur_state.text_matrix = Matrix::default();
+        self.cur_state.text_line_matrix = Matrix::default();
         Ok(None)
     }
     // ET
@@ -495,14 +492,14 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         operation: Operation,
     ) -> PDFResult<Option<GraphicsObject>> {
         let char_spacing = operation.operand(0)?.as_f64()?;
-        self.cur_state.text_state.set_char_space(char_spacing);
+        self.cur_state.char_space = char_spacing;
         Ok(None)
     }
 
     // Tw
     fn set_text_word_spacing(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let word_spacing = operation.operand(0)?.as_f64()?;
-        self.cur_state.text_state.set_word_space(word_spacing);
+        self.cur_state.word_space = word_spacing;
         Ok(None)
     }
 
@@ -512,13 +509,13 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         operation: Operation,
     ) -> PDFResult<Option<GraphicsObject>> {
         let scale = operation.operand(0)?.as_f64()?;
-        self.cur_state.text_state.set_text_horz_scale(scale);
+        self.cur_state.text_horz_scale = scale;
         Ok(None)
     }
     // TL
     fn set_text_leading(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let leading = operation.operand(0)?.as_f64()?;
-        self.cur_state.text_state.set_text_leading(leading);
+        self.cur_state.text_leading = leading;
         Ok(None)
     }
 
@@ -528,22 +525,22 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         let fontname = operation.operand(0)?.as_string()?;
         let size = operation.operand(1)?.as_i64()? as f64;
         let font = self.page.get_font(&fontname)?;
-        self.cur_state.text_state.set_font(font);
-        self.cur_state.text_state.set_font_size(size);
+        self.cur_state.font = Some(font);
+        self.cur_state.font_size = size;
         Ok(None)
     }
 
     // Tr
     fn set_text_reander_mode(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let mode = operation.operand(0)?.as_i64()?;
-        self.cur_state.text_state.set_render_mode(mode);
+        self.cur_state.set_render_mode(mode);
         Ok(None)
     }
 
     // Ts
     fn set_text_rise_mode(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let rise = operation.operand(0)?.as_f64()?;
-        self.cur_state.text_state.set_text_rise(rise);
+        self.cur_state.text_rise = rise;
         Ok(None)
     }
 
@@ -555,9 +552,9 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         let x = operation.operand(0)?.as_f64()?;
         let y = operation.operand(1)?.as_f64()?;
         let mat = Matrix::new_translation_matrix(x, y);
-        let tm = mat.mutiply(self.cur_state.text_state.text_line_matrix());
-        self.cur_state.text_state.set_text_matrix(tm.clone());
-        self.cur_state.text_state.set_text_line_matrix(tm);
+        let tm = mat.mutiply(&self.cur_state.text_line_matrix);
+        self.cur_state.text_matrix= tm.clone();
+        self.cur_state.text_line_matrix = tm;
         Ok(None)
     }
     // TD
@@ -584,16 +581,14 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         let e = operation.operand(4)?.as_f64()?;
         let f = operation.operand(5)?.as_f64()?;
         let matrix = Matrix::new(a, b, c, d, e, f);
-        self.cur_state
-            .text_state
-            .set_text_line_matrix(matrix.clone());
-        self.cur_state.text_state.set_text_matrix(matrix);
+        self.cur_state.text_line_matrix=matrix.clone();
+        self.cur_state.text_matrix = matrix;
         Ok(None)
     }
 
     // T*
     fn text_set_move_next_line(&mut self) -> PDFResult<Option<GraphicsObject>> {
-        let leading = self.cur_state.text_state.text_leading();
+        let leading = self.cur_state.text_leading;
         let op = Operation::new(
             "Td".to_string(),
             vec![
@@ -611,8 +606,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         let text_codes = TextOpItem::new(bytes, None);
         let obj = Text::new(vec![text_codes], self.cur_state.clone());
         let matrix = obj.get_text_matrix();
-        println!("{:?}", self.cur_state.text_state.render_mode());
-        self.cur_state.text_state.set_text_matrix(matrix);
+        self.cur_state.text_matrix = matrix;
         Ok(Some(GraphicsObject::Text(obj)))
     }
 
@@ -673,7 +667,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         }
         let text_obj = Text::new(contents, self.cur_state.clone());
         let text_matrix = text_obj.get_text_matrix();
-        self.cur_state.text_state.set_text_matrix(text_matrix);
+        self.cur_state.text_matrix = text_matrix;
         Ok(Some(GraphicsObject::Text(text_obj)))
     }
 }

@@ -17,16 +17,13 @@ pub mod content_interpreter;
 pub mod content_parser;
 pub mod context;
 pub mod function;
-pub mod general_state;
 pub mod graphics_object;
 pub mod graphics_state;
 pub mod image;
 pub mod object_iterator;
 pub mod operation;
 pub mod page_path;
-pub mod path_state;
 pub mod text;
-pub mod text_state;
 
 #[derive(Debug)]
 pub struct Page<'a, T: Seek + Read> {

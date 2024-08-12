@@ -12,7 +12,7 @@ use crate::geom::subpath::Segment;
 use crate::page::graphics_object::GraphicsObject;
 use crate::page::image::Image;
 use crate::page::text::Text;
-use crate::page::text_state::TextRenderingMode;
+use crate::page::graphics_state::TextRenderingMode;
 
 pub struct CairoRender {
     surface: ImageSurface,
@@ -143,6 +143,7 @@ impl CairoRender {
         let ctm = userctm.mutiply(&self.ctm);
         let rgb_iamge = image.rgb_image()?;
 
+        println!("ismask {:}", image.is_mask());
         let mut data = Vec::new();
         for i in 0..(h as u32) {
             for j in 0..(w as u32) {

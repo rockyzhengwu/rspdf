@@ -2,7 +2,7 @@ use crate::color::ColorSpace;
 use crate::font::pdf_font::Font;
 use crate::geom::matrix::Matrix;
 use crate::page::graphics_state::GraphicsState;
-use crate::page::text_state::TextRenderingMode;
+use crate::page::graphics_state::TextRenderingMode;
 
 #[derive(Debug)]
 pub struct TextOpItem {
@@ -36,11 +36,11 @@ impl Text {
         }
     }
     pub fn fill_color(&self) -> &ColorSpace {
-        &self.graphics_state.general_state.fill_color
+        &self.graphics_state.fill_color
     }
 
     pub fn stroke_color(&self) -> &ColorSpace {
-        &self.graphics_state.general_state.stroke_color
+        &self.graphics_state.stroke_color
     }
 
     pub fn text_items(&self) -> &[TextOpItem] {
@@ -48,42 +48,42 @@ impl Text {
     }
 
     pub fn font(&self) -> &Font {
-        self.graphics_state.text_state.font()
+        self.graphics_state.font()
     }
 
     pub fn font_size(&self) -> f64 {
-        self.graphics_state.text_state.font_size()
+        self.graphics_state.font_size
     }
 
     pub fn ctm(&self) -> &Matrix {
-        self.graphics_state.ctm()
+        &self.graphics_state.ctm
     }
 
     pub fn text_matrix(&self) -> &Matrix {
-        self.graphics_state.text_state.text_matrix()
+        &self.graphics_state.text_matrix
     }
 
     pub fn char_spacing(&self) -> f64 {
-        self.graphics_state.text_state.char_space()
+        self.graphics_state.char_space
     }
 
     pub fn text_horz_scale(&self) -> f64 {
-        self.graphics_state.text_state.text_horz_scale()
+        self.graphics_state.text_horz_scale
     }
 
     pub fn word_space(&self) -> f64 {
-        self.graphics_state.text_state.word_space()
+        self.graphics_state.word_space
     }
     pub fn text_rise(&self) -> f64 {
-        self.graphics_state.text_state.text_rise()
+        self.graphics_state.text_rise
     }
 
     pub fn get_text_matrix(&self) -> Matrix {
-        let mut text_matrix = self.graphics_state.text_state.text_matrix().to_owned();
-        let font_size = self.graphics_state.text_state.font_size();
-        let font = self.graphics_state.text_state.font();
-        let char_spacing = self.graphics_state.text_state.char_space();
-        let word_spacing = self.graphics_state.text_state.word_space();
+        let mut text_matrix = self.graphics_state.text_matrix.to_owned();
+        let font_size = self.graphics_state.font_size;
+        let font = self.graphics_state.font();
+        let char_spacing = self.graphics_state.char_space;
+        let word_spacing = self.graphics_state.word_space;
 
         for con in self.content.iter() {
             let chars = font.decode_chars(con.bytes());
@@ -116,6 +116,6 @@ impl Text {
     }
 
     pub fn render_mode(&self) -> &TextRenderingMode {
-        self.graphics_state.text_state.render_mode()
+        &self.graphics_state.render_mode
     }
 }

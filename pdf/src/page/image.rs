@@ -28,7 +28,7 @@ impl Image {
         }
     }
     pub fn ctm(&self) -> &Matrix {
-        self.graphics_state.ctm()
+        &self.graphics_state.ctm
     }
 
     pub fn is_mask(&self) -> bool {

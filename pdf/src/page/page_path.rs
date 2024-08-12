@@ -16,7 +16,7 @@ impl PagePath {
     }
 
     pub fn ctm(&self) -> &Matrix {
-        self.graphics_state.ctm()
+        &self.graphics_state.ctm
     }
 
     pub fn path(&self) -> &Path {
@@ -24,6 +24,6 @@ impl PagePath {
     }
 
     pub fn line_width(&self) -> &f64 {
-        self.graphics_state.path_state.line_width()
+        &self.graphics_state.line_width
     }
 }
