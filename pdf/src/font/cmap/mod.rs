@@ -148,7 +148,6 @@ impl CMap {
     }
 
     pub fn charcode_to_unicode(&self, bytes: &[u8], l: u8) -> Option<&str> {
-
         match l {
             1 => self
                 .code_to_unicode_one

@@ -553,7 +553,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         let y = operation.operand(1)?.as_f64()?;
         let mat = Matrix::new_translation_matrix(x, y);
         let tm = mat.mutiply(&self.cur_state.text_line_matrix);
-        self.cur_state.text_matrix= tm.clone();
+        self.cur_state.text_matrix = tm.clone();
         self.cur_state.text_line_matrix = tm;
         Ok(None)
     }
@@ -581,7 +581,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         let e = operation.operand(4)?.as_f64()?;
         let f = operation.operand(5)?.as_f64()?;
         let matrix = Matrix::new(a, b, c, d, e, f);
-        self.cur_state.text_line_matrix=matrix.clone();
+        self.cur_state.text_line_matrix = matrix.clone();
         self.cur_state.text_matrix = matrix;
         Ok(None)
     }

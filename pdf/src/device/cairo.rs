@@ -10,9 +10,9 @@ use crate::geom::matrix::Matrix;
 use crate::geom::point::Point;
 use crate::geom::subpath::Segment;
 use crate::page::graphics_object::GraphicsObject;
+use crate::page::graphics_state::TextRenderingMode;
 use crate::page::image::Image;
 use crate::page::text::Text;
-use crate::page::graphics_state::TextRenderingMode;
 
 pub struct CairoRender {
     surface: ImageSurface,
@@ -143,7 +143,6 @@ impl CairoRender {
         let ctm = userctm.mutiply(&self.ctm);
         let rgb_iamge = image.rgb_image()?;
 
-        println!("ismask {:}", image.is_mask());
         let mut data = Vec::new();
         for i in 0..(h as u32) {
             for j in 0..(w as u32) {
@@ -215,8 +214,8 @@ impl Device for CairoRender {
                             Segment::Line(l) => {
                                 let start = transform_point(l.start(), &ctm);
                                 let end = transform_point(l.end(), &ctm);
-                                self.context.move_to(start.x(), start.y());
-                                self.context.line_to(end.x(), end.y());
+                                //self.context.move_to(start.x(), start.y());
+                                //self.context.line_to(end.x(), end.y());
                             }
                             Segment::Curve(_c) => {
                                 // TODO
@@ -227,7 +226,6 @@ impl Device for CairoRender {
                 }
                 self.context.stroke().unwrap();
             }
-
             GraphicsObject::Text(text) => self.draw_text(text)?,
             GraphicsObject::Image(image) => self.draw_image(image)?,
         }

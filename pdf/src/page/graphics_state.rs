@@ -1,17 +1,17 @@
+use crate::color::ColorSpace;
+use crate::font::pdf_font::Font;
 use crate::geom::matrix::Matrix;
 use crate::geom::rectangle::Rectangle;
 use crate::object::{PDFDictionary, PDFObject};
-use crate::color::ColorSpace;
-use crate::font::pdf_font::Font;
 
 #[derive(Default, Debug, Clone)]
-pub struct DashPattern{
+pub struct DashPattern {
     array: Vec<usize>,
     pharse: usize,
 }
 
 #[derive(Default, Debug, Clone)]
-pub enum LineCap{
+pub enum LineCap {
     #[default]
     Butt,
     Round,
@@ -19,7 +19,7 @@ pub enum LineCap{
 }
 
 #[derive(Default, Debug, Clone)]
-pub enum LineJoin{
+pub enum LineJoin {
     #[default]
     Miter,
     Round,
@@ -28,7 +28,7 @@ pub enum LineJoin{
 
 // TODO finish this
 #[derive(Default, Debug, Clone)]
-pub enum BlendMode{
+pub enum BlendMode {
     #[default]
     Normal,
 }
@@ -46,9 +46,17 @@ pub enum TextRenderingMode {
     Clip,
 }
 
+#[derive(Debug, Clone, Default)]
+pub enum RenderIndent {
+    AbsoluteColorimetric,
+    #[default]
+    RelativeColorimetric,
+    Saturation,
+    Perceptual,
+}
 
 #[allow(dead_code)]
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct GraphicsState {
     // device-indepdent
     pub(crate) ctm: Matrix,
@@ -56,22 +64,22 @@ pub struct GraphicsState {
     pub(crate) color_space: ColorSpace,
     pub(crate) fill_color: ColorSpace,
     pub(crate) stroke_color: ColorSpace,
-    pub(crate) line_width:  f64,
+    pub(crate) line_width: f64,
     pub(crate) line_cap: LineCap,
     pub(crate) line_join: LineJoin,
     pub(crate) miter_limit: f64,
     pub(crate) dash_pattern: DashPattern,
     pub(crate) stroke_adjust: bool,
-    pub(crate) render_indent: f64,
+    pub(crate) render_indent: RenderIndent,
     pub(crate) blend_mode: BlendMode,
     pub(crate) soft_mask: Option<PDFObject>,
-    pub(crate) strok_alpha: f64,
+    pub(crate) stroke_alpha: f64,
     pub(crate) alpha_constant: f64,
     pub(crate) alpha_source: bool,
     pub(crate) black_point_compensatioin: PDFObject,
 
     // device depdent
-    pub(crate) overprint:bool ,
+    pub(crate) overprint: bool,
     pub(crate) overpint_mode: usize,
     pub(crate) black_generation: PDFObject,
     // undercolor_removal
@@ -79,9 +87,6 @@ pub struct GraphicsState {
     // halftone
     // flatness
     // smoothness
-    //
-    //
-   
     pub(crate) font_size: f64,
     pub(crate) char_space: f64,
     pub(crate) word_space: f64,
@@ -92,7 +97,44 @@ pub struct GraphicsState {
     pub(crate) text_leading: f64,
     pub(crate) text_matrix: Matrix,
     pub(crate) text_line_matrix: Matrix,
+}
 
+impl Default for GraphicsState {
+    fn default() -> Self {
+        Self {
+            ctm: Matrix::default(),
+            clipping_path: Rectangle::default(),
+            color_space: ColorSpace::default(),
+            fill_color: ColorSpace::default(),
+            stroke_color: ColorSpace::default(),
+            line_width: 1.0,
+            line_cap: LineCap::default(),
+            line_join: LineJoin::default(),
+            miter_limit: 10.0,
+            dash_pattern: DashPattern::default(),
+            stroke_adjust: false,
+            render_indent: RenderIndent::RelativeColorimetric,
+            blend_mode: BlendMode::default(),
+            soft_mask: None,
+            stroke_alpha: 1.0,
+            alpha_constant: 1.0,
+            alpha_source: false,
+            black_point_compensatioin: PDFObject::default(),
+            overprint: false,
+            overpint_mode: 1,
+            black_generation: PDFObject::default(),
+            font_size: 0.0, // no default value font_size
+            char_space: 0.0,
+            word_space: 0.0,
+            render_mode: TextRenderingMode::default(),
+            font: None,
+            text_rise: 0.0,
+            text_horz_scale: 0.0,
+            text_leading: 0.0,
+            text_matrix: Matrix::default(),
+            text_line_matrix: Matrix::default(),
+        }
+    }
 }
 
 impl GraphicsState {
