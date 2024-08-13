@@ -3,14 +3,14 @@ use crate::geom::line::Line;
 use crate::geom::point::Point;
 use crate::geom::rectangle::Rectangle;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Segment {
     Rect(Rectangle),
     Line(Line),
     Curve(Bezier),
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct SubPath {
     start: Point,
     closed: bool,

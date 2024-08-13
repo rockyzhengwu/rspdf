@@ -1,6 +1,7 @@
 use crate::color::ColorSpace;
 use crate::font::pdf_font::Font;
 use crate::geom::matrix::Matrix;
+use crate::geom::path::Path;
 use crate::geom::rectangle::Rectangle;
 use crate::object::{PDFDictionary, PDFObject};
 
@@ -60,7 +61,7 @@ pub enum RenderIndent {
 pub struct GraphicsState {
     // device-indepdent
     pub(crate) ctm: Matrix,
-    pub(crate) clipping_path: Rectangle,
+    pub(crate) clipping_path: Path,
     pub(crate) color_space: ColorSpace,
     pub(crate) fill_color: ColorSpace,
     pub(crate) stroke_color: ColorSpace,
@@ -103,7 +104,7 @@ impl Default for GraphicsState {
     fn default() -> Self {
         Self {
             ctm: Matrix::default(),
-            clipping_path: Rectangle::default(),
+            clipping_path: Path::default(),
             color_space: ColorSpace::default(),
             fill_color: ColorSpace::default(),
             stroke_color: ColorSpace::default(),

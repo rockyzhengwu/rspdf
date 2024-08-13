@@ -31,6 +31,8 @@ pub struct ContentInterpreter<'a, T: Seek + Read> {
     cur_state: GraphicsState,
     resource: Option<PDFObject>,
     current_path: Path,
+    // TODO just ignore marked content now
+    is_marked_content: bool,
 }
 
 impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
@@ -53,6 +55,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
             resource: None,
             cur_state: GraphicsState::default(),
             current_path: Path::default(),
+            is_marked_content: false,
         })
     }
 
@@ -120,9 +123,8 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
             "re" => self.reanctle(operation),
             "y" => self.curve_fourh_point_duplicate(operation),
             "h" => self.close_sub_path(operation),
-            "S" | "s" | "F" | "f*" | "B" | "B*" | "b" | "b*" | "n" | "f" => {
-                self.paint_path(operation)
-            }
+            "n" => self.end_path(operation),
+            "S" | "s" | "F" | "f*" | "B" | "B*" | "b" | "b*" | "f" => self.paint_path(operation),
             //
             "g" => self.set_gray_fill(operation),
             "G" => self.set_gray_stroke(operation),
@@ -275,6 +277,12 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
 
     // h
     fn close_sub_path(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        Ok(None)
+    }
+
+    fn end_path(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        // TODO do clip
+        self.current_path = Path::default();
         Ok(None)
     }
 
@@ -459,6 +467,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
 
     // BMC
     fn begin_marked_content(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        self.is_marked_content = true;
         Ok(None)
     }
     // BDC
@@ -470,6 +479,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
     }
     // EMC
     fn end_marked_content(&mut self, _operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        self.is_marked_content = false;
         Ok(None)
     }
 
@@ -601,6 +611,9 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
 
     // Tj
     fn show_text(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        if self.is_marked_content {
+            return Ok(None);
+        }
         let content: PDFString = operation.operand(0)?.to_owned().try_into()?;
         let bytes = content.binary_bytes()?;
         let text_codes = TextOpItem::new(bytes, None);
@@ -643,6 +656,9 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
 
     // TJ
     fn show_text_array(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        if self.is_marked_content {
+            return Ok(None);
+        }
         let params = operation.operand(0)?.as_array()?;
         let mut pos: Option<f64> = None;
         let mut contents: Vec<TextOpItem> = Vec::new();

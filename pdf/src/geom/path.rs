@@ -5,7 +5,7 @@ use crate::geom::rectangle::Rectangle;
 use crate::geom::subpath::Segment;
 use crate::geom::subpath::SubPath;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Path {
     current: Point,
     sub_paths: Vec<SubPath>,

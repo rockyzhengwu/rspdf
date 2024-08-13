@@ -1,6 +1,6 @@
 use crate::geom::point::Point;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default,Clone)]
 pub struct Line {
     start: Point,
     end: Point,
