@@ -1,46 +1,28 @@
-use crate::color::ColorRGBValue;
+use std::u8;
+
 use crate::errors::PDFResult;
 
-#[derive(Debug, Clone)]
-pub struct DeviceRGB {
-    r: f32,
-    g: f32,
-    b: f32,
-}
+use super::RGBValue;
 
-impl Default for DeviceRGB {
-    fn default() -> Self {
-        DeviceRGB {
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-        }
-    }
-}
+#[derive(Debug, Clone, Default)]
+pub struct DeviceRGB {}
 
 impl DeviceRGB {
-    pub fn new(r: f32, g: f32, b: f32) -> Self {
-        Self { r, g, b }
+    pub fn new() -> Self {
+        DeviceRGB {}
     }
-
-    pub fn set_rgb(&mut self, r: f32, g: f32, b: f32) {
-        self.r = r;
-        self.g = g;
-        self.b = b;
-    }
-
-    pub fn to_rgb(&self, inputs: &[f32]) -> PDFResult<ColorRGBValue> {
-        let r = inputs.first().unwrap().to_owned() as u32;
-        let g = inputs.get(1).unwrap().to_owned() as u32;
-        let b = inputs.last().unwrap().to_owned() as u32;
-        Ok(ColorRGBValue(r, g, b))
+    pub fn to_rgb(&self, inputs: &[f32]) -> PDFResult<RGBValue> {
+        let r = inputs.first().unwrap().to_owned() as u8;
+        let g = inputs.get(1).unwrap().to_owned() as u8;
+        let b = inputs.last().unwrap().to_owned() as u8;
+        Ok(RGBValue(r, g, b))
     }
 
     pub fn number_of_components(&self) -> u8 {
         3
     }
 
-    pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<ColorRGBValue>> {
+    pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<RGBValue>> {
         let mut image = Vec::new();
 
         for chunk in bytes.chunks(3) {

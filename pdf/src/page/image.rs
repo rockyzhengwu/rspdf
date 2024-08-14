@@ -1,4 +1,4 @@
-use crate::color::{ColorRGBValue, ColorSpace};
+use crate::color::{ColorSpace, RGBValue};
 use crate::errors::{PDFError, PDFResult};
 use crate::geom::matrix::Matrix;
 use crate::object::PDFObject;
@@ -71,7 +71,7 @@ impl Image {
         self.colorspace.as_ref()
     }
 
-    pub fn rgb_image(&self) -> PDFResult<Vec<ColorRGBValue>> {
+    pub fn rgb_image(&self) -> PDFResult<Vec<RGBValue>> {
         let bytes = self.obj.bytes()?;
         self.colorspace
             .as_ref()

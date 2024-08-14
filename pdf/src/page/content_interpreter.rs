@@ -2,11 +2,8 @@ use std::io::{Read, Seek};
 
 use log::warn;
 
-use crate::color::create_colorspace;
-use crate::color::device_cmyk::DeviceCMYK;
-use crate::color::device_gray::DeviceGray;
-use crate::color::device_rgb::DeviceRGB;
 use crate::color::ColorSpace;
+use crate::color::{create_colorspace, ColorValue};
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::geom::matrix::Matrix;
@@ -205,8 +202,9 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         let m = operation.operand(1)?.as_f32()?;
         let y = operation.operand(2)?.as_f32()?;
         let k = operation.operand(3)?.as_f32()?;
-        let cmyk = DeviceCMYK::new(c, m, y, k);
-        self.cur_state.stroke_color = ColorSpace::DeviceCMYK(cmyk);
+        self.cur_state.stroke_color_space = Some(ColorSpace::new_device_cmyk());
+        let color_value = ColorValue::new(vec![c, m, y, k]);
+        self.cur_state.stroke_color_value = Some(color_value);
         Ok(None)
     }
     // k
@@ -215,8 +213,10 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         let m = operation.operand(1)?.as_f32()?;
         let y = operation.operand(2)?.as_f32()?;
         let k = operation.operand(3)?.as_f32()?;
-        let cmyk = DeviceCMYK::new(c, m, y, k);
-        self.cur_state.fill_color = ColorSpace::DeviceCMYK(cmyk);
+
+        self.cur_state.stroke_color_space = Some(ColorSpace::new_device_cmyk());
+        let color_value = ColorValue::new(vec![c, m, y, k]);
+        self.cur_state.stroke_color_value = Some(color_value);
         Ok(None)
     }
     //RG
@@ -224,32 +224,29 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         let r = operation.operand(0)?.as_f32()?;
         let g = operation.operand(1)?.as_f32()?;
         let b = operation.operand(2)?.as_f32()?;
-        let color = ColorSpace::DeviceRGB(DeviceRGB::new(r, g, b));
-        self.cur_state.stroke_color = color;
+        self.cur_state.stroke_color_value = Some(ColorValue::new(vec![r, g, b]));
+        self.cur_state.stroke_color_space = Some(ColorSpace::new_device_rgb());
         Ok(None)
     }
     // rg
     fn set_rgb_fill(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
-        let r = operation.operand(0)?.as_f32()?;
-        let g = operation.operand(1)?.as_f32()?;
-        let b = operation.operand(2)?.as_f32()?;
-        let color = ColorSpace::DeviceRGB(DeviceRGB::new(r, g, b));
-        self.cur_state.fill_color = color;
+        let values = operation.operand_as_f32_array()?;
+        self.cur_state.fill_color_value = Some(ColorValue::new(values));
+        self.cur_state.fill_color_space = Some(ColorSpace::new_device_rgb());
         Ok(None)
     }
     // G
     fn set_gray_stroke(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         //pass
-        let gray = operation.operand(0)?.as_f32()?;
-        let color = ColorSpace::DeviceGray(DeviceGray::new(gray));
-        self.cur_state.stroke_color = color;
+        self.cur_state.stroke_color_space = Some(ColorSpace::new_device_gray());
+        self.cur_state.stroke_color_value =
+            Some(ColorValue::new(operation.operand_as_f32_array()?));
         Ok(None)
     }
     // g
     fn set_gray_fill(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
-        let gray = operation.operand(0)?.as_f32()?;
-        let color = ColorSpace::DeviceGray(DeviceGray::new(gray));
-        self.cur_state.fill_color = color;
+        self.cur_state.fill_color_space = Some(ColorSpace::new_device_gray());
+        self.cur_state.fill_color_value = Some(ColorValue::new(operation.operand_as_f32_array()?));
         Ok(None)
     }
 

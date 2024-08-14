@@ -1,42 +1,20 @@
-use crate::color::ColorRGBValue;
 use crate::errors::{PDFError, PDFResult};
 
-#[derive(Debug, Clone)]
-pub struct DeviceCMYK {
-    c: f32,
-    m: f32,
-    y: f32,
-    k: f32,
-}
+use super::RGBValue;
 
-impl Default for DeviceCMYK {
-    fn default() -> Self {
-        DeviceCMYK {
-            c: 0.0,
-            m: 0.0,
-            y: 0.0,
-            k: 0.0,
-        }
-    }
-}
+#[derive(Debug, Clone, Default)]
+pub struct DeviceCMYK {}
 
 impl DeviceCMYK {
-    pub fn new(c: f32, m: f32, y: f32, k: f32) -> Self {
-        Self { c, m, y, k }
-    }
-
-    pub fn set_cmyk(&mut self, c: f32, m: f32, y: f32, k: f32) {
-        self.c = c;
-        self.m = m;
-        self.y = y;
-        self.k = k;
+    pub fn new() -> Self {
+        Self {}
     }
 
     pub fn number_of_components(&self) -> u8 {
         4
     }
 
-    pub fn to_rgb(&self, bytes: &[f32]) -> PDFResult<ColorRGBValue> {
+    pub fn to_rgb(&self, bytes: &[f32]) -> PDFResult<RGBValue> {
         if bytes.len() != 4 {
             return Err(PDFError::ColorError(format!(
                 "device cmykk params error:{:?}",
@@ -48,13 +26,13 @@ impl DeviceCMYK {
         let m = bytes.get(1).unwrap().to_owned() / 255.0;
         let y = bytes.get(2).unwrap().to_owned() / 255.0;
         let k = bytes.get(3).unwrap().to_owned() / 255.0;
-        let r = (255.0 * (1.0 - (c + k).min(1.0))) as u32;
-        let g = (255.0 * (1.0 - (m + k).min(1.0))) as u32;
-        let b = (255.0 * (1.0 - (y + k).min(1.0))) as u32;
-        Ok(ColorRGBValue(r, g, b))
+        let r = (255.0 * (1.0 - (c + k).min(1.0))) as u8;
+        let g = (255.0 * (1.0 - (m + k).min(1.0))) as u8;
+        let b = (255.0 * (1.0 - (y + k).min(1.0))) as u8;
+        Ok(RGBValue(r, g, b))
     }
 
-    pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<ColorRGBValue>> {
+    pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<RGBValue>> {
         let mut image = Vec::new();
         for chunk in bytes.chunks(4) {
             let inputs: Vec<f32> = chunk

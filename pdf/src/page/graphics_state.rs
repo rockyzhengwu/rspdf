@@ -1,4 +1,4 @@
-use crate::color::ColorSpace;
+use crate::color::{ColorSpace, ColorValue};
 use crate::font::pdf_font::Font;
 use crate::geom::matrix::Matrix;
 use crate::geom::path::Path;
@@ -62,9 +62,12 @@ pub struct GraphicsState {
     // device-indepdent
     pub(crate) ctm: Matrix,
     pub(crate) clipping_path: Path,
-    pub(crate) color_space: ColorSpace,
-    pub(crate) fill_color: ColorSpace,
-    pub(crate) stroke_color: ColorSpace,
+    pub(crate) color_space: Option<ColorSpace>,
+    pub(crate) fill_color_space: Option<ColorSpace>,
+    pub(crate) stroke_color_space: Option<ColorSpace>,
+    pub(crate) fill_color_value: Option<ColorValue>,
+    pub(crate) stroke_color_value: Option<ColorValue>,
+
     pub(crate) line_width: f64,
     pub(crate) line_cap: LineCap,
     pub(crate) line_join: LineJoin,
@@ -105,9 +108,12 @@ impl Default for GraphicsState {
         Self {
             ctm: Matrix::default(),
             clipping_path: Path::default(),
-            color_space: ColorSpace::default(),
-            fill_color: ColorSpace::default(),
-            stroke_color: ColorSpace::default(),
+            color_space: None,
+            fill_color_space: None,
+            stroke_color_space: None,
+            fill_color_value: None,
+            stroke_color_value: None,
+
             line_width: 1.0,
             line_cap: LineCap::default(),
             line_join: LineJoin::default(),

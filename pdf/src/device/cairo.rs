@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use cairo::{Context, FontFace, Format, Glyph, ImageSurface};
 
-use crate::color::ColorRGBValue;
+use crate::color::RGBValue;
 use crate::device::Device;
 use crate::errors::PDFResult;
 use crate::geom::matrix::Matrix;
@@ -148,7 +148,7 @@ impl CairoRender {
         for i in 0..(h as u32) {
             for j in 0..(w as u32) {
                 let index = i * (w as u32) + j;
-                let pixel: &ColorRGBValue = rgb_iamge.get(index as usize).unwrap();
+                let pixel: &RGBValue = rgb_iamge.get(index as usize).unwrap();
                 data.push(pixel.b());
                 data.push(pixel.g());
                 data.push(pixel.r());

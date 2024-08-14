@@ -1,9 +1,11 @@
 use std::io::{Read, Seek};
 
-use crate::color::{create_colorspace, ColorRGBValue, ColorSpace};
+use crate::color::{create_colorspace, ColorSpace};
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::object::PDFObject;
+
+use super::{CMYKValue, ColorValue, GrayValue, RGBValue};
 
 #[derive(Debug, Default, Clone)]
 pub struct IccProfile {}
@@ -37,17 +39,17 @@ impl IccBased {
         })
     }
 
-    pub fn to_rgb(&self, inputs: &[f32]) -> PDFResult<ColorRGBValue> {
+    pub fn to_rgb(&self, inputs: &[f32]) -> PDFResult<RGBValue> {
         // TODO not support iccprofile
         match self.n {
             1 => {
                 panic!("not implement");
             }
             3 => {
-                let r = (inputs.first().unwrap().to_owned() * 255.0) as u32;
-                let g = (inputs.get(1).unwrap().to_owned() * 255.0) as u32;
-                let b = (inputs.last().unwrap().to_owned() * 255.0) as u32;
-                Ok(ColorRGBValue(r, g, b))
+                let r = (inputs.first().unwrap().to_owned() * 255.0) as u8;
+                let g = (inputs.get(1).unwrap().to_owned() * 255.0) as u8;
+                let b = (inputs.last().unwrap().to_owned() * 255.0) as u8;
+                Ok(RGBValue(r, g, b))
             }
             4 => {
                 panic!("not implement");
@@ -62,7 +64,7 @@ impl IccBased {
         self.n
     }
 
-    pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<ColorRGBValue>> {
+    pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<RGBValue>> {
         let mut image = Vec::new();
         for chunk in bytes.chunks(3) {
             let inputs: Vec<f32> = chunk

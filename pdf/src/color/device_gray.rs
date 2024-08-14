@@ -1,35 +1,27 @@
-use crate::color::ColorRGBValue;
 use crate::errors::PDFResult;
 
-#[derive(Debug, Clone)]
-pub struct DeviceGray {
-    gray: f32,
-}
-impl Default for DeviceGray {
-    fn default() -> Self {
-        DeviceGray { gray: 0.0 }
-    }
-}
+use super::RGBValue;
+
+#[derive(Debug, Clone, Default)]
+pub struct DeviceGray {}
+
 impl DeviceGray {
-    pub fn new(gray: f32) -> Self {
-        Self { gray }
-    }
-    pub fn set_gray(&mut self, gray: f32) {
-        self.gray = gray;
+    pub fn new() -> Self {
+        Self {}
     }
     pub fn number_of_components(&self) -> u8 {
         1
     }
-    pub fn to_rgb(&self, bytes: &[f32]) -> PDFResult<ColorRGBValue> {
-        let v = bytes[0].to_owned() as u32;
-        Ok(ColorRGBValue(v, v, v))
+    pub fn to_rgb(&self, bytes: &[f32]) -> PDFResult<RGBValue> {
+        let v = bytes[0].to_owned() as u8;
+        Ok(RGBValue(v, v, v))
     }
 
-    pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<ColorRGBValue>> {
+    pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<RGBValue>> {
         let mut image = Vec::new();
         for b in bytes {
-            let v = b.to_owned() as u32;
-            let rgb = ColorRGBValue(v, v, v);
+            let v = b.to_owned();
+            let rgb = RGBValue(v, v, v);
             image.push(rgb);
         }
         Ok(image)

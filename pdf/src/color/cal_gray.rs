@@ -37,4 +37,7 @@ impl CalGray {
     pub fn number_of_components(&self) -> u8 {
         1
     }
+    fn to_rgb(&self, inputs: &[f32]) -> super::RGBValue {
+        unimplemented!()
+    }
 }

@@ -35,13 +35,6 @@ impl Text {
             graphics_state,
         }
     }
-    pub fn fill_color(&self) -> &ColorSpace {
-        &self.graphics_state.fill_color
-    }
-
-    pub fn stroke_color(&self) -> &ColorSpace {
-        &self.graphics_state.stroke_color
-    }
 
     pub fn text_items(&self) -> &[TextOpItem] {
         self.content.as_slice()

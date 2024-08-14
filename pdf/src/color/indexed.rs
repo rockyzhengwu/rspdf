@@ -1,10 +1,12 @@
 use std::io::{Read, Seek};
 
 use crate::color::device_gray::DeviceGray;
-use crate::color::{create_colorspace, ColorRGBValue, ColorSpace};
+use crate::color::{create_colorspace, ColorSpace};
 use crate::document::Document;
 use crate::errors::{PDFError, PDFResult};
 use crate::object::PDFArray;
+
+use super::{CMYKValue, GrayValue, RGBValue};
 
 #[derive(Debug, Clone)]
 pub struct Indexed {
@@ -16,7 +18,7 @@ pub struct Indexed {
 impl Default for Indexed {
     fn default() -> Self {
         Indexed {
-            base: Box::new(ColorSpace::DeviceGray(DeviceGray::default())),
+            base: Box::new(ColorSpace::DeviceGray(DeviceGray {})),
             hival: 0,
             lookup: Vec::new(),
         }
@@ -50,7 +52,7 @@ impl Indexed {
         1
     }
 
-    pub fn to_rgb(&self, inputs: &[f32]) -> PDFResult<ColorRGBValue> {
+    pub fn to_rgb(&self, inputs: &[f32]) -> PDFResult<RGBValue> {
         match self.base.as_ref() {
             ColorSpace::DeviceRGB(rgb) => {
                 let index = inputs[0].to_owned() as usize;
@@ -72,7 +74,7 @@ impl Indexed {
             )),
         }
     }
-    pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<ColorRGBValue>> {
+    pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<RGBValue>> {
         let mut image = Vec::new();
         for byte in bytes {
             let p = byte.to_owned() as f32;
@@ -82,5 +84,11 @@ impl Indexed {
             image.push(rgb);
         }
         Ok(image)
+    }
+    fn to_gray(&self, value: &super::ColorValue) -> PDFResult<GrayValue> {
+        unimplemented!()
+    }
+    fn to_cmyk(&self, value: &super::ColorValue) -> PDFResult<CMYKValue> {
+        unimplemented!()
     }
 }

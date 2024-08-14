@@ -24,6 +24,14 @@ impl Operation {
                 self.op, self.operands
             )))
     }
+    pub fn operand_as_f32_array(&self) -> PDFResult<Vec<f32>> {
+        let mut res = Vec::new();
+        for obj in self.operands.iter() {
+            let v = obj.as_f32()?;
+            res.push(v);
+        }
+        Ok(res)
+    }
 }
 
 // PDF 32000-1:2008 Table 51 – Operator Categories
