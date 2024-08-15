@@ -59,7 +59,6 @@ impl CairoRender {
         let text_rise = text.text_rise();
         let ctm = text.ctm().mutiply(&self.ctm);
         let text_rending_mode = text.render_mode();
-        println!("font {:?}", font.name(),);
         let ft_face: &freetype::Face = font
             .ft_face()
             .unwrap_or_else(|| panic!("not foun face:{:?}", font.name()));
@@ -70,7 +69,6 @@ impl CairoRender {
 
         for con in text.text_items() {
             let unicode = font.to_unicode(con.bytes());
-            println!("{:?}", unicode);
             if font.is_vertical() {
                 let tj = (-con.adjust() * 0.001) * font_size + char_spacing;
                 let mrm = Matrix::new_translation_matrix(0.0, tj);

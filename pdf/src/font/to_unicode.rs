@@ -66,7 +66,6 @@ impl<T: Seek + Read> ToUnicodeParser<T> {
             }
             let start = hex_bytes_to_u32(self.read_whole_hex()?.bytes());
             let end = hex_bytes_to_u32(self.read_whole_hex()?.bytes());
-            println!("range:{:?},{:?}", start, end);
             match self.syntax_parser.read_object()? {
                 PDFObject::String(s) => {
                     let mut val = hex_bytes_to_u32(s.bytes());
@@ -110,7 +109,6 @@ impl<T: Seek + Read> ToUnicodeParser<T> {
             {
                 return Ok(());
             }
-            println!("char");
             let key = hex_bytes_to_u32(self.read_whole_hex()?.bytes());
             let val = hex_bytes_to_u32(self.read_whole_hex()?.bytes());
             tounicode.insert_value(key, val)

@@ -348,10 +348,10 @@ pub fn load_composite_font<T: Seek + Read>(
     if let Some(cidtogid) = dfont.get_value("CIDToGIDMap") {
         match &cidtogid {
             PDFObject::Stream(_) => {
-                println!("CIDToGIDMap: {:?}", cidtogid);
+                //println!("CIDToGIDMap: {:?}", cidtogid);
             }
             PDFObject::Name(_) => {
-                println!("cidgid:{:?}", cidtogid);
+                //println!("cidgid:{:?}", cidtogid);
             }
             _ => {}
         }

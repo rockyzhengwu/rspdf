@@ -136,6 +136,7 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
             "gs" => self.set_extend_graphic_state(operation),
             // Image
             "EI" => self.end_image(operation),
+            "ri" => self.set_render_intent(operation),
             _ => Ok(None),
         }
     }
@@ -153,6 +154,12 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         }
         Ok(None)
     }
+    // ri
+    fn set_render_intent(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
+        let intent = operation.operand(0)?.as_string()?;
+        self.cur_state.set_render_intent(intent.as_str());
+        Ok(None)
+    }
 
     // EI
     fn end_image(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
@@ -166,7 +173,11 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         operation: Operation,
     ) -> PDFResult<Option<GraphicsObject>> {
         let name = operation.operand(0)?.as_string()?;
-        let _ext_state = self.find_resource("ExtGState", name.as_str())?;
+        let ext_state = self.find_resource("ExtGState", name.as_str())?;
+        if let Some(state) = ext_state {
+            self.cur_state.update_by_extgstate(&state)?;
+        }
+
         Ok(None)
     }
 
@@ -190,7 +201,6 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
     // cs
     fn set_color_space_fill(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let ope = operation.operand(0)?.as_string()?;
-        println!("CS:{:?}", operation);
         if let Some(cs) = self.find_resource("ColorSpace", &ope)? {
             let colorspace = create_colorspace(&cs, self.doc);
         }
@@ -349,14 +359,15 @@ impl<'a, T: Seek + Read> ContentInterpreter<'a, T> {
         Ok(None)
     }
 
-    // d
+    // d PDF32000 8.4.3.6
     fn set_line_dash_pattern(&mut self, operation: Operation) -> PDFResult<Option<GraphicsObject>> {
         let pattern = operation.operand(0)?.as_array()?;
-        let mut dash = Vec::new();
+        let mut dash_array = Vec::new();
         for v in pattern {
-            dash.push(v.as_f64()?);
+            dash_array.push(v.as_u32()?);
         }
-        self.cur_state.set_dash_array(dash);
+        let dash_phase = operation.operand(1)?.as_u32()?;
+        self.cur_state.set_dash_pattern(dash_array, dash_phase);
         Ok(None)
     }
 

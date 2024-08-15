@@ -35,7 +35,7 @@ impl Separation {
         let inputs: Vec<f32> = inputs.iter().map(|x| x / 255.0).collect();
         let alter_color = self.tint_transform.eval(inputs.as_slice())?;
         let alter_color: Vec<f32> = alter_color.iter().map(|x| x * 1.0).collect();
-        self.alternate_space.to_rgb(inputs.as_slice())
+        self.alternate_space.to_rgb(alter_color.as_slice())
     }
 
     pub fn number_of_components(&self) -> u8 {

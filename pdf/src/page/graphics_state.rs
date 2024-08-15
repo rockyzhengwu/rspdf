@@ -1,14 +1,26 @@
 use crate::color::{ColorSpace, ColorValue};
+use crate::errors::PDFResult;
 use crate::font::pdf_font::Font;
 use crate::geom::matrix::Matrix;
 use crate::geom::path::Path;
-use crate::geom::rectangle::Rectangle;
-use crate::object::{PDFDictionary, PDFObject};
+use crate::object::PDFObject;
 
 #[derive(Default, Debug, Clone)]
 pub struct DashPattern {
-    array: Vec<usize>,
-    pharse: usize,
+    array: Vec<u32>,
+    phase: u32,
+}
+impl DashPattern {
+    pub fn new(array: Vec<u32>, phase: u32) -> Self {
+        DashPattern { array, phase }
+    }
+    pub fn array(&self) -> &[u32] {
+        self.array.as_slice()
+    }
+
+    pub fn phase(&self) -> u32 {
+        self.phase
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -151,12 +163,19 @@ impl GraphicsState {
             ..Default::default()
         }
     }
+
     pub fn update_ctm_matrix(&mut self, mat: &Matrix) {
         self.ctm = mat.mutiply(&self.ctm);
     }
 
-    pub fn process_ext_gs(&mut self, _obj: PDFDictionary) {
-        unimplemented!()
+    pub fn set_render_intent(&mut self, intent: &str) {
+        match intent {
+            "AbsoluteColorimetric" => self.render_indent = RenderIndent::AbsoluteColorimetric,
+            "RelativeColorimetric" => self.render_indent = RenderIndent::RelativeColorimetric,
+            "Saturation" => self.render_indent = RenderIndent::Saturation,
+            "Perceptual" => self.render_indent = RenderIndent::Perceptual,
+            _ => {}
+        }
     }
 
     pub fn set_line_cap(&mut self, cap: i64) {
@@ -177,12 +196,9 @@ impl GraphicsState {
         }
     }
 
-    pub fn set_dash_phase(&mut self, phase: f64) {
-        unimplemented!()
-    }
-
-    pub fn set_dash_array(&mut self, array: Vec<f64>) {
-        unimplemented!()
+    pub fn set_dash_pattern(&mut self, array: Vec<u32>, phase: u32) {
+        let dash = DashPattern::new(array, phase);
+        self.dash_pattern = dash;
     }
 
     pub fn font(&self) -> &Font {
@@ -209,5 +225,38 @@ impl GraphicsState {
         } else {
             self.text_horz_scale * 0.01
         }
+    }
+
+    pub fn update_by_extgstate(&mut self, state: &PDFObject) -> PDFResult<()> {
+        if let Some(lw) = state.get_value("LW") {
+            let lw = lw.as_f64()?;
+            self.line_width = lw;
+        }
+        if let Some(lc) = state.get_value("LC") {
+            let lc = lc.as_i64()?;
+            self.set_line_cap(lc);
+        }
+        if let Some(lj) = state.get_value("LJ") {
+            let lj = lj.as_i64()?;
+            self.set_line_join(lj);
+        }
+        if let Some(ml) = state.get_value("ML") {
+            let ml = ml.as_f64()?;
+            self.miter_limit = ml;
+        }
+        if let Some(d) = state.get_value("D") {
+            let d = d.as_array()?;
+            let dash_array = d.first().unwrap().as_array()?;
+            let mut array = Vec::new();
+            for v in dash_array {
+                array.push(v.as_u32()?);
+            }
+            let phase = &d.last().unwrap().as_u32()?;
+            self.set_dash_pattern(array, phase.to_owned());
+        }
+        if let Some(smask) = state.get_value("SMask") {}
+        // TODO more op
+
+        Ok(())
     }
 }
