@@ -60,7 +60,7 @@ pub enum TextRenderingMode {
 }
 
 #[derive(Debug, Clone, Default)]
-pub enum RenderIndent {
+pub enum RenderIntent {
     AbsoluteColorimetric,
     #[default]
     RelativeColorimetric,
@@ -86,7 +86,7 @@ pub struct GraphicsState {
     pub(crate) miter_limit: f64,
     pub(crate) dash_pattern: DashPattern,
     pub(crate) stroke_adjust: bool,
-    pub(crate) render_indent: RenderIndent,
+    pub(crate) render_intent: RenderIntent,
     pub(crate) blend_mode: BlendMode,
     pub(crate) soft_mask: Option<PDFObject>,
     pub(crate) stroke_alpha: f64,
@@ -132,7 +132,7 @@ impl Default for GraphicsState {
             miter_limit: 10.0,
             dash_pattern: DashPattern::default(),
             stroke_adjust: false,
-            render_indent: RenderIndent::RelativeColorimetric,
+            render_intent: RenderIntent::RelativeColorimetric,
             blend_mode: BlendMode::default(),
             soft_mask: None,
             stroke_alpha: 1.0,
@@ -170,10 +170,10 @@ impl GraphicsState {
 
     pub fn set_render_intent(&mut self, intent: &str) {
         match intent {
-            "AbsoluteColorimetric" => self.render_indent = RenderIndent::AbsoluteColorimetric,
-            "RelativeColorimetric" => self.render_indent = RenderIndent::RelativeColorimetric,
-            "Saturation" => self.render_indent = RenderIndent::Saturation,
-            "Perceptual" => self.render_indent = RenderIndent::Perceptual,
+            "AbsoluteColorimetric" => self.render_intent = RenderIntent::AbsoluteColorimetric,
+            "RelativeColorimetric" => self.render_intent = RenderIntent::RelativeColorimetric,
+            "Saturation" => self.render_intent = RenderIntent::Saturation,
+            "Perceptual" => self.render_intent = RenderIntent::Perceptual,
             _ => {}
         }
     }
@@ -254,7 +254,10 @@ impl GraphicsState {
             let phase = &d.last().unwrap().as_u32()?;
             self.set_dash_pattern(array, phase.to_owned());
         }
-        if let Some(smask) = state.get_value("SMask") {}
+        if let Some(smask) = state.get_value("SMask") {
+            // sofmtmask
+        }
+
         // TODO more op
 
         Ok(())
