@@ -96,7 +96,7 @@ pub struct GraphicsState {
 
     // device depdent
     pub(crate) overprint: bool,
-    pub(crate) overpint_mode: usize,
+    pub(crate) overpint_mode: u32,
     pub(crate) black_generation: PDFObject,
     // undercolor_removal
     // transfer
@@ -254,6 +254,25 @@ impl GraphicsState {
             let phase = &d.last().unwrap().as_u32()?;
             self.set_dash_pattern(array, phase.to_owned());
         }
+        if let Some(ri) = state.get_value("RI") {
+            let intent = ri.as_string()?;
+            self.set_render_intent(&intent);
+        }
+        if let Some(op) = state.get_value("OP") {
+            let op = op.as_bool()?;
+            self.overprint = op;
+        }
+
+        if let Some(op) = state.get_value("op") {
+            let op = op.as_bool()?;
+            self.overprint = op;
+        }
+
+        if let Some(op) = state.get_value("OPM") {
+            let op = op.as_u32()?;
+            self.overpint_mode = op;
+        }
+
         if let Some(smask) = state.get_value("SMask") {
             // sofmtmask
         }

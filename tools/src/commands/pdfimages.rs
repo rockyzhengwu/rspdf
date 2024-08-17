@@ -5,7 +5,7 @@ use clap::Parser;
 use image::{Rgb, RgbImage};
 
 use log::info;
-use pdf::color::ColorRGBValue;
+use pdf::color::RGBValue;
 use pdf::document::Document;
 use pdf::errors::PDFResult;
 use pdf::page::graphics_object::GraphicsObject;
@@ -46,7 +46,7 @@ pub fn command<T: Seek + Read>(
                 for i in 0..(h as u32) {
                     for j in 0..(w as u32) {
                         let index = i * (w as u32) + j;
-                        let pixel: &ColorRGBValue = pixmap.get(index as usize).unwrap();
+                        let pixel: &RGBValue = pixmap.get(index as usize).unwrap();
                         im.put_pixel(j, i, Rgb([pixel.r(), pixel.g(), pixel.b()]));
                     }
                 }
