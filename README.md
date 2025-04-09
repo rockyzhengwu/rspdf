@@ -22,12 +22,12 @@ cargo run --example render --release -- [pdf path]
 ### trace
 trace every char, image, path information in pdf.
 ```shell
-cargo run --filename [pdf path] trace
+cargo run -- --filename [pdf path] trace
 
 ```
 or 
 ```shell
-cargo run --filename [pdf path] --start [start page num] --end [end page  num] trace
+cargo run -- --filename [pdf path] --start [start page num] --end [end page  num] trace
 
 
 
