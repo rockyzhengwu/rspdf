@@ -1,55 +1,58 @@
-use std::io::{Read, Seek};
+use crate::{
+    color::{parse_colorspace, value::ColorRgb},
+    error::{PdfError, Result},
+    function::{create_function, Function},
+    object::array::PdfArray,
+    xref::Xref,
+};
 
-use crate::color::create_colorspace;
-use crate::color::ColorSpace;
-use crate::document::Document;
-use crate::errors::PDFResult;
-use crate::object::PDFArray;
-use crate::page::function::PDFFunction;
-
-use super::RGBValue;
+use super::{value::ColorValue, ColorSpace};
 
 #[derive(Debug, Clone)]
 pub struct Separation {
-    alternate_space: ColorSpace,
-    tint_transform: PDFFunction,
+    name: String,
+    alternate_space: Box<ColorSpace>,
+    tint_transform: Function,
 }
 
 impl Separation {
-    pub fn try_new<T: Seek + Read>(arr: &PDFArray, doc: &Document<T>) -> PDFResult<Self> {
-        let alternate_space = doc
-            .get_object_without_indriect(arr.get(2).unwrap())
-            .unwrap();
-        let alternate_space = create_colorspace(&alternate_space, doc)?;
-        let tint_transform = doc
-            .get_object_without_indriect(arr.get(3).unwrap())
-            .unwrap();
-        let transform = PDFFunction::try_new(&tint_transform)?;
-        Ok(Separation {
-            alternate_space,
-            tint_transform: transform,
+    pub fn try_new(arr: &PdfArray, xref: &Xref) -> Result<Self> {
+        let name = arr
+            .get(1)
+            .ok_or(PdfError::Color(
+                "Separation Colorspace name is Nonne".to_string(),
+            ))?
+            .as_name()
+            .map_err(|_| {
+                PdfError::Color("Separation colorspace Name is not a pdfName object".to_string())
+            })?
+            .name();
+        let alternate_space = arr.get(2).ok_or(PdfError::Color(
+            "Separation ColorSpace alternate_space is None".to_string(),
+        ))?;
+        let alternate = parse_colorspace(alternate_space, xref)?;
+        let tint_transform = arr.get(3).ok_or(PdfError::Color(
+            "Separation colorspace initransform is None".to_string(),
+        ))?;
+        let ts = xref.read_object(tint_transform)?;
+        let tint_transform = create_function(&ts, xref)?;
+        Ok(Self {
+            name: name.to_string(),
+            alternate_space: Box::new(alternate),
+            tint_transform,
         })
     }
 
-    pub fn to_rgb(&self, inputs: &[f32]) -> PDFResult<RGBValue> {
-        let inputs: Vec<f32> = inputs.iter().map(|x| x / 255.0).collect();
-        let alter_color = self.tint_transform.eval(inputs.as_slice())?;
-        let alter_color: Vec<f32> = alter_color.iter().map(|x| x * 1.0).collect();
-        self.alternate_space.to_rgb(alter_color.as_slice())
+    pub fn default_value(&self) -> ColorValue {
+        return ColorValue::new(vec![1.0]);
     }
 
-    pub fn number_of_components(&self) -> u8 {
+    pub fn rgb(&self, value: &ColorValue) -> Result<ColorRgb> {
+        let values = self.tint_transform.eval(value.values())?;
+        self.alternate_space.rgb(&ColorValue::new(values))
+    }
+
+    pub fn number_of_components(&self) -> usize {
         1
-    }
-
-    pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<RGBValue>> {
-        let mut image = Vec::new();
-        for b in bytes {
-            let p = b.to_owned() as f32;
-            let inputs = vec![p];
-            let rgb = self.to_rgb(inputs.as_slice())?;
-            image.push(rgb);
-        }
-        Ok(image)
     }
 }

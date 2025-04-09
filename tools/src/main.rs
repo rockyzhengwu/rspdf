@@ -1,12 +1,8 @@
-use std::fs::File;
-use std::io::{Cursor, Read};
 use std::path::PathBuf;
-
-use clap::Parser;
-use log::info;
-
-use pdf::document::Document;
 mod commands;
+use clap::Parser;
+use pdf::document::Document;
+mod device;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -25,49 +21,45 @@ struct Cli {
 
 #[derive(Parser, Debug)]
 enum Commands {
-    Pdftotext(commands::pdftotext::Config),
-    Pdftopng(commands::pdftopng::Config),
     Pdffonts(commands::pdffonts::Config),
-    Pdftrace(commands::pdftrace::Config),
-    Pdfimages(commands::pdfimages::Config),
+    Trace(commands::trace::Config),
+    Images(commands::pdfimages::Config),
+    Pdftotext(commands::pdftotext::Config),
 }
 
 fn main() {
-    env_logger::init();
     let cli = Cli::parse();
     let filename = cli.filename;
     let command = cli.command;
-
-    let start = cli.start.unwrap_or(0);
-    let mut file = File::open(filename.as_path()).unwrap();
-    // load all to memory or just use file
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let cursor = Cursor::new(buffer);
-    let doc = Document::open(cursor).unwrap();
-    let end = cli.end.unwrap_or(doc.page_count().unwrap());
-    info!(
-        "Process {:?} for page:{} to page {}",
-        filename.display(),
-        start,
-        end
-    );
+    let doc = Document::new_from_file(filename, None).unwrap();
+    let start = match cli.start {
+        Some(s) => s,
+        None => 1,
+    };
+    let total_page = doc.total_page().unwrap();
+    let end = match cli.end {
+        Some(v) => {
+            if v > total_page {
+                total_page
+            } else {
+                v
+            }
+        }
+        None => total_page,
+    };
 
     match command {
-        Commands::Pdftotext(cfg) => {
-            commands::pdftotext::command(doc, start, end, cfg, filename).unwrap()
-        }
-        Commands::Pdftopng(cfg) => {
-            commands::pdftopng::command(doc, start, end, cfg, filename).unwrap()
+        Commands::Trace(cfg) => {
+            commands::trace::command(&doc, cfg, start, end);
         }
         Commands::Pdffonts(cfg) => {
-            commands::pdffonts::command(doc, start, end, cfg, filename).unwrap()
+            commands::pdffonts::command(&doc, cfg, start, end);
         }
-        Commands::Pdftrace(cfg) => {
-            commands::pdftrace::command(doc, start, end, cfg, filename).unwrap()
+        Commands::Images(cfg) => {
+            commands::pdfimages::command(&doc, cfg, start, end);
         }
-        Commands::Pdfimages(cfg) => {
-            commands::pdfimages::command(doc, start, end, cfg, filename).unwrap()
+        Commands::Pdftotext(cfg) => {
+            commands::pdftotext::command(&doc, cfg, start, end);
         }
     }
 }

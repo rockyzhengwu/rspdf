@@ -1,181 +1,165 @@
-use std::io::{Read, Seek};
+use std::fmt::Display;
 
-use crate::document::Document;
-use crate::errors::{PDFError, PDFResult};
-use crate::object::PDFObject;
+use crate::{
+    color::value::ColorRgb,
+    error::{PdfError, Result},
+    object::PdfObject,
+    xref::Xref,
+};
 
-//pub mod cal_gray;
 pub mod cal_gray;
 pub mod cal_rgb;
 pub mod device_cmyk;
 pub mod device_gray;
 pub mod device_rgb;
 pub mod devicen;
-pub mod iccbased;
+pub mod icc_based;
+pub mod icc_profile;
 pub mod indexed;
 pub mod lab;
 pub mod pattern;
 pub mod separation;
-
-mod common;
+pub mod value;
 
 use cal_gray::CalGray;
-use cal_rgb::CalRGB;
-use device_cmyk::DeviceCMYK;
+use cal_rgb::CalRgb;
+use device_cmyk::DeviceCmyk;
 use device_gray::DeviceGray;
-use device_rgb::DeviceRGB;
+use device_rgb::DeviceRgb;
 use devicen::DeviceN;
-use iccbased::IccBased;
+use icc_based::IccBased;
 use indexed::Indexed;
 use lab::Lab;
-use pattern::Pattern;
+use pattern::PatternColorSpace;
 use separation::Separation;
-
-pub struct RGBValue(u8, u8, u8);
-pub struct CMYKValue(u8, u8, u8, u8);
-pub struct GrayValue(u8);
-
-impl RGBValue {
-    pub fn r(&self) -> u8 {
-        self.0
-    }
-    pub fn g(&self) -> u8 {
-        self.1
-    }
-    pub fn b(&self) -> u8 {
-        self.2
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct ColorValue {
-    values: Vec<f32>,
-}
-
-impl ColorValue {
-    pub fn new(values: Vec<f32>) -> Self {
-        Self { values }
-    }
-    pub fn values(&self) -> &[f32] {
-        self.values.as_slice()
-    }
-}
+use value::ColorValue;
 
 #[derive(Debug, Clone)]
 pub enum ColorSpace {
     DeviceGray(DeviceGray),
-    DeviceRGB(DeviceRGB),
-    DeviceCMYK(DeviceCMYK),
-    CalGray(Box<CalGray>),
-    CalRGB(Box<CalRGB>),
-    Lab(Box<Lab>),
-    ICCBased(Box<IccBased>),
-    Separation(Box<Separation>),
-    DeviceN(Box<DeviceN>),
-    Indexed(Box<Indexed>),
-    Pattern(Box<Pattern>),
-}
-
-pub fn create_colorspace<T: Seek + Read>(
-    obj: &PDFObject,
-    doc: &Document<T>,
-) -> PDFResult<ColorSpace> {
-    match obj {
-        PDFObject::Name(name) => match name.name() {
-            "DeviceGray" | "G" => Ok(ColorSpace::new_device_gray()),
-            "DeviceRGB" | "RGB" => Ok(ColorSpace::new_device_rgb()),
-            "DeviceCMYK" => Ok(ColorSpace::new_device_cmyk()),
-            _ => Err(PDFError::ColorError(format!(
-                "colorspace {:?} not implement ",
-                name
-            ))),
-        },
-        PDFObject::Arrray(arr) => {
-            let first = arr.first().unwrap().as_string().unwrap();
-            match first.as_str() {
-                "Lab" => {
-                    let lab = Lab::try_new(arr, doc)?;
-                    Ok(ColorSpace::Lab(Box::new(lab)))
-                }
-                "ICCBased" => {
-                    let stream = arr.get(1).unwrap();
-                    let stream = doc.get_object_without_indriect(stream).unwrap();
-                    let iccbased = IccBased::try_new(&stream, doc)?;
-                    Ok(ColorSpace::ICCBased(Box::new(iccbased)))
-                }
-                "Separation" => {
-                    let separation = Separation::try_new(arr, doc)?;
-                    Ok(ColorSpace::Separation(Box::new(separation)))
-                }
-                "Indexed" => {
-                    let indexed = Indexed::try_new(arr, doc)?;
-                    Ok(ColorSpace::Indexed(Box::new(indexed)))
-                }
-                "DeviceGray" => Ok(ColorSpace::new_device_gray()),
-                "DeviceRGB" => Ok(ColorSpace::new_device_rgb()),
-                "DeviceCMYK" => Ok(ColorSpace::new_device_cmyk()),
-
-                _ => Err(PDFError::ColorError("colorspace not implement".to_string())),
-            }
-        }
-        _ => Err(PDFError::ColorError(
-            "create_colorspace need a Name or Array".to_string(),
-        )),
-    }
+    DeviceRgb(DeviceRgb),
+    DeviceCmyk(DeviceCmyk),
+    CalGray(CalGray),
+    CalRgb(CalRgb),
+    Lab(Lab),
+    IccBased(IccBased),
+    Pattern(PatternColorSpace),
+    Indexed(Indexed),
+    Separation(Separation),
+    DeviceN(DeviceN),
 }
 
 impl ColorSpace {
-    pub fn number_of_components(&self) -> u8 {
+    pub fn rgb(&self, value: &ColorValue) -> Result<ColorRgb> {
         match self {
-            ColorSpace::ICCBased(ref c) => c.number_of_components(),
-            ColorSpace::Indexed(ref sc) => sc.number_of_components(),
-            ColorSpace::DeviceRGB(ref sc) => sc.number_of_components(),
-            ColorSpace::DeviceGray(ref sc) => sc.number_of_components(),
-            ColorSpace::DeviceCMYK(ref cmyk) => cmyk.number_of_components(),
+            ColorSpace::DeviceGray(gray) => gray.rgb(value),
+            ColorSpace::DeviceRgb(rgb) => rgb.rgb(value),
+            ColorSpace::DeviceCmyk(cmyk) => cmyk.rgb(value),
+            ColorSpace::Lab(lab) => lab.rgb(value),
+            ColorSpace::IccBased(icc) => icc.rgb(value),
+            ColorSpace::CalGray(cg) => cg.rgb(value),
+            ColorSpace::CalRgb(cr) => cr.rgb(value),
+            ColorSpace::Indexed(indexed) => indexed.rgb(value),
+            ColorSpace::Separation(sep) => sep.rgb(value),
             _ => {
-                panic!("not implement:{:?}", self)
+                unimplemented!("not implent rgb of colorspace:{:?}", self)
+            }
+        }
+    }
+    pub fn default_value(&self) -> ColorValue {
+        match self {
+            ColorSpace::DeviceGray(gray) => gray.default_value(),
+            ColorSpace::DeviceRgb(rgb) => rgb.default_value(),
+            ColorSpace::DeviceCmyk(cmyk) => cmyk.default_value(),
+            ColorSpace::Lab(lab) => lab.default_value(),
+            ColorSpace::IccBased(icc) => icc.default_value(),
+            ColorSpace::CalGray(cg) => cg.default_value(),
+            ColorSpace::CalRgb(cr) => cr.default_value(),
+            ColorSpace::Indexed(indexed) => indexed.default_value(),
+            ColorSpace::Separation(sep) => sep.default_value(),
+            ColorSpace::Pattern(p) => p.default_value(),
+            _ => {
+                unimplemented!("not implement default_value of colorspace:{:?}", self)
             }
         }
     }
 
-    pub fn new_device_rgb() -> Self {
-        ColorSpace::DeviceRGB(DeviceRGB::new())
-    }
-
-    pub fn new_device_gray() -> Self {
-        ColorSpace::DeviceGray(DeviceGray::new())
-    }
-
-    pub fn new_device_cmyk() -> Self {
-        ColorSpace::DeviceCMYK(DeviceCMYK::new())
-    }
-
-    fn to_rgb(&self, value: &[f32]) -> PDFResult<RGBValue> {
-        //*self.to_rgb(value)
+    pub fn number_of_components(&self) -> usize {
         match self {
-            ColorSpace::ICCBased(c) => c.as_ref().to_rgb(value),
-            ColorSpace::Indexed(ref sc) => sc.as_ref().to_rgb(value),
-            ColorSpace::DeviceRGB(ref sc) => sc.to_rgb(value),
-            ColorSpace::DeviceGray(ref sc) => sc.to_rgb(value),
-            ColorSpace::DeviceCMYK(ref cmyk) => cmyk.to_rgb(value),
+            ColorSpace::DeviceGray(gray) => gray.number_of_components(),
+            ColorSpace::DeviceRgb(rgb) => rgb.number_of_components(),
+            ColorSpace::DeviceCmyk(cmyk) => cmyk.number_of_components(),
+            ColorSpace::Lab(lab) => lab.number_of_components(),
+            ColorSpace::IccBased(icc) => icc.number_of_components(),
+            ColorSpace::CalGray(cg) => cg.number_of_components(),
+            ColorSpace::CalRgb(cr) => cr.number_of_components(),
+            ColorSpace::Indexed(indexed) => indexed.number_of_components(),
+            ColorSpace::Separation(sep) => sep.number_of_components(),
             _ => {
-                panic!("not implement:{:?}", self)
+                unimplemented!("not implement number_of_components  : {:?}", self)
             }
         }
     }
+}
 
-    pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<RGBValue>> {
-        //pass
-        match self {
-            ColorSpace::Separation(ref s) => s.to_rgb_image(bytes),
-            ColorSpace::ICCBased(ref c) => c.to_rgb_image(bytes),
-            ColorSpace::Indexed(ref sc) => sc.to_rgb_image(bytes),
-            ColorSpace::DeviceRGB(ref sc) => sc.to_rgb_image(bytes),
-            ColorSpace::DeviceGray(ref sc) => sc.to_rgb_image(bytes),
-            ColorSpace::DeviceCMYK(ref sc) => sc.to_rgb_image(bytes),
-            _ => {
-                panic!("not implement:{:?}", self)
+pub fn parse_colorspace(obj: &PdfObject, xref: &Xref) -> Result<ColorSpace> {
+    match obj {
+        PdfObject::Name(name) => match name.name() {
+            "G" | "DeviceGray" => Ok(ColorSpace::DeviceGray(DeviceGray::new())),
+            "RGB" | "DeviceRGB" => Ok(ColorSpace::DeviceRgb(DeviceRgb::new())),
+            "CMYK" | "DeviceCMYK" => Ok(ColorSpace::DeviceCmyk(DeviceCmyk::new())),
+            "Pattern" => Ok(ColorSpace::Pattern(PatternColorSpace::default())),
+            _ => return Err(PdfError::Color(format!("Color name is error:{:?}", name))),
+        },
+        PdfObject::Array(array) => {
+            let cn = array
+                .get(0)
+                .ok_or(PdfError::Color("ColorSpace array is empty".to_string()))?
+                .as_name()
+                .map_err(|_| PdfError::Color("ColorSpace new need an array".to_string()))?;
+            match cn.name() {
+                "DeviceGray" => Ok(ColorSpace::DeviceGray(DeviceGray::new())),
+                "DeviceRGB" => Ok(ColorSpace::DeviceRgb(DeviceRgb::new())),
+                "DeviceCMYK" => Ok(ColorSpace::DeviceCmyk(DeviceCmyk::new())),
+                "CalGray" => Ok(ColorSpace::CalGray(CalGray::try_new(obj, xref)?)),
+                "CalRGB" => Ok(ColorSpace::CalRgb(CalRgb::try_new(obj, xref)?)),
+                "Pattern" => Ok(ColorSpace::Pattern(PatternColorSpace::default())),
+                "Indexed" => Ok(ColorSpace::Indexed(Indexed::try_new(array, xref)?)),
+                "Separation" => Ok(ColorSpace::Separation(Separation::try_new(array, xref)?)),
+                "ICCBased" => Ok(ColorSpace::IccBased(IccBased::try_new(obj, xref)?)),
+                "Lab" => Ok(ColorSpace::Lab(Lab::try_new(obj)?)),
+                _ => {
+                    unimplemented!()
+                }
             }
+        }
+        PdfObject::Indirect(_) => {
+            let nobj = xref.read_object(obj)?;
+            parse_colorspace(&nobj, xref)
+        }
+        _ => {
+            return Err(PdfError::Color(format!(
+                "Parse ColorSpace need an PdfArray or PdfName got :{:?}",
+                obj
+            )));
+        }
+    }
+}
+
+impl Display for ColorSpace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ColorSpace::DeviceGray(_) => write!(f, "DeviceGray"),
+            ColorSpace::DeviceRgb(_) => write!(f, "DeviceRGB"),
+            ColorSpace::DeviceCmyk(_) => write!(f, "DeviceCMYK"),
+            ColorSpace::Lab(_) => write!(f, "Lab"),
+            ColorSpace::IccBased(_) => write!(f, "ICCBased"),
+            ColorSpace::CalGray(_) => write!(f, "CalGray"),
+            ColorSpace::CalRgb(_) => write!(f, "CalRGB"),
+            ColorSpace::Indexed(_) => write!(f, "Indexed"),
+            ColorSpace::Separation(_) => write!(f, "Separation"),
+            ColorSpace::Pattern(_) => write!(f, "Pattern"),
+            ColorSpace::DeviceN(_) => write!(f, "DeviceN"),
         }
     }
 }

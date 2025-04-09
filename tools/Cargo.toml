@@ -3,11 +3,6 @@ name = "tools"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-clap = { version = "4.4.11", features = ["derive"] }
-env_logger = "0.10.1"
-image = "0.25.1"
-log = "0.4.20"
-pdf = {path='../pdf/'}
+clap = {version="4.5.29",features=["derive"]}
+pdf = {path="../pdf/"}

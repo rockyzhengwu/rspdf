@@ -1,4 +1,9 @@
 [workspace]
+members = [ "cairo-render","pdf", "tools"]
 resolver = "2"
 
-members = ["pdf", "tools", "font-data"]
+[workspace.dependencies]
+freetype-rs = "0.37.0"
+log = "0.4.27"
+
+

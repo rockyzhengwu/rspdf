@@ -1,13 +1,12 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
-use std::collections::VecDeque;
-use std::io::{Read, Seek};
+use std::collections::{HashMap, VecDeque};
 use std::rc::{Rc, Weak};
 
-use crate::document::Document;
-use crate::errors::{PDFError, PDFResult};
-use crate::geom::rectangle::Rectangle;
-use crate::object::{PDFDictionary, PDFObject};
+use crate::error::{PdfError, Result};
+use crate::geom::rect::Rect;
+use crate::object::dictionary::PdfDict;
+use crate::object::PdfObject;
+use crate::xref::Xref;
 
 #[derive(Debug, Clone, Default)]
 enum PageNodeType {
@@ -24,27 +23,33 @@ pub struct PageNode {
     count: u32,
     parent: Option<Weak<RefCell<PageNode>>>,
     kids: Vec<PageNodeRef>,
-    data: PDFDictionary,
+    dict: PdfDict,
+    index: u32,
 }
 
 impl PageNode {
-    pub fn new(data: PDFDictionary, parent: Option<Weak<RefCell<PageNode>>>) -> Self {
-        let node_type = if data.contains_key("Kids") {
+    pub fn new(dict: PdfDict, parent: Option<Weak<RefCell<PageNode>>>) -> Self {
+        let node_type = if dict.get("Kids").is_some() {
             PageNodeType::Intermediate
         } else {
             PageNodeType::Leaf
         };
-        let count = match data.get("Count") {
-            Some(v) => v.as_u32().unwrap_or_default(),
+        let count = match dict.get("Count") {
+            Some(v) => v.integer().unwrap_or_default(),
             _ => 0,
         };
         PageNode {
             node_type,
             parent,
-            data,
-            count,
+            dict,
+            count: count as u32,
             kids: Vec::new(),
+            index: 0,
         }
+    }
+
+    pub fn index(&self) -> u32 {
+        self.index
     }
 
     pub fn add_kid(&mut self, child: PageNodeRef) {
@@ -55,86 +60,79 @@ impl PageNode {
         &self.count
     }
 
-    pub fn data(&self) -> &PDFDictionary {
-        &self.data
+    pub fn dict(&self) -> &PdfDict {
+        &self.dict
     }
 
     pub fn kids(&self) -> &[PageNodeRef] {
         self.kids.as_slice()
     }
 
-    pub fn resources<T: Seek + Read>(&self, doc: &Document<T>) -> PDFResult<PDFDictionary> {
-        match self.data().get("Resources") {
+    pub fn resources(&self, xref: &Xref) -> Result<PdfDict> {
+        match self.dict().get("Resources") {
             Some(res) => match res {
-                PDFObject::Indirect(_) => {
-                    let obj: PDFDictionary = doc.read_indirect(res)?.try_into()?;
+                PdfObject::Indirect(_) => {
+                    let obj = xref.read_object(res)?.as_dict()?.to_owned();
                     Ok(obj)
                 }
-                PDFObject::Dictionary(obj) => Ok(obj.to_owned()),
-                _ => Err(PDFError::InvalidSyntax(format!(
+                PdfObject::Dict(obj) => Ok(obj.to_owned()),
+                _ => Err(PdfError::Page(format!(
                     "resource not a Dictionary obj:{:?}",
                     res
                 ))),
             },
             None => match self.parent {
-                Some(ref p) => p.upgrade().unwrap().borrow().resources(doc),
-                None => Ok(PDFDictionary::default()),
+                Some(ref p) => p.upgrade().unwrap().borrow().resources(xref),
+                None => Err(PdfError::Page("Page has no resource".to_string())),
             },
         }
     }
-
-    pub fn media_bbox(&self) -> PDFResult<Option<Rectangle>> {
-        match self.data.get("MediaBox") {
-            Some(PDFObject::Arrray(arrs)) => {
-                let lx = arrs[0].as_f64()?;
-                let ly = arrs[1].as_f64()?;
-                let ux = arrs[2].as_f64()?;
-                let uy = arrs[3].as_f64()?;
-                Ok(Some(Rectangle::new(lx, ly, ux, uy)))
+    pub fn mediabox(&self) -> Result<Option<Rect>> {
+        match self.dict.get("MediaBox") {
+            Some(o) => {
+                let bbox = o
+                    .as_array()
+                    .map_err(|_| PdfError::Page("MediaBox is not an array".to_string()))?;
+                let rect = Rect::new_from_pdf_bbox(bbox)
+                    .map_err(|e| PdfError::Page(format!("create Page mediabox error:{:?}", e)))?;
+                Ok(Some(rect))
             }
-            Some(obj) => Err(PDFError::InvalidContentSyntax(format!(
-                "page mediabox not a rectanble,{:?}",
-                obj
-            ))),
             None => match self.parent {
-                Some(ref p) => p.upgrade().unwrap().borrow().media_bbox(),
+                Some(ref p) => p.upgrade().unwrap().borrow().mediabox(),
                 None => Ok(None),
             },
         }
     }
 
-    pub fn crop_bbox(&self) -> PDFResult<Option<Rectangle>> {
-        match self.data.get("CropBox") {
-            Some(PDFObject::Arrray(arrs)) => {
-                let lx = arrs[0].as_f64()?;
-                let ly = arrs[1].as_f64()?;
-                let ux = arrs[2].as_f64()?;
-                let uy = arrs[3].as_f64()?;
-                Ok(Some(Rectangle::new(lx, ly, ux, uy)))
+    pub fn cropbox(&self) -> Result<Option<Rect>> {
+        match self.dict.get("CropBox") {
+            Some(o) => {
+                let bbox = o
+                    .as_array()
+                    .map_err(|_| PdfError::Page("CropBox is not an array".to_string()))?;
+                let rect = Rect::new_from_pdf_bbox(bbox)
+                    .map_err(|e| PdfError::Page(format!("create Page CropBox error:{:?}", e)))?;
+                Ok(Some(rect))
             }
-            Some(obj) => Err(PDFError::InvalidContentSyntax(format!(
-                "page mediabox not a rectanble,{:?}",
-                obj
-            ))),
             None => match self.parent {
-                Some(ref p) => p.upgrade().unwrap().borrow().media_bbox(),
+                Some(ref p) => p.upgrade().unwrap().borrow().cropbox(),
                 None => Ok(None),
             },
         }
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug, Default)]
 pub struct PageTree {
     root: PageNodeRef,
     pages: HashMap<u32, PageNodeRef>,
 }
 
 impl PageTree {
-    pub fn try_new<T: Seek + Read>(dict: PDFDictionary, doc: &Document<T>) -> PDFResult<Self> {
-        if let Some(pagesref) = dict.get("Pages") {
-            let pages: PDFDictionary = doc.read_indirect(pagesref)?.try_into()?;
-            let root = create_pagetree(pages, doc, None)?;
+    pub fn try_new(catalog: PdfDict, xref: &Xref) -> Result<Self> {
+        if let Some(pagesref) = catalog.get("Pages") {
+            let pages = xref.read_object(pagesref)?;
+            let root = create_pagetree(pages.as_dict()?.to_owned(), xref, None)?;
             let pages = create_pages(root.clone());
 
             Ok(PageTree { root, pages })
@@ -151,8 +149,8 @@ impl PageTree {
         self.pages.get(index)
     }
 
-    pub fn count(&self) -> PDFResult<u32> {
-        let count = self.root.borrow().data().get("Count").unwrap().as_u32()?;
+    pub fn count(&self) -> Result<u32> {
+        let count = self.root.borrow().dict().get("Count").unwrap().integer()? as u32;
         Ok(count)
     }
 }
@@ -180,17 +178,21 @@ fn create_pages(root: PageNodeRef) -> HashMap<u32, PageNodeRef> {
     res
 }
 
-fn create_pagetree<T: Seek + Read>(
-    root: PDFDictionary,
-    doc: &Document<T>,
+fn create_pagetree(
+    root: PdfDict,
+    xref: &Xref,
     parent: Option<Weak<RefCell<PageNode>>>,
-) -> PDFResult<PageNodeRef> {
+) -> Result<PageNodeRef> {
     let node = PageNode::new(root.clone(), parent);
     let noderef = Rc::new(RefCell::new(node));
-    if let Some(PDFObject::Arrray(kids)) = root.get("Kids") {
-        for kid in kids {
-            let kid_data: PDFDictionary = doc.read_indirect(kid)?.try_into()?;
-            let child = create_pagetree(kid_data, doc, Some(Rc::downgrade(&noderef)))?;
+    if let Some(PdfObject::Array(kids)) = root.get("Kids") {
+        for kid in kids.iter() {
+            let kid_data = xref.read_object(kid)?;
+            let child = create_pagetree(
+                kid_data.as_dict()?.to_owned(),
+                xref,
+                Some(Rc::downgrade(&noderef)),
+            )?;
             noderef.borrow_mut().add_kid(child);
         }
     }

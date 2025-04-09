@@ -1,26 +1,25 @@
 use std::collections::HashMap;
-use std::io::Cursor;
 
-use log::warn;
+use crate::{error::PdfError, font::CharCode};
+use font_data::cmap::get_predefine_cmap_data;
+use parser::CmapParser;
 
-use crate::errors::PDFResult;
-use crate::font::cmap::charcode::CharCode;
-use crate::parser::syntax::SyntaxParser;
+use crate::error::Result;
 
-pub mod charcode;
-pub mod parser;
-pub mod predefined;
+mod parser;
 
-#[derive(Default, Clone, Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct CodeSpaceRange {
     size: u8,
     low: u32,
     high: u32,
 }
+
 impl CodeSpaceRange {
-    pub fn new(size: u8, low: u32, high: u32) -> Self {
-        CodeSpaceRange { size, low, high }
+    pub fn new(low: u32, high: u32, size: u8) -> Self {
+        Self { low, high, size }
     }
+
     pub fn is_contain_code(&self, code: u32) -> bool {
         self.low <= code && self.high >= code
     }
@@ -30,191 +29,63 @@ impl CodeSpaceRange {
     }
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct CidRange {
     start: u32,
     end: u32,
     start_cid: u32,
     length: u8,
 }
-impl CidRange {
-    fn new(start: &[u8], end: &[u8], start_cid: u32) -> Self {
-        let length = start.len() as u8;
-        let start = bytes_to_u32(start);
-        let end = bytes_to_u32(end);
-        CidRange {
-            start,
-            end,
-            start_cid,
-            length,
-        }
-    }
-    fn find_cide(&self, charcode: &CharCode) -> Option<u32> {
-        let code = charcode.code();
-        if charcode.length() != self.length || code < self.start || code > self.end {
-            return None;
-        }
-        Some(self.start_cid + code - self.start)
-    }
-}
 
-fn bytes_to_u32(bytes: &[u8]) -> u32 {
-    let mut res = 0;
-    for v in bytes {
-        res = (res << 8) + v.to_owned() as u32;
-    }
-    res
-}
-
-#[derive(Default, Clone, Debug)]
-pub struct CMap {
+#[derive(Debug, Clone, Default)]
+pub struct Cmap {
     name: String,
     wmode: Option<u8>,
     cmap_type: Option<u8>,
     code_space_range: Vec<CodeSpaceRange>,
-    code_to_unicode_one: HashMap<u32, String>,
-    code_to_unicode_two: HashMap<u32, String>,
-    code_to_cid: HashMap<u8, HashMap<u32, u32>>,
-    cid_ranges: Vec<CidRange>,
+    cid_to_unicode: HashMap<u32, String>,
+    code_to_cids: HashMap<u32, u32>,
 }
 
-impl CMap {
-    pub fn usecmap(&mut self, other: CMap) {
+impl Cmap {
+    pub fn try_new(data: Vec<u8>) -> Result<Self> {
+        let parser = CmapParser::new(data);
+        parser.parse()
+    }
+
+    pub fn new_from_predefined(name: &str) -> Result<Self> {
+        let cmap_data = get_predefine_cmap_data(name).ok_or(PdfError::Font(format!(
+            "predefine cmap {:?} not found",
+            name
+        )))?;
+        let cmap = Cmap::try_new(cmap_data.to_vec())?;
+        Ok(cmap)
+    }
+
+    pub fn usecmap(&mut self, other: Cmap) {
         self.code_space_range = other.code_space_range;
-        self.code_to_unicode_two = other.code_to_unicode_two;
-        self.code_to_unicode_one = other.code_to_unicode_one;
-        self.cid_ranges = other.cid_ranges;
-        self.code_to_cid = other.code_to_cid;
-    }
-
-    pub fn set_name(&mut self, name: String) {
-        self.name = name;
-    }
-
-    pub fn set_type(&mut self, cmap_type: Option<u8>) {
-        self.cmap_type = cmap_type;
-    }
-
-    pub fn set_wmdoe(&mut self, wmode: Option<u8>) {
-        self.wmode = wmode;
+        self.cid_to_unicode = other.cid_to_unicode;
+        self.code_to_cids = other.code_to_cids;
     }
 
     pub fn add_code_space_range(&mut self, space_range: CodeSpaceRange) {
         self.code_space_range.push(space_range);
     }
 
-    pub fn cmap_type(&self) -> Option<u8> {
-        self.cmap_type
+    pub fn add_unicode(&mut self, src_code: u32, unicode: String) {
+        self.cid_to_unicode.insert(src_code, unicode);
     }
 
-    pub fn name(&self) -> &str {
-        self.name.as_str()
+    pub fn unicode(&self, char: &CharCode) -> Option<&str> {
+        return self.cid_to_unicode.get(&char.code).map(|v| v.as_str());
     }
 
-    pub fn add_unicode(&mut self, bytes: &[u8], ch: String) {
-        let charcode = bytes_to_u32(bytes);
-        if bytes.len() == 1 {
-            self.code_to_unicode_one.insert(charcode, ch);
-        } else if bytes.len() == 2 {
-            self.code_to_unicode_two.insert(charcode, ch);
-        }
-    }
-
-    pub fn add_simple_unicode(&mut self, code: u32, ch: String) {
-        self.code_to_unicode_one.insert(code, ch);
-    }
-
-    pub fn add_cid(&mut self, code: &[u8], cid: u32) {
-        let len = code.len() as u8;
-        if let Some(map) = self.code_to_cid.get_mut(&len) {
-            let key = bytes_to_u32(code);
-            map.insert(key, cid);
-        }
-    }
-
-    pub fn add_cid_range(&mut self, range: CidRange) {
-        self.cid_ranges.push(range);
-    }
-
-    pub fn new_from_bytes(buffer: &[u8]) -> PDFResult<Self> {
-        let cursor = Cursor::new(buffer);
-        let syntax = SyntaxParser::try_new(cursor)?;
-        let mut parser = parser::CMapParser::new(syntax);
-        parser.parse()
+    pub fn add_code_to_cid(&mut self, code: u32, cid: u32) {
+        self.code_to_cids.insert(code, cid);
     }
 
     pub fn wmode(&self) -> Option<u8> {
         self.wmode
-    }
-
-    pub fn charcode_to_unicode(&self, bytes: &[u8], l: u8) -> Option<&str> {
-        match l {
-            1 => self
-                .code_to_unicode_one
-                .get(&bytes_to_u32(bytes))
-                .map(|s| s.as_str()),
-            2 => self
-                .code_to_unicode_two
-                .get(&bytes_to_u32(bytes))
-                .map(|s| s.as_str()),
-            _ => None,
-        }
-    }
-
-    pub fn has_unicode_map(&self) -> bool {
-        !self.code_to_unicode_two.is_empty() || !self.code_to_unicode_one.is_empty()
-    }
-
-    pub fn charcodes_to_unicode(&self, bytes: &[u8]) -> Vec<String> {
-        if !self.has_unicode_map() {
-            let n = bytes.len();
-            return vec![String::from(char::REPLACEMENT_CHARACTER); n];
-        }
-        let mut res: Vec<String> = Vec::new();
-        if self.code_space_range.is_empty() {
-            for b in bytes {
-                let code = vec![b.to_owned()];
-                if let Some(s) = self.charcode_to_unicode(code.as_slice(), 1) {
-                    res.push(s.to_string());
-                }
-            }
-            return res;
-        }
-        let mut charcode: Vec<u8> = Vec::new();
-        for b in bytes.iter() {
-            charcode.push(b.to_owned());
-            if let Some(l) = self.find_charsize(charcode.as_slice()) {
-                if let Some(s) = self.charcode_to_unicode(charcode.as_slice(), l) {
-                    res.push(s.to_string());
-                } else {
-                    warn!("notfound char:{:?}", charcode);
-                }
-                charcode.clear();
-                continue;
-            }
-            if charcode.len() == 2 {
-                if let Some(v) = self.charcode_to_unicode(charcode.as_slice(), 2) {
-                    res.push(v.to_string());
-                }
-                charcode.clear();
-            }
-        }
-        res
-    }
-
-    pub fn charcode_to_cid(&self, charcode: &CharCode) -> Option<u32> {
-        if let Some(map) = self.code_to_cid.get(&charcode.length()) {
-            if let Some(cid) = map.get(&charcode.code()) {
-                return Some(cid.to_owned());
-            }
-        }
-
-        for range in &self.cid_ranges {
-            if let Some(v) = range.find_cide(charcode) {
-                return Some(v);
-            }
-        }
-        None
     }
 
     fn find_charsize(&self, bytes: &[u8]) -> Option<u8> {
@@ -242,34 +113,30 @@ impl CMap {
             }
             codecs.push(bytes[offset + i].to_owned());
             if let Some(v) = self.find_charsize(codecs.as_slice()) {
-                let ch = CharCode::new(bytes_to_u32(codecs.as_slice()), v);
+                let ch = CharCode::new(bytes_to_u32(codecs.as_slice()), v, 0.0);
                 return Some(ch);
             }
         }
         None
     }
 
-    pub fn charcode_to_cids(&self, bytes: &[u8]) -> Vec<u32> {
-        //pass
+    pub fn chars(&self, bytes: &[u8]) -> Vec<CharCode> {
         let mut res = Vec::new();
         let mut offset = 0;
         while offset < bytes.len() {
             if let Some(charcode) = self.next_char(bytes, offset) {
                 offset += charcode.length() as usize;
-                if let Some(cid) = self.charcode_to_cid(&charcode) {
-                    res.push(cid);
-                }
+                res.push(charcode);
             }
         }
         res
     }
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_hex_value() {
-        let bytes: &[u8] = b"ffff";
-        println!("value {:?}", bytes);
+fn bytes_to_u32(bytes: &[u8]) -> u32 {
+    let mut res = 0;
+    for v in bytes {
+        res = (res << 8) + v.to_owned() as u32;
     }
+    res
 }

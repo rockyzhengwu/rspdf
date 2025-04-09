@@ -1,25 +1,33 @@
-use crate::errors::{PDFError, PDFResult};
-use crate::object::PDFObject;
+pub mod ascii_85;
+pub mod ascii_hex;
+pub mod ccittfax;
+pub mod dct;
+pub mod flate;
+pub mod jbig2;
+pub mod lzw;
+pub mod run_length;
 
-use ascii85_decode::ascii85_decode;
-use asciihex_decode::asciihex_decode;
-use ccittfax_decode::fax_decode;
-use dct_decode::dct_decode;
-use flate_decode::flate_decode;
+use crate::error::{PdfError, Result};
+use crate::filter::run_length::run_length_decode;
+use crate::object::dictionary::PdfDict;
+use ascii_85::ascii_85_decode;
+use ascii_hex::ascii_hex_decode;
+use ccittfax::ccittfax_decode;
+use dct::dct_decode;
+use flate::flate_decode;
+use jbig2::jbig2_decode;
+use lzw::lzw_decode;
 
-pub fn decode(name: &str, buf: &[u8], param: Option<&PDFObject>) -> PDFResult<Vec<u8>> {
+pub fn apply_filter(name: &str, input: &[u8], params: Option<&PdfDict>) -> Result<Vec<u8>> {
     match name {
-        "FlateDecode" => flate_decode(buf),
-        "ASCII85Decode" | "A85" => ascii85_decode(buf),
-        "ASCIIHexDecode" => asciihex_decode(buf),
-        "DCTDecode" => dct_decode(buf),
-        "CCITTFaxDecode" => fax_decode(buf, param),
-        _ => Err(PDFError::Filter(format!("Filter {:?} not supported", name))),
+        "AHx" | "ASCIIHexDecode" => ascii_hex_decode(input),
+        "A85" | "ASCII85Decode" => ascii_85_decode(input),
+        "LZW" | "LZWDecode" => lzw_decode(input, params),
+        "Fl" | "FlateDecode" => flate_decode(input, params),
+        "RL" | "RunLengthDecode" => run_length_decode(input),
+        "DCT" | "DCTDecode" => dct_decode(input, params),
+        "CCF" | "CCITTFaxDecode" => ccittfax_decode(input, params),
+        "JBIG2Decode" => jbig2_decode(input, params),
+        _ => Err(PdfError::Filter(format!("unimplemented:{:?}", name))),
     }
 }
-
-pub mod ascii85_decode;
-pub mod asciihex_decode;
-pub mod ccittfax_decode;
-pub mod dct_decode;
-pub mod flate_decode;

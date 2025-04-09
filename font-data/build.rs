@@ -55,7 +55,7 @@ fn generate_cmap_data() {
     outfile.write_all(match_code.as_bytes()).unwrap();
 }
 
-fn read_font(path: &PathBuf) -> Vec<u8> {
+fn read_data(path: &PathBuf) -> Vec<u8> {
     let f = std::fs::File::open(path).unwrap();
     let mut reader = BufReader::new(f);
     let mut buf = Vec::new();
@@ -78,7 +78,7 @@ fn generate_font_data() {
             .unwrap()
             .to_string_lossy()
             .to_string();
-        let content = read_font(&font.path());
+        let content = read_data(&font.path());
         let bytes = format_content(content.as_slice());
         let v = format!("pub const DATA:&[u8]=&[{}];\n", bytes);
         let outpath = outdir.clone().join(name.replace(".pfb", ".rs"));
@@ -93,10 +93,39 @@ fn generate_font_data() {
     }
 }
 
+fn generate_afm_data() {
+    let afms = std::fs::read_dir("./afm/").unwrap();
+    let outdir = PathBuf::from("./src/afm");
+    let mut all_afm = Vec::new();
+    if !outdir.exists() {
+        std::fs::create_dir(outdir.as_path()).unwrap();
+    }
+    for f in afms {
+        let fp = f.unwrap();
+        let name = fp.path().file_name().unwrap().to_string_lossy().to_string();
+        let content = read_data(&fp.path());
+        let bytes = format_content(content.as_slice());
+        let v = format!("pub const DATA:&[u8]=&[{}];\n", bytes);
+        let outpath = outdir
+            .clone()
+            .join(name.to_lowercase().replace(".afm", ".rs").replace("-", "_"));
+        let mut outfile = std::fs::File::create(outpath).unwrap();
+        outfile.write_all(v.as_bytes()).unwrap();
+        all_afm.push(name.replace(".afm", "").to_lowercase().replace("-", "_"));
+    }
+    let mut modfile = std::fs::File::create("./src/afm/mod.rs").unwrap();
+    for f in all_afm {
+        let l = format!("pub mod {};\n", f);
+        modfile.write_all(l.as_bytes()).unwrap();
+    }
+}
+
 fn main() {
     // TODO just exec once
     println!("cargo::rerun-if-changed=cmaps");
     generate_cmap_data();
     println!("cargo::rerun-if-changed=fonts");
     generate_font_data();
+    println!("cargo::rerun-if-changed=afm");
+    generate_afm_data();
 }

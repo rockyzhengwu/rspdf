@@ -1,78 +1,92 @@
-use crate::geom::bezier::Bezier;
-use crate::geom::line::Line;
-use crate::geom::point::Point;
-use crate::geom::rectangle::Rectangle;
-use crate::geom::subpath::Segment;
-use crate::geom::subpath::SubPath;
+use crate::{
+    error::{PdfError, Result},
+    geom::{
+        bezier::{BezierCubic, BezierQuad},
+        coordinate::Point,
+        rect::Rect,
+        sub_path::{PathSegment, SubPath},
+    },
+};
 
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct Path {
-    current: Point,
-    sub_paths: Vec<SubPath>,
+    subpaths: Vec<SubPath>,
 }
 
 impl Path {
-    pub fn new(point: Point) -> Self {
-        Self {
-            current: point,
-            sub_paths: Vec::new(),
-        }
-    }
-
     pub fn move_to(&mut self, point: Point) {
-        self.current = point;
-        if let Some(sub) = self.sub_paths.last_mut() {
-            if sub.is_single_point() {
-                sub.set_start(self.current);
-            }
+        self.subpaths.push(SubPath::new(point))
+    }
+
+    pub fn line_to(&mut self, point: Point) -> Result<()> {
+        if let Some(last) = self.subpaths.last_mut() {
+            last.add_segment(PathSegment::LineTo(point));
+            Ok(())
         } else {
-            self.sub_paths.push(SubPath::new(point));
+            Err(PdfError::Path("Lineto Path is empty".to_string()))
         }
     }
 
-    pub fn curve_to(&mut self, mut points: Vec<Point>) {
-        let n = 4 - points.len();
-        for _ in 0..n {
-            points.insert(0, self.current);
-        }
-        self.current = points.last().unwrap().to_owned();
-        let bezier = Bezier::new(points);
-        self.sub_paths
-            .last_mut()
-            .unwrap()
-            .add_segment(Segment::Curve(bezier));
+    pub fn subpaths(&self) -> &[SubPath] {
+        self.subpaths.as_slice()
     }
 
-    pub fn line_to(&mut self, target: Point) {
-        if let Some(l) = self.sub_paths.last_mut() {
-            l.add_segment(Segment::Line(Line::new(self.current, target)));
-        }
-        self.current = target;
-    }
-
-    // x y m
-    //  ( x + width ) y l
-    //  ( x + width ) ( y + height ) l
-    //  x ( y + height ) l
-    pub fn rectangle(&mut self, rect: Rectangle) {
-        self.move_to(rect.lower_left().to_owned());
-        self.line_to(Point::new(rect.ux(), rect.ly()));
-        self.line_to(Point::new(rect.ux(), rect.uy()));
-        self.line_to(Point::new(rect.lx(), rect.uy()));
-        self.close_last_subpath();
-    }
-
-    pub fn close_last_subpath(&mut self) {
-        if let Some(v) = self.sub_paths.last_mut() {
-            v.close()
+    pub fn curve4(&mut self, p0: Point, p1: Point, p2: Point, p3: Point) -> Result<()> {
+        if let Some(last) = self.subpaths.last_mut() {
+            last.add_segment(PathSegment::Curve4(BezierCubic::new(p0, p1, p2, p3)));
+            Ok(())
+        } else {
+            Err(PdfError::Path("Curve4 Path is empty".to_string()))
         }
     }
 
-    pub fn current_point(&self) -> &Point {
-        &self.current
+    pub fn curve3(&mut self, p0: Point, p1: Point, p2: Point) -> Result<()> {
+        if let Some(last) = self.subpaths.last_mut() {
+            last.add_segment(PathSegment::Curve3(BezierQuad::new(p0, p1, p2)));
+            Ok(())
+        } else {
+            Err(PdfError::Path("Curve3 Path is empty".to_string()))
+        }
     }
 
-    pub fn sub_paths(&self) -> &[SubPath] {
-        self.sub_paths.as_slice()
+    pub fn rect(&mut self, rect: Rect) {
+        let lf = rect.lower_left().to_owned();
+        let mut sp = SubPath::new(rect.lower_left().to_owned());
+        sp.add_segment(PathSegment::LineTo(Point::new(
+            lf.x() + rect.width(),
+            lf.y(),
+        )));
+        sp.add_segment(PathSegment::LineTo(Point::new(
+            lf.x() + rect.width(),
+            lf.y() + rect.height(),
+        )));
+        sp.add_segment(PathSegment::LineTo(Point::new(
+            lf.x(),
+            lf.y() + rect.height(),
+        )));
+        sp.close();
+        self.subpaths.push(sp)
+    }
+
+    pub fn last_start_point(&self) -> Option<&Point> {
+        match self.subpaths.first() {
+            Some(sp) => sp.start_point(),
+            None => None,
+        }
+    }
+
+    pub fn close_sub_path(&mut self) -> Result<()> {
+        if let Some(last) = self.subpaths.last_mut() {
+            last.close();
+        } else {
+            return Err(PdfError::Path("Curve Path is empty".to_string()));
+        }
+        Ok(())
+    }
+    pub fn close_all(&mut self) -> Result<()> {
+        for sub in self.subpaths.iter_mut() {
+            sub.close()
+        }
+        Ok(())
     }
 }

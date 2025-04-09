@@ -3,23 +3,20 @@ name = "pdf"
 version = "0.1.0"
 edition = "2021"
 
-
 [dependencies]
 font_data = { path = "../font-data/" }
-cairo-rs = { git = "https://github.com/gtk-rs/gtk-rs-core.git", features = [
-  "freetype",
-  "png",
-] }
-encoding_rs = "0.8.33"
-env_logger = "0.10.1"
-flate2 = "1.0.28"
-freetype-rs = "0.36.0"
-image = "0.25.1"
-imageproc = "0.24.0"
-lazy_static = "1.4.0"
-log = "0.4.20"
-rand = "0.8.5"
-thiserror = "1.0.51"
-bitstream-io = "2.3.0"
+encoding_rs = "0.8.35"
+flate2 = "1.0.35"
+thiserror = "2.0.4"
+bitstream-io = "2.6.0"
+mozjpeg = "0.10.13"
+jpeg-decoder = "0.3.1"
+lazy_static = "1.5.0"
 fax = "0.2.4"
-mozjpeg = "0.10.8"
+freetype-rs = {workspace = true}
+libflate = "2.1.0"
+aes = "0.8.4"
+md-5 = "0.10.6"
+cbc = {version="0.1.2"}
+log = {workspace = true}
+sha2 = "0.10.8"

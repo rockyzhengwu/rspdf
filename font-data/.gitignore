@@ -1,2 +1,3 @@
 src/cmap.rs
 src/fonts/*.rs
+src/afm/*.rs

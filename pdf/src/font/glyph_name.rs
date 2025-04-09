@@ -4464,6 +4464,6 @@ lazy_static! {
     };
 }
 
-pub fn name_to_unicode(glyph_name: &str) -> Option<u32> {
+pub fn adobe_glyph_list_to_unicode(glyph_name: &str) -> Option<u32> {
     GLYPH_NAME_TO_UNICODE.get(glyph_name).map(|v| v.to_owned())
 }

@@ -1,116 +1,85 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::io::{Read, Seek};
-use std::rc::Rc;
+use crate::{
+    device::Device,
+    error::{PdfError, Result},
+    geom::rect::Rect,
+    object::{stream::PdfStream, PdfObject},
+    page::interpreter::Interpreter,
+    pagetree::PageNodeRef,
+    xref::Xref,
+};
 
-use crate::device::Device;
-use crate::document::Document;
-use crate::errors::{PDFError, PDFResult};
-use crate::font::pdf_font::{load_font, Font};
-use crate::geom::rectangle::Rectangle;
-use crate::object::{PDFDictionary, PDFObject, PDFStream};
-use crate::page::content_interpreter::ContentInterpreter;
-use crate::page::object_iterator::ObjectIterator;
-use crate::pagetree::PageNodeRef;
-
-pub mod content_interpreter;
-pub mod content_parser;
-pub mod context;
-pub mod function;
-pub mod graphics_object;
+mod content_parser;
 pub mod graphics_state;
-pub mod image;
-pub mod object_iterator;
-pub mod operation;
-pub mod page_path;
-pub mod text;
+mod interpreter;
+mod operator;
+mod resource;
 
-#[derive(Debug)]
-pub struct Page<'a, T: Seek + Read> {
-    number: u32,
-    noderef: PageNodeRef,
-    doc: &'a Document<T>,
-    resources: PDFDictionary,
-    data: PDFDictionary,
+pub mod context;
+pub mod image;
+
+use resource::Resources;
+
+pub struct Page<'a> {
+    xref: &'a Xref,
+    node: PageNodeRef,
+    resources: resource::Resources,
 }
 
-impl<'a, T: Seek + Read> Page<'a, T> {
-    pub fn try_new(number: &u32, node: PageNodeRef, doc: &'a Document<T>) -> PDFResult<Self> {
-        let data = node.borrow().data().to_owned();
-        let resources = node.borrow().resources(doc)?;
-
-        // TODO create a page resource struct ?
-        Ok(Page {
-            number: number.to_owned(),
-            noderef: node,
-            doc,
+impl<'a> Page<'a> {
+    pub fn try_new(node: PageNodeRef, xref: &'a Xref) -> Result<Self> {
+        let res_dict = node.borrow().resources(xref)?;
+        let resources = resource::Resources::try_new(&res_dict, xref)?;
+        Ok(Self {
+            xref,
+            node,
             resources,
-            data,
         })
     }
-
-    pub fn get_font(&self, tag: &str) -> PDFResult<Font> {
-        if let Some(font) = self.doc.get_font(tag) {
-            return Ok(font);
+    pub fn rotated(&self) -> Result<i32> {
+        if let Some(v) = self.node.borrow().dict().get("Rotate") {
+            return Ok(v.as_number()?.integer());
         }
-        if let Some(fd) = self.resources.get("Font") {
-            let fontinfo: PDFDictionary = self.doc.get_object_without_indriect(fd)?.try_into()?;
-
-            match fontinfo.get(tag) {
-                Some(vv) => {
-                    let fontobj = self.doc.read_indirect(vv)?;
-                    let font = load_font(&fontobj, self.doc)?;
-                    self.doc.add_font(tag, font.clone());
-                    return Ok(font);
-                }
-                None => {
-                    return Err(PDFError::InvalidSyntax(format!(
-                        "get fonts {:?} not exist in resources:{:?}",
-                        tag, fontinfo
-                    )));
-                }
-            }
+        return Ok(0);
+    }
+    pub fn mediabox(&self) -> Result<Rect> {
+        // TODO inheritable
+        if let Some(rec) = self.node.borrow().mediabox()? {
+            return Ok(rec);
+        } else {
+            return Err(PdfError::Page("Page Mediabox is None".to_string()));
         }
-
-        Err(PDFError::InvalidSyntax(format!(
-            "get fonts {:?} not exist in resources",
-            self.resources
-        )))
     }
 
-    pub fn grapics_objects(&self) -> PDFResult<ObjectIterator<T>> {
-        let mut interpreter = ContentInterpreter::try_new(self, self.doc)?;
-        interpreter.start()?;
-        let iterator = ObjectIterator::new(interpreter);
-        Ok(iterator)
+    pub fn cropbox(&self) -> Result<Option<Rect>> {
+        if let Some(rec) = self.node.borrow().cropbox()? {
+            Ok(Some(rec))
+        } else {
+            Ok(None)
+        }
     }
 
-    pub fn display<D: Device>(&self, _device: Rc<RefCell<D>>) -> PDFResult<()> {
-        let mut interpreter = ContentInterpreter::try_new(self, self.doc)?;
-        interpreter.start()?;
-        while let Some(_obj) = interpreter.poll()? {
-            // TODO
-            // println!("obj:{:?}", obj);
-        }
+    pub fn display(&self, p: u32, device: &mut dyn Device) -> Result<()> {
+        let mut interpreter = Interpreter::try_new(self, &self.xref)?;
+        interpreter.run(p, device).unwrap();
         Ok(())
     }
 
-    fn contents(&self) -> PDFResult<Vec<PDFStream>> {
+    pub fn content_stream(&self) -> Result<Vec<PdfStream>> {
         let mut content_streams = Vec::new();
-        if let Some(contents) = self.data.get("Contents") {
-            let contents = self.doc.get_object_without_indriect(contents)?;
+        if let Some(contents) = self.node.borrow().dict().get("Contents") {
+            let contents = self.xref.read_object(contents)?;
             match contents {
-                PDFObject::Arrray(vals) => {
-                    for ci in vals {
-                        let cs: PDFStream = self.doc.read_indirect(&ci)?.try_into()?;
+                PdfObject::Array(arr) => {
+                    for ci in arr.iter() {
+                        let cs: PdfStream = self.xref.read_object(ci)?.to_stream()?;
                         content_streams.push(cs)
                     }
                 }
-                PDFObject::Stream(s) => {
+                PdfObject::Stream(s) => {
                     content_streams.push(s);
                 }
                 _ => {
-                    return Err(PDFError::InvalidContentSyntax(format!(
+                    return Err(PdfError::Page(format!(
                         "content need a stream or array got:{:?}",
                         contents
                     )))
@@ -120,37 +89,18 @@ impl<'a, T: Seek + Read> Page<'a, T> {
         Ok(content_streams)
     }
 
-    pub fn resources(&self) -> PDFResult<PDFObject> {
-        match self.data.get("Resources") {
-            Some(obj) => match obj {
-                PDFObject::Dictionary(_) => Ok(obj.to_owned()),
-                PDFObject::Indirect(_) => self.doc.read_indirect(obj),
-                _ => Err(PDFError::InvalidSyntax(format!(
-                    "resource obj type error:{:?}",
-                    obj
-                ))),
-            },
-            None => Ok(PDFObject::Dictionary(HashMap::new())),
-        }
+    pub fn resources(&self) -> &Resources {
+        &self.resources
     }
 
-    pub fn bbox(&self) -> PDFResult<Rectangle> {
-        if let Some(bbox) = self.media_bbox()? {
-            return Ok(bbox);
-        }
-        if let Some(bbox) = self.crop_bbox()? {
-            return Ok(bbox);
-        }
-        Err(PDFError::ContentInterpret(
-            "page didn't has mediobox or cropb xo".to_string(),
-        ))
+    pub fn index(&self) -> u32 {
+        self.node.borrow().index()
     }
-
-    pub fn media_bbox(&self) -> PDFResult<Option<Rectangle>> {
-        self.noderef.borrow().media_bbox()
-    }
-
-    pub fn crop_bbox(&self) -> PDFResult<Option<Rectangle>> {
-        self.noderef.borrow().crop_bbox()
+    pub fn user_unit(&self) -> Result<f32> {
+        if let Some(o) = self.node.borrow().dict().get("UserUnit") {
+            Ok(o.as_number()?.real())
+        } else {
+            Ok(1.0)
+        }
     }
 }

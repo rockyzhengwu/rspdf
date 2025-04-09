@@ -1,9 +1,7 @@
-use std::io::{Read, Seek};
-
-use crate::document::Document;
-use crate::errors::PDFResult;
-use crate::object::PDFDictionary;
+use crate::error::Result;
+use crate::object::dictionary::PdfDict;
 use crate::pagetree::{PageNodeRef, PageTree};
+use crate::xref::Xref;
 
 #[derive(Default, Debug)]
 pub enum PageLayout {
@@ -15,6 +13,7 @@ pub enum PageLayout {
     TwoPageLeft,
     TwoPageRight,
 }
+
 impl PageLayout {
     pub fn new(pagelayout: &str) -> Self {
         match pagelayout {
@@ -32,22 +31,22 @@ impl PageLayout {
 #[derive(Default, Debug)]
 pub struct Catalog {
     page_layout: PageLayout,
-    outlines: Option<PDFDictionary>,
+    outlines: Option<PdfDict>,
     page_tree: PageTree,
 }
 
 impl Catalog {
-    pub fn try_new<T: Seek + Read>(root: PDFDictionary, doc: &Document<T>) -> PDFResult<Self> {
+    pub fn try_new(root: PdfDict, xref: &Xref) -> Result<Self> {
         let mut catalog = Catalog::default();
         if let Some(pl) = root.get("PageLayout") {
-            catalog.page_layout = PageLayout::new(&pl.as_string()?);
+            catalog.page_layout = PageLayout::new(pl.as_name()?.name());
         }
-
         if let Some(ot) = root.get("Outlines") {
-            let outlines: PDFDictionary = doc.read_indirect(ot)?.try_into()?;
+            let outlines: PdfDict = xref.read_object(ot)?.as_dict()?.to_owned();
             catalog.outlines = Some(outlines);
         }
-        let pagetree = PageTree::try_new(root, doc)?;
+
+        let pagetree = PageTree::try_new(root, xref)?;
         catalog.page_tree = pagetree;
         Ok(catalog)
     }
@@ -56,7 +55,7 @@ impl Catalog {
         self.page_tree.get_page(pageindex)
     }
 
-    pub fn page_count(&self) -> PDFResult<u32> {
+    pub fn total_page(&self) -> Result<u32> {
         self.page_tree.count()
     }
 }

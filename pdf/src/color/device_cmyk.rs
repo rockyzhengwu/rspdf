@@ -1,48 +1,28 @@
-use crate::errors::{PDFError, PDFResult};
+use super::value::{ColorRgb, ColorValue};
+use crate::error::Result;
 
-use super::RGBValue;
+#[derive(Debug, Clone)]
+pub struct DeviceCmyk {}
 
-#[derive(Debug, Clone, Default)]
-pub struct DeviceCMYK {}
-
-impl DeviceCMYK {
+impl DeviceCmyk {
     pub fn new() -> Self {
-        Self {}
+        DeviceCmyk {}
+    }
+    pub fn default_value(&self) -> ColorValue {
+        ColorValue::new(vec![0.0, 0.0, 0.0, 0.0])
     }
 
-    pub fn number_of_components(&self) -> u8 {
+    pub fn number_of_components(&self) -> usize {
         4
     }
-
-    pub fn to_rgb(&self, bytes: &[f32]) -> PDFResult<RGBValue> {
-        if bytes.len() != 4 {
-            return Err(PDFError::ColorError(format!(
-                "device cmykk params error:{:?}",
-                bytes
-            )));
-        }
-
-        let c = bytes.first().unwrap().to_owned() / 255.0;
-        let m = bytes.get(1).unwrap().to_owned() / 255.0;
-        let y = bytes.get(2).unwrap().to_owned() / 255.0;
-        let k = bytes.get(3).unwrap().to_owned() / 255.0;
-        let r = (255.0 * (1.0 - (c + k).min(1.0))) as u8;
-        let g = (255.0 * (1.0 - (m + k).min(1.0))) as u8;
-        let b = (255.0 * (1.0 - (y + k).min(1.0))) as u8;
-        Ok(RGBValue(r, g, b))
-    }
-
-    pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<RGBValue>> {
-        let mut image = Vec::new();
-        for chunk in bytes.chunks(4) {
-            let inputs: Vec<f32> = chunk
-                .to_owned()
-                .iter()
-                .map(|x| (x.to_owned() as f32))
-                .collect();
-            let rgb = self.to_rgb(inputs.as_slice())?;
-            image.push(rgb)
-        }
-        Ok(image)
+    pub fn rgb(&self, value: &ColorValue) -> Result<ColorRgb> {
+        let c = value.values()[0];
+        let m = value.values()[1];
+        let y = value.values()[2];
+        let k = value.values()[3];
+        let r = 1.0 - (c + k).min(1.0);
+        let g = 1.0 - (m + k).min(1.0);
+        let b = 1.0 - (y + k).min(1.0);
+        Ok(ColorRgb::new(r, g, b))
     }
 }

@@ -1,39 +1,31 @@
-use std::u8;
+use crate::error::{PdfError, Result};
 
-use crate::errors::PDFResult;
+use super::value::{ColorRgb, ColorValue};
 
-use super::RGBValue;
+#[derive(Debug, Clone)]
+pub struct DeviceRgb {}
 
-#[derive(Debug, Clone, Default)]
-pub struct DeviceRGB {}
-
-impl DeviceRGB {
+impl DeviceRgb {
     pub fn new() -> Self {
-        DeviceRGB {}
-    }
-    pub fn to_rgb(&self, inputs: &[f32]) -> PDFResult<RGBValue> {
-        let r = inputs.first().unwrap().to_owned() as u8;
-        let g = inputs.get(1).unwrap().to_owned() as u8;
-        let b = inputs.last().unwrap().to_owned() as u8;
-        Ok(RGBValue(r, g, b))
+        DeviceRgb {}
     }
 
-    pub fn number_of_components(&self) -> u8 {
+    pub fn default_value(&self) -> ColorValue {
+        ColorValue::new(vec![0.0, 0.0, 0.0])
+    }
+
+    pub fn number_of_components(&self) -> usize {
         3
     }
-
-    pub fn to_rgb_image(&self, bytes: &[u8]) -> PDFResult<Vec<RGBValue>> {
-        let mut image = Vec::new();
-
-        for chunk in bytes.chunks(3) {
-            let inputs: Vec<f32> = chunk
-                .to_owned()
-                .iter()
-                .map(|x| (x.to_owned() as f32))
-                .collect();
-            let rgb = self.to_rgb(inputs.as_slice())?;
-            image.push(rgb)
+    pub fn rgb(&self, value: &ColorValue) -> Result<ColorRgb> {
+        if value.value_size() != 3 {
+            return Err(PdfError::Color(
+                "DeviceRgb need 3 element value".to_string(),
+            ));
         }
-        Ok(image)
+        let r = value.values()[0];
+        let g = value.values()[1];
+        let b = value.values()[2];
+        Ok(ColorRgb::new(r, g, b))
     }
 }

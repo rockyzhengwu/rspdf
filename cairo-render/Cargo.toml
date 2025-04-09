@@ -1,0 +1,9 @@
+[package]
+name = "cairo-render"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cairo-rs = {version = "0.20.7", features=["freetype","png"]}
+freetype-rs = {workspace = true}
+pdf = {path="../pdf/"}

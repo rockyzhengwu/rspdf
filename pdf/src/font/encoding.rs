@@ -1,6 +1,89 @@
-// WiinAnsiEncoding
-// Identity-H
-// qlq
+use std::collections::HashMap;
+
+use crate::error::Result;
+use crate::object::{dictionary::PdfDict, PdfObject};
+
+#[derive(Debug, Default, Clone)]
+pub struct Encoding {
+    base_encoding: Option<FontEncoding>,
+    differences: HashMap<u8, String>,
+}
+
+impl Encoding {
+    pub fn new_from_name(name: &str) -> Result<Self> {
+        let base_encoding = get_predefined_encoding(name);
+        Ok(Encoding {
+            base_encoding,
+            differences: HashMap::new(),
+        })
+    }
+
+    pub fn is_macrom_or_winasni(&self) -> bool {
+        match &self.base_encoding {
+            Some(s) => {
+                matches!(s, FontEncoding::MacRoman | FontEncoding::WinAnsi)
+            }
+            None => false,
+        }
+    }
+    pub fn has_differences(&self) -> bool {
+        !self.differences.is_empty()
+    }
+
+    pub fn unicode_from_charcode(&self, char: &u8) -> u32 {
+        match &self.base_encoding {
+            Some(b) => b
+                .unicode_from_charcode(char.to_owned())
+                .unwrap_or_else(|| 65533),
+            None => 65533,
+        }
+    }
+    pub fn base_encoding(&self) -> Option<&FontEncoding> {
+        self.base_encoding.as_ref()
+    }
+
+    pub fn try_new(enc: &PdfDict) -> Result<Self> {
+        let mut differences = HashMap::new();
+        if let Some(PdfObject::Array(arr)) = enc.get("Differences") {
+            let mut code = 0;
+            for v in arr.iter() {
+                match &v {
+                    &PdfObject::Number(n) => {
+                        code = n.integer() as u8;
+                    }
+                    &PdfObject::Name(n) => {
+                        let s = n.name();
+                        differences.insert(code, s.to_string());
+                        if code < u8::MAX - 1 {
+                            code += 1;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        let mut base_encoding: Option<FontEncoding> = None;
+        if let Some(PdfObject::Name(base)) = enc.get("BaseEncoding") {
+            base_encoding = get_predefined_encoding(base.name());
+        }
+
+        Ok(Encoding {
+            base_encoding,
+            differences,
+        })
+    }
+
+    pub fn get_glyph_name(&self, code: u8) -> Option<&str> {
+        match self.differences.get(&code) {
+            Some(s) => Some(s.as_str()),
+            None => match &self.base_encoding {
+                Some(base) => base.code_to_name(code),
+                None => None,
+            },
+        }
+    }
+}
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum FontEncoding {
@@ -1678,10 +1761,44 @@ static ZAPF_ENCODING_NAMES: [&str; ENCODING_NAME_TABLE_SIZE] = [
 
 pub fn get_predefined_encoding(name: &str) -> Option<FontEncoding> {
     match name {
+        "StandardEncoding" => Some(FontEncoding::Standard),
         "MacRomanEncoding" => Some(FontEncoding::MacRoman),
         "WinAnsiEncoding" => Some(FontEncoding::WinAnsi),
         "PDFDocEncoding" => Some(FontEncoding::PdfDoc),
         "MacExpertEncoding" => Some(FontEncoding::MacExpert),
+        "Symbol" => Some(FontEncoding::AdobeSymbol),
+        "ZapfDingbats" => Some(FontEncoding::ZapfDingbats),
         _ => None,
     }
+}
+
+static STANDARD_MACRON_DIFF: [(&str, u32); 16] = [
+    ("notequal", 173),
+    ("infinity", 176),
+    ("lessequal", 178),
+    ("greaterequal", 179),
+    ("partialdiff", 182),
+    ("summation", 183),
+    ("product", 184),
+    ("pi", 185),
+    ("integral", 186),
+    ("Omega", 189),
+    ("radical", 195),
+    ("approxequal", 197),
+    ("Delta", 198),
+    ("lozenge", 215),
+    ("Euro", 219),
+    ("apple", 240),
+];
+
+pub fn stand_mac_roman_name_to_unicode(c: u8) -> Option<u32> {
+    let enc = FontEncoding::MacRoman;
+    if let Some(name) = enc.code_to_name(c) {
+        for item in STANDARD_MACRON_DIFF.iter() {
+            if name == item.0 {
+                return Some(item.1);
+            }
+        }
+    }
+    enc.unicode_from_charcode(c)
 }
