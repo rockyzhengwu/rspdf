@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::character::{u16_from_buffer, u32_from_buffer, usize_from_buffer};
 use crate::error::{PdfError, Result};
+use crate::object;
 use crate::object::{
     array::PdfArray, dictionary::PdfDict, number::PdfNumber, stream::PdfStream, ObjectId, PdfObject,
 };
@@ -326,9 +327,17 @@ fn read_xref_v5(reader: PdfReader, offset: PdfNumber) -> Result<Xref> {
                 break;
             }
             visited.push(prev_offset);
-            let (obs, trailer) = read_xref_section(&reader, prev_offset as usize)?;
-            objects.extend(obs);
-            visited.push(prev_offset);
+
+            reader.reset_offset(prev_offset as usize);
+            let _obj_num = reader.read_token()?;
+            let _obj_version = reader.read_token()?;
+            let _obj_start = reader.read_token()?;
+            assert!(_obj_start.is_other_key(b"obj"));
+            let _dict_start = reader.read_token()?;
+            let st = reader.read_stream()?;
+            let pre_objs = parse_xref_stream(&reader, &st)?;
+            let trailer = st.dict().to_owned();
+            objects.extend(pre_objs);
             if let Some(p) = trailer.get("Prev") {
                 prev_offset = p.integer()?;
             } else {
