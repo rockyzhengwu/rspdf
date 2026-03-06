@@ -1,5 +1,6 @@
 # rspdf
-
+# ⚠️ Repository Archived
+please see [rzpdf](https://github.com/rockyzhengwu/rzpdf) 
 
 A PDF library written in Rust work in progress. Focus on extract content and render at now.
 
